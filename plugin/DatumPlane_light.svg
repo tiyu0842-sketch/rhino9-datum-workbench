@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- 半透明基准面 -->
+    <path d="M5 26 L19 12 L35 18 L21 32 Z" fill="#1E90FF" fill-opacity="0.28" stroke="#0B5FA5" stroke-width="1.9" />
+    <!-- 法向 / 操作轴 -->
+    <path d="M20.5 21.5 L20.5 8" fill="none" stroke="#0B5FA5" stroke-width="1.9" />
+    <path d="M17.5 11 L20.5 7 L23.5 11" fill="none" stroke="#0B5FA5" stroke-width="1.9" />
+    <!-- 三点定面 -->
+    <circle cx="5" cy="26" r="2.1" fill="#0B5FA5" />
+    <circle cx="19" cy="12" r="2.1" fill="#0B5FA5" />
+    <circle cx="21" cy="32" r="2.1" fill="#0B5FA5" />
+  </g>
+</svg>

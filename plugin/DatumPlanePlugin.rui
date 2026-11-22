@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<RhinoUI major_ver="5" minor_ver="0" guid="A3F1C2D4-7B8E-4C9A-8D5E-1F2A3B4C5D6E" localize="False" default_language_id="1033" sidebar_one="00000000-0000-0000-0000-000000000000" dpi_scale="100">
+  <extend_rhino_menus>
+    <menu guid="d58ceae7-fdb0-4104-80da-274b94ad44a9">
+      <text>
+        <locale_1033>Extend Rhino Menus</locale_1033>
+      </text>
+    </menu>
+  </extend_rhino_menus>
+  <menus/>
+  <tool_bar_groups>
+    <tool_bar_group guid="F1C6B7A9-C1D3-41EF-A2D3-6E7F8091A2B3" dock_bar_guid64="A2D7C8B0-D2E4-42F0-B3E4-7F8091A2B3C4" active_tool_bar_group="B4E2D3C5-8C9F-4DAB-9E6F-2A3B4C5D6E7F" single_file="False" hide_single_tab="False" point_floating="215,77">
+      <text>
+        <locale_1033>Datum Plane</locale_1033>
+        <locale_2052>基准面工具</locale_2052>
+      </text>
+      <tool_bar_group_item guid="B3E8D9C1-E3F5-4301-C4F5-8091A2B3C4D5" major_version="1" minor_version="1">
+        <text>
+          <locale_1033>Datum Plane</locale_1033>
+          <locale_2052>基准面</locale_2052>
+        </text>
+        <tool_bar_id>B4E2D3C5-8C9F-4DAB-9E6F-2A3B4C5D6E7F</tool_bar_id>
+      </tool_bar_group_item>
+    </tool_bar_group>
+  </tool_bar_groups>
+  <tool_bars>
+    <tool_bar guid="B4E2D3C5-8C9F-4DAB-9E6F-2A3B4C5D6E7F" bitmap_id="E7B5A6F8-BFC2-40DE-C192-5D6E7F8091A2" LastTornOffSize="32,34">
+      <text>
+        <locale_1033>Datum Plane</locale_1033>
+        <locale_2052>基准面工具</locale_2052>
+      </text>
+      <tool_bar_item guid="C5F3E4D6-9DA0-4EBC-AF70-3B4C5D6E7F80">
+        <text>
+          <locale_1033>Datum Plane</locale_1033>
+          <locale_2052>基准面</locale_2052>
+        </text>
+        <left_macro_id>D6A4F5E7-AEB1-4FCD-B081-4C5D6E7F8091</left_macro_id>
+      </tool_bar_item>
+    <tool_bar_item guid="D13F8550-E11F-5D0B-99FE-C2AF2BFDCE70"><text><locale_1033>Save CPlane</locale_1033><locale_2052>保存工作平面</locale_2052></text><left_macro_id>647D5545-30EC-5F85-8E88-5246D8EAA243</left_macro_id></tool_bar_item><tool_bar_item guid="94394445-D7F9-5BF1-9723-465AD620FF5A"><text><locale_1033>Recall datum</locale_1033><locale_2052>调用基准面</locale_2052></text><left_macro_id>3AE24741-E1C3-5DF0-B537-8C864F08756F</left_macro_id></tool_bar_item><tool_bar_item guid="69A5CA68-D694-5D40-B969-4924DC39E7AB"><text><locale_1033>Lock datum axes</locale_1033><locale_2052>锁定基准面坐标</locale_2052></text><left_macro_id>B6E0B2A2-25F8-543E-8BDD-0D4237BE9BF1</left_macro_id></tool_bar_item><tool_bar_item guid="192C1E28-28D3-558B-8DDF-F15A7C2A91E5"><text><locale_1033>Restore previous</locale_1033><locale_2052>解除并还原</locale_2052></text><left_macro_id>F9AB90AD-118E-5F00-8627-0D8E7655B6F0</left_macro_id></tool_bar_item><tool_bar_item guid="A1B2C3D4-1111-4A5B-8C6D-7E8F9A0B1C2D"><text><locale_1033>Pick datum</locale_1033><locale_2052>点选切换基准面</locale_2052></text><left_macro_id>B2C3D4E5-2222-4B6C-9D7E-8F9A0B1C2D3E</left_macro_id></tool_bar_item><tool_bar_item guid="E1F2A3B4-1111-4C5D-8E6F-0A1B2C3D4E5F"><text><locale_1033>Normal view</locale_1033><locale_2052>基准面法向视图</locale_2052></text><left_macro_id>F2A3B4C5-2222-4D6E-9F70-1B2C3D4E5F60</left_macro_id></tool_bar_item><tool_bar_item guid="B4C5D6E7-4444-4F80-91A2-3D4E5F607182"><text><locale_1033>Alias eye-care</locale_1033><locale_2052>Alias 观测显示</locale_2052></text><left_macro_id>C5D6E7F8-5555-4081-A2B3-4E5F60718293</left_macro_id></tool_bar_item><tool_bar_item guid="E7F8091A-7777-4293-C4D5-607182934A5B"><text><locale_1033>Restore display</locale_1033><locale_2052>还原显示</locale_2052></text><left_macro_id>F8091A2B-8888-43A4-D5E6-7182934A5B6C</left_macro_id></tool_bar_item></tool_bar>
+  </tool_bars>
+  <macros>
+    <macro_item guid="D6A4F5E7-AEB1-4FCD-B081-4C5D6E7F8091" bitmap_id="E7B5A6F8-BFC2-40DE-C192-5D6E7F8091A2">
+      <button_text>
+        <locale_1033>Datum Plane</locale_1033>
+        <locale_2052>基准面</locale_2052>
+      </button_text>
+      <menu_text>
+        <locale_1033>Create datum plane</locale_1033>
+        <locale_2052>创建基准面</locale_2052>
+      </menu_text>
+      <tooltip>
+        <locale_1033>Semi-transparent datum plane; aligns CPlane + Gumball. Run again to cancel.</locale_1033>
+        <locale_2052>创建半透明基准面并对齐工作平面/操作轴；再运行一次取消</locale_2052>
+      </tooltip>
+      <script>! _DatumPlane</script>
+    </macro_item>
+  <macro_item guid="647D5545-30EC-5F85-8E88-5246D8EAA243" bitmap_id="51434457-253D-53E6-8804-34EFF57580EC"><button_text><locale_1033>Save CPlane</locale_1033><locale_2052>保存工作平面</locale_2052></button_text><menu_text><locale_1033>Save CPlane</locale_1033><locale_2052>保存工作平面</locale_2052></menu_text><tooltip><locale_1033>Save CPlane</locale_1033><locale_2052>保存当前工作平面并命名，不生成重复几何</locale_2052></tooltip><script>! _DatumPlaneSave</script></macro_item><macro_item guid="3AE24741-E1C3-5DF0-B537-8C864F08756F" bitmap_id="96E8961D-E18B-5A3E-9C39-B9F0FCF4DA91"><button_text><locale_1033>Recall datum</locale_1033><locale_2052>调用基准面</locale_2052></button_text><menu_text><locale_1033>Recall datum</locale_1033><locale_2052>调用基准面</locale_2052></menu_text><tooltip><locale_1033>Recall datum</locale_1033><locale_2052>调用已保存的命名工作平面，不重复创建几何</locale_2052></tooltip><script>! _DatumPlaneRecall</script></macro_item><macro_item guid="B6E0B2A2-25F8-543E-8BDD-0D4237BE9BF1" bitmap_id="D3DE3ECC-043F-5977-A172-CFA8D4294221"><button_text><locale_1033>Lock datum axes</locale_1033><locale_2052>锁定基准面坐标</locale_2052></button_text><menu_text><locale_1033>Lock datum axes</locale_1033><locale_2052>锁定基准面坐标</locale_2052></menu_text><tooltip><locale_1033>Lock datum axes</locale_1033><locale_2052>保持当前基准面工作坐标系，后续对象操作轴对齐此坐标系</locale_2052></tooltip><script>! _DatumPlaneLock</script></macro_item><macro_item guid="F9AB90AD-118E-5F00-8627-0D8E7655B6F0" bitmap_id="A9E81493-E8D8-5344-B1DC-87E7CCDC7894"><button_text><locale_1033>Restore previous</locale_1033><locale_2052>解除并还原</locale_2052></button_text><menu_text><locale_1033>Restore previous</locale_1033><locale_2052>解除并还原</locale_2052></menu_text><tooltip><locale_1033>Restore previous</locale_1033><locale_2052>恢复启用前的工作平面和操作轴设置，保留已保存的基准面</locale_2052></tooltip><script>! _DatumPlaneRestore</script></macro_item><macro_item guid="B2C3D4E5-2222-4B6C-9D7E-8F9A0B1C2D3E" bitmap_id="C3D4E5F6-3333-4C7D-AE8F-9A0B1C2D3E4F"><button_text><locale_1033>Pick datum</locale_1033><locale_2052>点选切换基准面</locale_2052></button_text><menu_text><locale_1033>Pick an existing datum</locale_1033><locale_2052>点选已有基准面切换</locale_2052></menu_text><tooltip><locale_1033>Pick a locked datum plane to switch CPlane; no geometry is created. ExitRestore restores the initial state.</locale_1033><locale_2052>点选锁定子图层上的已有基准面即可切换，不重复创建几何；ExitRestore 恢复最初工作平面与操作轴</locale_2052></tooltip><script>! _DatumPlanePick</script></macro_item><macro_item guid="F2A3B4C5-2222-4D6E-9F70-1B2C3D4E5F60" bitmap_id="A3B4C5D6-3333-4E7F-A081-2C3D4E5F6071"><button_text><locale_1033>Normal view</locale_1033><locale_2052>基准面法向视图</locale_2052></button_text><menu_text><locale_1033>5th normal viewport</locale_1033><locale_2052>基准面法向视图（第5视图）</locale_2052></menu_text><tooltip><locale_1033>Vertically split Top; camera perpendicular to datum</locale_1033><locale_2052>垂直分割 Top 视图，生成相机垂直于基准面的第 5 个法向视图</locale_2052></tooltip><script>! _DatumPlaneNormalView</script></macro_item><macro_item guid="C5D6E7F8-5555-4081-A2B3-4E5F60718293" bitmap_id="D6E7F809-6666-4182-B3C4-5F607182934A"><button_text><locale_1033>Alias eye-care</locale_1033><locale_2052>Alias 观测显示</locale_2052></button_text><menu_text><locale_1033>Alias eye-care</locale_1033><locale_2052>Alias 观测显示</locale_2052></menu_text><tooltip><locale_1033>Three-tone clay + isocurves: read surface flow with light/mid/dark, no 255 blow-out</locale_1033><locale_2052>方向光三度灰阶 + 等参线，亮面/中间调/暗面看清曲面走向（纯白 0.00%）</locale_2052></tooltip><script>! _AliasStyleLight</script></macro_item><macro_item guid="F8091A2B-8888-43A4-D5E6-7182934A5B6C" bitmap_id="091A2B3C-9999-44B5-E6F7-82934A5B6C7D"><button_text><locale_1033>Restore display</locale_1033><locale_2052>还原显示模式</locale_2052></button_text><menu_text><locale_1033>Restore display</locale_1033><locale_2052>还原显示模式</locale_2052></menu_text><tooltip><locale_1033>Restore the display mode each viewport had before</locale_1033><locale_2052>把各视口还原为启用观测显示之前的模式</locale_2052></tooltip><script>! _AliasStyleRestore</script></macro_item></macros>
+  <icons>
+    <icon guid="E7B5A6F8-BFC2-40DE-C192-5D6E7F8091A2">
+      <light>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+          <g stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 26 L19 12 L35 18 L21 32 Z" fill="#1E90FF" fill-opacity="0.28" stroke="#0B5FA5" stroke-width="1.9"/>
+            <path d="M20.5 21.5 L20.5 8" fill="none" stroke="#0B5FA5" stroke-width="1.9"/>
+            <path d="M17.5 11 L20.5 7 L23.5 11" fill="none" stroke="#0B5FA5" stroke-width="1.9"/>
+            <circle cx="5" cy="26" r="2.1" fill="#0B5FA5"/>
+            <circle cx="19" cy="12" r="2.1" fill="#0B5FA5"/>
+            <circle cx="21" cy="32" r="2.1" fill="#0B5FA5"/>
+          </g>
+        </svg>
+      </light>
+      <dark>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+          <g stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 26 L19 12 L35 18 L21 32 Z" fill="#2E9FFF" fill-opacity="0.32" stroke="#8CCBFF" stroke-width="1.9"/>
+            <path d="M20.5 21.5 L20.5 8" fill="none" stroke="#8CCBFF" stroke-width="1.9"/>
+            <path d="M17.5 11 L20.5 7 L23.5 11" fill="none" stroke="#8CCBFF" stroke-width="1.9"/>
+            <circle cx="5" cy="26" r="2.1" fill="#8CCBFF"/>
+            <circle cx="19" cy="12" r="2.1" fill="#8CCBFF"/>
+            <circle cx="21" cy="32" r="2.1" fill="#8CCBFF"/>
+          </g>
+        </svg>
+      </dark>
+    </icon>
+  <icon guid="C3D4E5F6-3333-4C7D-AE8F-9A0B1C2D3E4F"><light><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><g stroke-linecap="round" stroke-linejoin="round"><path d="M5 27 L18 14 L35 20 L22 33 Z" fill="#1E90FF" fill-opacity="0.28" stroke="#0B5FA5" stroke-width="1.8"/><path d="M22 7 L22 24 L25.6 20.4 L28.4 27.2 L31 26 L28.2 19.4 L33.6 19.4 Z" fill="#0B5FA5" stroke="#FFFFFF" stroke-width="0.8"/><circle cx="19.5" cy="23.5" r="2.1" fill="#0B5FA5"/></g></svg></light><dark><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><g stroke-linecap="round" stroke-linejoin="round"><path d="M5 27 L18 14 L35 20 L22 33 Z" fill="#2E9FFF" fill-opacity="0.32" stroke="#8CCBFF" stroke-width="1.8"/><path d="M22 7 L22 24 L25.6 20.4 L28.4 27.2 L31 26 L28.2 19.4 L33.6 19.4 Z" fill="#8CCBFF" stroke="#16222E" stroke-width="0.8"/><circle cx="19.5" cy="23.5" r="2.1" fill="#8CCBFF"/></g></svg></dark></icon><icon guid="51434457-253D-53E6-8804-34EFF57580EC"><light><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><path d="M10 8 H28 L33 13 V32 H8 V8 Z M14 8 V18 H27 V8 M14 32 V23 H27 V32" stroke="#0B5FA5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></light><dark><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><path d="M10 8 H28 L33 13 V32 H8 V8 Z M14 8 V18 H27 V8 M14 32 V23 H27 V32" stroke="#8CCBFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></dark></icon><icon guid="96E8961D-E18B-5A3E-9C39-B9F0FCF4DA91"><light><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><path d="M6 12 H17 L21 16 H34 L29 31 H6 Z M10 21 H24 M10 25 H21" stroke="#0B5FA5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></light><dark><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><path d="M6 12 H17 L21 16 H34 L29 31 H6 Z M10 21 H24 M10 25 H21" stroke="#8CCBFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></dark></icon><icon guid="D3DE3ECC-043F-5977-A172-CFA8D4294221"><light><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><path d="M12 18 V13 A8 8 0 0 1 28 13 V18 M9 18 H31 V34 H9 Z M20 24 V29" stroke="#0B5FA5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></light><dark><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><path d="M12 18 V13 A8 8 0 0 1 28 13 V18 M9 18 H31 V34 H9 Z M20 24 V29" stroke="#8CCBFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></dark></icon><icon guid="A9E81493-E8D8-5344-B1DC-87E7CCDC7894"><light><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><path d="M13 9 L6 16 L13 23 M6 16 H24 A9 9 0 0 1 24 34 H15" stroke="#0B5FA5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></light><dark><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><path d="M13 9 L6 16 L13 23 M6 16 H24 A9 9 0 0 1 24 34 H15" stroke="#8CCBFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></dark></icon><icon guid="A3B4C5D6-3333-4E7F-A081-2C3D4E5F6071"><light><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><g stroke-linecap="round" stroke-linejoin="round"><path d="M4 7 H36 V33 H4 Z" fill="none" stroke="#0B5FA5" stroke-width="1.8"/><path d="M20 7 V33" fill="none" stroke="#0B5FA5" stroke-width="1.8"/><path d="M24 15 H33 V27 H24 Z" fill="#1E90FF" fill-opacity="0.28" stroke="#0B5FA5" stroke-width="1.6"/><path d="M28.5 9 V16 M26 13.5 L28.5 16 L31 13.5" fill="none" stroke="#0B5FA5" stroke-width="1.6"/><path d="M8 14 H16 M8 19 H16 M8 24 H13" fill="none" stroke="#0B5FA5" stroke-width="1.4"/></g></svg></light><dark><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><g stroke-linecap="round" stroke-linejoin="round"><path d="M4 7 H36 V33 H4 Z" fill="none" stroke="#8CCBFF" stroke-width="1.8"/><path d="M20 7 V33" fill="none" stroke="#8CCBFF" stroke-width="1.8"/><path d="M24 15 H33 V27 H24 Z" fill="#2E9FFF" fill-opacity="0.28" stroke="#8CCBFF" stroke-width="1.6"/><path d="M28.5 9 V16 M26 13.5 L28.5 16 L31 13.5" fill="none" stroke="#8CCBFF" stroke-width="1.6"/><path d="M8 14 H16 M8 19 H16 M8 24 H13" fill="none" stroke="#8CCBFF" stroke-width="1.4"/></g></svg></dark></icon><icon guid="D6E7F809-6666-4182-B3C4-5F607182934A"><light><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><defs><linearGradient id="bgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9CEC7"/><stop offset="1" stop-color="#A0AAA0"/></linearGradient></defs><g stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5.5" width="33" height="29" rx="2.5" fill="url(#bgA)" stroke="#0B5FA5" stroke-width="1.6"/><path d="M7 27 C13 20, 19 24, 23 17 S32 12, 34 15" fill="none" stroke="#2A6A5E" stroke-width="1.7"/><path d="M8 21 C14 15, 20 19, 24 13" fill="none" stroke="#3F646C" stroke-width="1.1"/><path d="M10 32 C16 26, 22 29, 26 22" fill="none" stroke="#3F646C" stroke-width="1.1"/><path d="M13 9 V33" fill="none" stroke="#3F646C" stroke-width="1" stroke-dasharray="2 2.5"/><path d="M27 9 V33" fill="none" stroke="#3F646C" stroke-width="1" stroke-dasharray="2 2.5"/></g></svg></light><dark><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><defs><linearGradient id="bgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3134"/><stop offset="1" stop-color="#3C4448"/></linearGradient></defs><g stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5.5" width="33" height="29" rx="2.5" fill="url(#bgA)" stroke="#8CCBFF" stroke-width="1.6"/><path d="M7 27 C13 20, 19 24, 23 17 S32 12, 34 15" fill="none" stroke="#9ED8C6" stroke-width="1.7"/><path d="M8 21 C14 15, 20 19, 24 13" fill="none" stroke="#8FB4BA" stroke-width="1.1"/><path d="M10 32 C16 26, 22 29, 26 22" fill="none" stroke="#8FB4BA" stroke-width="1.1"/><path d="M13 9 V33" fill="none" stroke="#8FB4BA" stroke-width="1" stroke-dasharray="2 2.5"/><path d="M27 9 V33" fill="none" stroke="#8FB4BA" stroke-width="1" stroke-dasharray="2 2.5"/></g></svg></dark></icon><icon guid="091A2B3C-9999-44B5-E6F7-82934A5B6C7D"><light><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><g fill="none" stroke="#0B5FA5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 H36 V31 H4 Z"/><path d="M12 22 A8 8 0 1 1 20 26"/><path d="M20 22 L20 26 L24 26"/></g></svg></light><dark><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><g fill="none" stroke="#8CCBFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 H36 V31 H4 Z"/><path d="M12 22 A8 8 0 1 1 20 26"/><path d="M20 22 L20 26 L24 26"/></g></svg></dark></icon></icons>
+  <bitmaps>
+    <small_bitmap item_width="16" item_height="16"/>
+    <normal_bitmap item_width="24" item_height="24"/>
+    <large_bitmap item_width="32" item_height="32"/>
+  </bitmaps>
+  <scripts/>
+</RhinoUI>
