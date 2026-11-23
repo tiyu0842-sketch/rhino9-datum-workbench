@@ -10,6 +10,7 @@ build_html.py —— 把 storyboard.py 的数据注入 preview.html
 import json
 import os
 
+import audio
 import storyboard as SB
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +25,9 @@ def main():
         html = f.read()
 
     payload = json.dumps(
-        {"beats": SB.BEATS, "config": SB.CONFIG, "palette": SB.PALETTE},
+        {"beats": SB.BEATS, "config": SB.CONFIG, "palette": SB.PALETTE,
+         "audio": SB.AUDIO, "audio_events": audio.events(),
+         "audio_kinds": audio.KIND},
         ensure_ascii=False, separators=(",", ":"),
     )
 
@@ -39,8 +42,8 @@ def main():
     with open(TPL, "w", encoding="utf-8") as f:
         f.write(out)
 
-    print("INJECTED %d beats, %d chars payload -> %s"
-          % (len(SB.BEATS), len(payload), TPL))
+    print("INJECTED %d beats, %d audio events, %d kinds, %d chars payload -> %s"
+          % (len(SB.BEATS), len(audio.events()), len(audio.KIND), len(payload), TPL))
 
 
 if __name__ == "__main__":

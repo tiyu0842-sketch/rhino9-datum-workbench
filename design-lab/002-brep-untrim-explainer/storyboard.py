@@ -3,14 +3,17 @@
 storyboard.py —— 002 号实验的「唯一数据源」(single source of truth)
 
 Claude 系代码视频的工程纪律：brief / storyboard / 渲染器 / 预览器 必须共享同一份数据，
-改一句字幕只是 diff + 重渲染，不是重新抽卡。本文件被三处消费：
+改一句字幕只是 diff + 重渲染，不是重新抽卡。本文件被四处消费：
 
   render.py      → import BEATS / PALETTE / CONFIG，用 Pillow 逐帧出 PNG
+  audio.py       → import BEATS / AUDIO，把镜头边界翻译成确定性声音事件
   encode.py      → 读 BEATS 得到镜头边界，按镜头分段合成再整片拼接
-  preview.html   → 由 build_html.py 把 BEATS 序列化成内联 JSON，Canvas 按 t 重画同套几何
+  preview.html   → 由 build_html.py 把 BEATS / AUDIO / 事件表序列化成内联 JSON，
+                   Canvas 按 t 重画同套几何，Web Audio 按 t 复现同套音色
 
 ★ 三条禁令（确定性渲染）：不读系统时间、不用无种子随机、渲染时不联网。
-  同一份代码 + 同一份 CONFIG，每次渲染出的每一帧逐像素相同。
+  同一份代码 + 同一份 CONFIG，每次渲染出的每一帧逐像素相同；
+  音轨同理：sample(t) 也是纯函数，同一份数据每次出的 WAV 逐字节相同。
 """
 
 # ---------------------------------------------------------------------------
@@ -161,3 +164,24 @@ def cumulative_starts():
         out.append((b["id"], t0, t0 + b["dur"]))
         t0 += b["dur"]
     return out
+
+
+# ---------------------------------------------------------------------------
+# 音频 token（style.md §8 是它的自然语言说明；audio.py 是它的可执行版本）
+# 与画面一样：全部由代码合成，不加载任何外部音频素材。
+# ---------------------------------------------------------------------------
+AUDIO = {
+    "sample_rate": 48000,   # 48 kHz / 16-bit / mono：够用，且 WAV 只有 ~4 MB
+    "master":      0.82,    # 总音量（归一化后再乘）
+    "pad_level":   0.16,    # 氛围底层（连续层）
+    "cue_level":   0.30,    # 离散事件层统一增益
+    "pad_root":    55.0,    # A1，低频基底
+    # 每镜目标半音偏移；镜头开头 glide 秒内滑过去，频率不做硬切（硬切 = click）
+    "pad_steps":   [0, 3, 5, 7, 10, 12, 7, 0],
+    "pad_glide":   0.90,
+    "fade_in":     0.70,
+    "fade_out":    1.40,
+    # 每镜转场「叮」的基频（A3→D5，小调五声偏），按镜头编号走，不用随机
+    "scale":       [220.00, 261.63, 293.66, 329.63,
+                    392.00, 440.00, 523.25, 587.33],
+}

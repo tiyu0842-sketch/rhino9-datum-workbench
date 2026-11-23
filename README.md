@@ -100,6 +100,15 @@ featureworks/                    ← 正式实现（v1.6.0.0）
 featureworks-v2/                ← 已降级，实验记录，勿用
   src/                         v2 识别引擎（备份对象恢复，非 untrim）
   README.md / BETA_NOTICE.md   顶部已加降级声明
+design-lab/                      ← 想法实验室（六步：原话/原理/序列/形态/证据/复盘）
+  001-gradient-boxes.md         GH 渐变立方体（Series.Start=0 退化坑）
+  002-brep-untrim-explainer/    代码生成科普短片 + 确定性音轨
+    storyboard.py               唯一数据源（BEATS + CONFIG + PALETTE + AUDIO）
+    render.py / audio.py        frame(t) / sample(t) 两个纯函数
+    encode.py / build_html.py   封装编码（按能力挑 ffmpeg）/ 注入预览页
+    preview.html                画面 + Web Audio 可交互预览（9 控件）
+    style.md / narration.md     风格规格（§8 音频）/ 人声旁白插槽
+    brep_untrim_with_audio.mp4  带音轨成片
 docs/
   从零到一_基准面迭代与渲染复盘.md  四阶段迭代与观测显示调参复盘
 ```
@@ -113,7 +122,15 @@ docs/
 - 多重曲面上直接点选单一面：`GeometryFilter` 只给 `ObjectType.Surface`，加 `SubObjectSelect=true` + `DisablePreSelect()`；写成 `Surface|Brep` 就必须按 Ctrl+Shift。
 - 面板类功能不能在反射条件下验证——`Assembly.Load` 不算插件加载，`OnLoad` 不触发。
 - **mock 通过 ≠ 真机通过**：NFF 的 24 项模拟测试全过，因为 mock 层自己造了 `Vector3d.DotProduct`——而 RhinoCommon 9 根本没这个方法（点积用 `a * b`）。同样的坑还有 `Mesh.CreateBox`（正确是 `CreateFromBox(BoundingBox,1,1,1)`）、`PlugIn.EnglishName` 不可 override、`RhinoGet.GetReal` 不存在（用 `GetNumber`）。五个错误全是真机编译/运行才暴露的。
-- **圆角和孔洞必须用两套取消算法**：孔是宿主面 trim 多了内环 → `Brep.UntrimFace(host, tol)` 一步抹掉（7 面 → 6 面 240000）；圆角是过渡面，`UntrimOuterLoop` 一律返回 `null`（外环边全被邻面共享），只能删整圈过渡面 → 取 `UnderlyingSurface().ToBrep()` → `Brep.CreateSolid()` 重缝，且**必须整圈删**（只删 1 个得到变形体 74715.5，删 4 个才是 75000）。
+- **圆角和孔洞必须用两套取消算法，而且两个模块完全独立**：
+  孔 = 底层曲面上的 inner loop → `Brep.RemoveHoles(IEnumerable<ComponentIndex>, tol)`（since 6.8，
+  **只删指定的内环**，返回 `Brep` 不是 bool）。旧写法 `UntrimFace(host, tol)` 会把外环 + **全部**内环
+  一起抹掉，同面多孔一起没 —— 这条旧结论已由 **E-024 推翻**，v1.6 起禁用。
+  圆角 = 滚球扫出的**新增过渡曲面**（不是 trim），`UntrimOuterLoop` 恒返回 `null`（外环边全被邻面共享），
+  只能删整圈过渡面 → 取 `UnderlyingSurface().ToBrep()` → `Brep.CreateSolid()` 重缝，且**必须整圈删**
+  （只删 1 个得到变形体 74715.5，删 4 个才是 75000）。
+  **「去布尔必须先去圆角」是假的**：圆角盒 R3 + 1 孔 `11 面 / 235922.14` → 只删该孔内环 →
+  `10 面 / 239315.06` 纯圆角盒，圆角完好（E-024 真机实测 / E-025 落地）。
 - **半透明不能靠叠透明层**：往不透明实体上叠 0.85 透明灰，底色不变，看起来没淡化。要用 `DisplayConduit.ObjectCulling` 把源对象从绘制里剔除，再画自己的子 Brep；需要浮在前面的高亮面必须画在 `DrawForeground`，放 `PostDrawObjects` 会被深度剔成线框。
 - **长命 conduit 必须做过期自愈**：缓存的子面按面索引抽取，源对象被替换/移动/删后索引失效会留"鬼影"。挂**静态**文档事件（`doc.ReplaceRhinoObject +=` 会 CS0176）+ 每次绘制前比对面数与包围盒中心漂移。`ReferenceEquals` 比几何不可行（`ObjRef.Brep()` 返回副本）。
 - **先验证需求，再验证代码**：FeatureWorks 曾有整个分支技术成功却解决了错误的问题（备份对象恢复 ≠ 几何 untrim）。详见 `featureworks/HANDOFF.md`。

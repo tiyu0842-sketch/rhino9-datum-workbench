@@ -136,3 +136,17 @@
 | 两个通道不能同时勾 / 「去选择那一边」 | 面板里写了互斥清空 `(source == A ? B : A).SelectedKeys = []` | 一份 `FwSelectionState` 共享 `HashSet<int>`，视口/面板/两模块共同读写，删互斥 |
 | 取消一个孔，同面其它孔也没了（v1.5） | `UntrimFace(host, tol)` 官方定义会抹掉外环 + **全部**内环 | 改 `RemoveHoles(指定 inner loop)`；E-024 已修正，v1.6 落地 |
 | 去圆角把孔一起抹了，却没告诉用户 | `RepairToBlank` 把所有非圆角面外扩成完整平面 | 检测 `CountInnerLoops` 前后差，结果消息原文报出「原有 N → 剩 M，另外 K 处被连带恢复」，按用户拍板不做孔体重放、不偷偷改 |
+
+## 代码生成视频 / 音频（E-026 / E-027）
+
+| 症状 | 原因 | 怎么办 |
+|---|---|---|
+| 「Claude 科普视频」想用文生视频做，数字/字幕每次都变 | 那类片子是**代码驱动确定性渲染**，不是 AI 抽卡 | `frame(t)` 纯函数 + Pillow 逐帧 + ffmpeg 只封装；三条禁令：不读时钟 / 不用无种子随机 / 不联网。E-026 |
+| 画面中文变 `□` | Consolas 无中文字形 | 等宽位置含中文切微软雅黑。E-026 坑 1 |
+| ffmpeg 报 fade / overlay 滤镜不存在 | KeyShot 精简构建 `--disable-everything` | 转场在帧内算（调两次纯函数渲染做叠化），不依赖滤镜。E-026 |
+| 想给 MP4 加音轨，找不到 aac 编码器 | 只找到 `KeyShot Studio/bin` 精简构建（0 音频编码器、0 音频滤镜、连 wav demuxer 都没有） | **`KS2024/bin/ffmpeg.exe` 是完整构建**（aac + amix + wav demuxer）；`find_ffmpeg(need_audio=True)` 实测 `-encoders` 再挑，**别凭路径猜**。E-027 |
+| 生成的 WAV 有爆音 / click | 包络硬跳变、频率在镜头边界硬切 | 包络 `(1−e^(−t/atk))·e^(−t/dec)` 从 0 起回 0 收；频率用 glide 滑移；全局 fade in/out；叠加后归一化限幅。E-027 |
+| 注入浏览器的音色参数变成数组，`K.dur` 是 undefined | Python 侧 `KIND` 是 tuple，JSON 序列化成数组 | 改成 dict；重构后重跑音轨 sha256 应不变（回归验证）。E-027 |
+| 预览页提示「点播放启用声音」但按钮显示「暂停」 | 初始 `playing=true` 与提示矛盾，且 `AudioContext` 需用户手势解锁 | 初始暂停 + 按钮「播放」，点击时 `resumeAudio()`。E-027 |
+| Git Bash 的 `/c/...` 传给原生 Windows Python 报 `FileNotFoundError` | 两个进程的路径映射不同（同 `/tmp` 坑） | 临时文件与脚本一律写工作目录内，用相对路径。E-026 / E-027 各踩一次 |
+| 「配个声音」被理解成自动生成人声旁白 | 离线 TTS 需 `Add-Type` 加载 `System.Speech`，被沙箱拦截；联网 TTS 违背三条禁令 | 文案 + 时间码给全，做成外部 wav 插槽（`narration.md` + `amix`）；**如实说明做不到，不假装能**。E-027 |

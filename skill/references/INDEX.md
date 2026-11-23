@@ -27,6 +27,9 @@
 | 想把原理讲清楚 / 做科普短片 / 「用代码生成视频」 | 仓库 `design-lab/002-brep-untrim-explainer/`（README 六步 + style.md + storyboard/render/encode/preview）；**E-026**：代码驱动的确定性渲染（`frame(t)` 纯函数 + Pillow 逐帧 + ffmpeg 只做封装），**不是 AI 文生视频**；三条禁令：不读时钟 / 不用无种子随机 / 不联网 |
 | 视频转场/滤镜不生效、ffmpeg 报滤镜不存在 | **E-026**：本机 ffmpeg 是 KeyShot 自带的 `--disable-everything` 精简构建，只有 scale/palettegen/paletteuse；转场必须在帧内算 |
 | 画面中文变方块 / `□` | **E-026** 坑 1：Consolas 无中文字形，等宽位置放中文要切雅黑 |
+| 想给代码视频配音 / 「可以配个声音吗」 | 仓库 `design-lab/002-brep-untrim-explainer/` 的 `audio.py` + `style.md` §8 + `narration.md`；**E-027**：音频也是 `sample(t)` 纯函数，事件表由 BEATS 派生，包络从 0 起回 0 收，频率边界 glide 滑移；WAV sha256 两次一致 |
+| MP4 加不了音轨 / ffmpeg 找不到音频编码器 | **E-027**：本机两个 ffmpeg 能力不同 —— `KeyShot Studio/bin` 精简构建 0 音频编码器，`KS2024/bin` 完整构建有 aac+amix；`find_ffmpeg(need_audio=True)` 实测 `-encoders` 再挑，别凭路径猜 |
+| 预览页注入的音色参数变成数组 / `K.dur` 是 undefined | **E-027**：Python 侧 `KIND` 用 dict 不用 tuple，JSON 序列化后浏览器才读得到对象；重构后音轨哈希不变可作回归验证 |
 | 截图空白 / 拿到缓存帧 | `rhinocommon-pitfalls.md` →「相机、截图与 Box 创建」；`verification-playbook.md` →「三」 |
 | 枚举不到对象、以为被删 | `rhinocommon-pitfalls.md` →「文档事件与对象枚举」（`HiddenObjects=true`） |
 | 半透明不生效、有鬼影、高亮只剩线框 | `rhinocommon-pitfalls.md` →「DisplayConduit 聚焦显示」；`feature-recognition.md` → §4 |
@@ -43,7 +46,7 @@
 | 查某个 GH 组件名 / 参数签名 | `grasshopper-component-index.md`；或运行时 `g1_search_components` / `g1_describe_component` |
 | 装了新插件后刷新 GH 组件清单 | `../scripts/Export_GH_Components.py` |
 | 要打包 yak、多版本并存、安装假失败 | `verification-playbook.md` →「五」；`rhinocommon-pitfalls.md` →「打包与安装」「打包补充」 |
-| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**27 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 为跨域能力扩展，均不新增推翻） |
+| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**28 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 / E-027 为跨域能力扩展，均不新增推翻计数） |
 | 结论被推翻了怎么处理 | `experiment-log.md` →「统计与复用提示」：**不删旧条，加「修正 E-XXX」** |
 
 ---

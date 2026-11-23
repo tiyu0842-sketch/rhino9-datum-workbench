@@ -6,3 +6,9 @@ __pycache__/
 # 渲染中间产物：帧序列单个 200KB+，上千张不入库；成片 mp4 入库
 design-lab/**/frames/
 design-lab/**/probe_*.png
+
+# 音轨是 audio.py 的生成产物（一行命令即可重生成，sha256 可验），不入库
+design-lab/**/soundtrack.wav
+
+# 用户自备的人声旁白是本地素材，不入库（narration.md 说明怎么放）
+design-lab/**/narration.wav

@@ -1,6 +1,7 @@
 # 002 · B-rep 特征取消 · 代码生成的科普短片
 
-> 一支 44.6 秒、1070 帧、完全由代码算出来的中文科普短片。
+> 一支 44.6 秒、1070 帧、完全由代码算出来的中文科普短片，
+> **画面与音轨都由 `sample(t)` / `frame(t)` 纯函数逐点算出**，不加载任何外部素材。
 > 讲的是 001/E-024 那轮实验的核心结论：**为什么一个孔能一键消失，一个圆角不能。**
 
 ---
@@ -9,9 +10,12 @@
 
 > 「你可以把这个东西或者说这个原理通过代码，然后生成视频吗？有点像网上比较火的 claude 的科普视频」
 
+> 「可以配个声音吗？」
+
 「这个东西 / 这个原理」= 这轮 FeatureWorks 里最反直觉的那条几何结论：
 孔能 untrim 因为只是底层曲面上的一个裁剪环；圆角不能，因为它是滚球扫出的新增曲面；
 所以「去布尔必须先去圆角」是假的，两个模块天然独立。
+第二句追问把同一套纪律推到了时间轴的另一半：声音也必须可复现、可调、能一起改。
 
 ## 2. 原理
 
@@ -25,20 +29,28 @@
 同一份代码每次出来的是同一条片。这正是「可复现、可调参、能一起改」的前提 ——
 也是为什么它比文生视频更适合讲几何原理：数字和标签必须精确，不能被模型「猜」。
 
+**声音同理**：`audio.py` 把采样点写成 `t = i / sample_rate` 的纯函数，
+时间轴的唯一来源还是 `storyboard.BEATS`。改一镜 `dur`，音轨自动跟着变；
+同一份代码两次跑出的 WAV 逐字节相同（sha256 已验证）。
+氛围层、转场「叮」、数字节拍点、语义重音全部由正弦叠加 + 指数包络合成，
+不加载任何音频文件、不依赖 ffmpeg 滤镜。人声旁白是**可选外部插槽**，见 `narration.md`。
+
 主流引擎有三类：Remotion（React 帧级渲染）、Manim（Python 数学动画）、
 HTML Canvas + 无头浏览器逐帧截图。本项目选的是**第四种、依赖最少的**：
-Python + Pillow 直接算像素，ffmpeg 只负责封装编码 —— 本机没有 numpy/manim/node 依赖，
-也不需要 LaTeX。
+Python + Pillow 直接算像素，ffmpeg 只负责封装编码 —— 本机没有 numpy/manim 依赖，
+也不需要 LaTeX；音频只用标准库 `wave / array / math`。
 
 ## 3. 构造序列
 
 ```
-storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG（可调参数）
+storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG + AUDIO（音色参数）
       │
       ├── render.py      frame(t) 纯函数 → frames/00000.png … 01069.png
-      │                        └── encode.py → brep_untrim.mp4 + contact_sheet.png
+      │                        └── encode.py → brep_untrim.mp4（无声）
+      │                                    └→ brep_untrim_with_audio.mp4（带音轨）
+      ├── audio.py       sample(t) 纯函数 → soundtrack.wav（17 个事件全由 BEATS 派生）
       │
-      └── build_html.py  → preview.html（Canvas 按同一份 BEATS 重画 + 6 个滑块）
+      └── build_html.py  → preview.html（Canvas 按 BEATS 重画 + Web Audio 复现同一张事件表）
 ```
 
 八镜分镜（每镜只讲一个概念，3.2–7.2 s）：
@@ -60,33 +72,56 @@ storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG（可调参数�
   才能一眼读成「一张底图」而不是另一个盒子。
 - **孔**：参数化圆（64 点）投影成椭圆；`shrink` 从 1→0 就是「删掉环、孔自己合上」。
 - **圆角**：沿 4 条顶边画参数化弧带，整圈同时淡出/剥离，表达「新增曲面」。
-- **叠化转场**：编码器是精简构建（无 fade/overlay 滤镜），所以在帧内调两次纯函数渲染做混合。
+- **叠化转场**：编码器精简构建无 fade/overlay 滤镜，所以在帧内调两次纯函数渲染做混合。
+
+音频实现要点（不用任何音频库）：
+- **氛围层**：55 Hz 基底 + 1.5×/2× 谐波 + 0.3% 失谐拍频 + 0.11 Hz 呼吸 LFO；
+  每镜按 `pad_steps` 换半音，在 `pad_glide=0.9 s` 内平滑滑过去（频率硬切 = click）。
+- **事件层**：`events()` 从 BEATS 派生，8 声 cue + 6 个 tick + thud / lift / chord；
+  每个事件包络 `(1−e^(−t/atk))·e^(−t/dec)` 从 0 起、回 0 收。
+- **叠加策略**：离散事件只在自己的时间窗内写样本，复杂度与窗口总长成正比，
+  不是「采样数 × 事件数」。
 
 ## 4. 落地形态
 
 | 文件 | 作用 |
 |---|---|
-| `storyboard.py` | 唯一数据源。改字幕/时长/配色只动这里 |
+| `storyboard.py` | 唯一数据源。改字幕 / 时长 / 配色 / 音色只动这里 |
 | `render.py` | 逐帧渲染器，`CONFIG` 顶部集中 10 个参数 |
-| `encode.py` | 帧序列 → MP4；另出 `contact_sheet.png` 关键帧自检图 |
-| `build_html.py` | 把分镜注入 `preview.html` |
-| `preview.html` | 单文件可交互预览：播放/拖进度 + 5 滑块 + 1 开关，改参数实时重绘 |
-| `brep_untrim.mp4` | 成片 |
-| `style.md` | 项目级风格规格（帧率/配色/字体/禁用风格） |
+| `audio.py` | 确定性音轨生成器 + `events()` / `KIND` 事件与音色表 |
+| `encode.py` | 帧序列 + 音轨 → MP4；按能力挑 ffmpeg；可选叠人声旁白 |
+| `build_html.py` | 把 BEATS / AUDIO / 事件表 / 音色表注入 `preview.html` |
+| `preview.html` | 单文件可交互预览：画面 5 控件 + 声音 4 控件，拖着实时生效 |
+| `soundtrack.wav` | 44.60 s 程序化音轨（48 kHz / 16-bit / mono） |
+| `brep_untrim.mp4` | 无声成片（保留作对照） |
+| `brep_untrim_with_audio.mp4` | **带音轨成片** |
+| `contact_sheet.png` | 八镜关键帧对照图 |
+| `style.md` / `narration.md` | 项目级风格规格（含 §8 音频）/ 旁白稿与混入方法 |
 
-**六个可调参数**（`CONFIG` 与预览滑块一一对应）：
-播放速度、轴测角度 `iso_yaw`、圆角半径 `fillet_radius`、
-结构线密度 `isoline_density`、编号标注开关 `show_labels`、配色主题 `theme`。
+**预览页 9 个控件**（画面 4 滑块 + 1 开关，声音 2 滑块 + 2 开关）：
+播放速度、轴测角度 `iso_yaw`、圆角半径 `fillet_radius`、结构线密度 `isoline_density`、
+编号标注开关 `show_labels`；音量、音效 cue/tick 开关、氛围底层开关、节拍密度。
+另有「重置参数 / 导出当前帧」。
 
-其中「结构线密度」下限固定为 2 —— **只降密度、不做全隐藏**，因为等参线是读曲面的依据。
+如实说明两处边界：`CONFIG` 里的 `theme` 只在 Python 渲染器生效，预览页未暴露主题切换；
+`CONFIG.playback_speed` 与预览速度滑块是同一件事，但不影响离线渲染的帧内容。
+
+「结构线密度」下限固定为 2 —— **只降密度、不做全隐藏**，因为等参线是读曲面的依据。
+「节拍密度」0.0× 会真正关掉 tick，不是悄悄留几个响着。
 
 ## 5. 证据
 
-- 时长 44.6 s，1070 帧 @ 24 fps，1600×900，H.264 / yuv420p。
+- 时长 44.6 s，1070 帧 @ 24 fps，1600×900，H.264 / yuv420p；无声版 2.05 MB，带音轨版 2.90 MB。
 - 单帧渲染约 0.18 s，全片约 3 分钟；转场在帧内完成，可乱序并行渲染。
+- 音轨：2,140,800 采样 / 44.60 s / 17 事件，生成耗时 **2.8 s**，
+  `peak=0.5241 → gain=1.439 → 最终≈0.75`、`rms=0.1403`，不削波。
+- **确定性实测**：连续两次 `audio.py` 的 WAV sha256 一致（`32d811a6…`）；
+  把 `KIND` 从 tuple 重构成 dict 便于 JSON 注入后哈希仍不变。
+- 成片解码校验 `exit=0`、`frame=1070`，并确认
+  `Audio: aac (LC), 48000 Hz, mono, 157 kb/s` 流存在。
 - 上屏数字全部可追到 E-024 / E-025 的实测记录（`experiment-log.md`），无编造。
-- 编码器：本机 KeyShot 附带的 `ffmpeg 7.1` 精简构建（`--disable-everything`，
-  仅 scale/palettegen/paletteuse），因此所有合成都在 Python 侧完成。
+- 编码器实测：本机两个 ffmpeg 能力不同，详见 `style.md` §8；
+  `find_ffmpeg(need_audio=True)` 实测 `-encoders` 后自动选完整构建。
 - `contact_sheet.png` 为八镜关键帧对照图，用于「先看构图再出片」。
 
 ## 6. 复盘
@@ -103,19 +138,38 @@ storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG（可调参数�
 5. **孔消失太快看不见中间态**：`shrink` 区间从 0.40–0.72 拉到 0.45–0.85。
 6. **`/tmp` 路径不一致**：Git Bash 的 `/tmp` 映射到 Temp，而原生 Windows Python
    把它解释成 `C:\tmp`，导致 node 找不到文件。改到工作目录内即可。
+   **本轮又踩一次**：把 Git Bash 的 `/c/...` 直接传给原生 Windows Python 读 WAV，
+   报 `FileNotFoundError`；同样改用相对路径解决。
+7. **误判「本机没法加音轨」**：第一次只在 `KeyShot Studio/bin` 找到
+   `--disable-everything` 精简构建（0 个音频编码器、连 wav demuxer 都没有），
+   就下了结论。实际 `KS2024/bin/ffmpeg.exe` 是完整构建，有 aac + amix。
+   修法是 `find_ffmpeg(need_audio=True)` 实测 `-encoders` 再挑，不凭路径猜。
+8. **`KIND` 是 tuple → 注入 JSON 变成数组**，浏览器读 `K.dur` 是 undefined。
+   改成 dict，Python 与 Web Audio 读同一份对象；改完重跑音轨哈希不变，作为回归验证。
+9. **预览页「点播放启用声音」但按钮显示「暂停」**：初始 `playing=true` 与提示矛盾，
+   且浏览器要求用户手势才能解锁 `AudioContext`。改成初始暂停、按钮「播放」，
+   点一下同时启动画面、解锁声音、重置进度。
 
 **方法上的收获**
 
 - 「先 brief/分镜、再逐镜代码、再 contact sheet 自检、最后出片」这个顺序，
   把返工压在前面：八镜的构图问题在拼图里一眼就能看见，不必等 3 分钟出片后才发现。
-- 把转场放进 `frame(t)`，而不是依赖 ffmpeg 滤镜，换来的是「任意帧可独立渲染」——
-  这才是「确定性渲染」真正值钱的地方，不只是结果一致，而是可以并行、可以断点续渲。
+- 把转场放进 `frame(t)`、把包络放进 `sample(t)`，而不是依赖 ffmpeg 滤镜，
+  换来的是「任意帧 / 任意采样点可独立重算」—— 这才是「确定性渲染」真正值钱的地方：
+  不只是结果一致，而是可以并行、可以断点续渲、可以乱序。
+- **同一份数据源贯穿四端**（渲染器 / 音轨 / 编码器 / 预览页）之后，
+  改一镜时长，画面、WAV、MP4、浏览器预览会一起变，不会漂移。
+  代价是必须让数据结构可序列化（第 8 个坑就是这么来的）。
 - 变量化到 `CONFIG` + `storyboard.py` 之后，换主题/换配色/换语速都不用动渲染逻辑。
   下一步想改讲别的几何概念，只需换 BEATS 与 scene 分派，架子可以复用。
 
 **开放项**
 
-- 目前只有 8 镜 44.6 s，无旁白、无音轨。若要配旁白，需要按词级时间码重排 BEATS。
+- **人声旁白仍是外部插槽**：离线 TTS 被沙箱策略拦截、联网 TTS 违背三条禁令，
+  所以这一版没有自动生成人声。文案与时间码已在 `narration.md` 给全，
+  给一个 wav 即可自动混入；若允许「联网生成一次、固化入库、之后不再联网」，可再接。
 - 圆角带是两点近似的示意面，不是真实滚球扫掠面；讲「过渡面拓扑」够用，讲「R 值精度」不够。
-- 预览页与 Python 版是两套绘制实现（同一份 BEATS），几何公式一致但未来可能漂移；
-  若要长期维护，应抽出一份几何定义做双端生成。
+- 预览页与 Python 版是两套绘制 / 合成实现（同一份 BEATS 与事件表），
+  公式一致但未来可能漂移；若要长期维护，应抽出一份几何与音色定义做双端生成。
+- 未做浏览器内 Web Audio 的实机听感验收（只做了 JS 语法、注入数据与离线 WAV 的校验）；
+  带音轨 MP4 的音频流已用 ffmpeg 整片解码确认存在。

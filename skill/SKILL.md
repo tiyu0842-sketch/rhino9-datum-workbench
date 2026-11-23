@@ -70,6 +70,7 @@ agent_created: true
 | 编译 CS0104 `Point`/`Environment` 歧义 / `RemoveHoles` 静默收不到内环 | `error-catalog.md`「v1.6 / E-025 新增症状」：加 `using Point = System.Drawing.Point;`；判断模块归属**别用 `FeatureType` 默认值（恰好是 Fillet）**，用显式 `Channel`；`RemoveHoles` 返回 `Brep` 不是 bool |
 | 曲面糊成一片无明暗 | `AmbientOcclusion` 只有接触遮蔽；要三度灰阶用 `CustomLighting` + `FrontMaterial.Diffuse` |
 | 想把原理讲清楚 / 做科普短片 / 「用代码生成视频」 | 仓库 `design-lab/002-brep-untrim-explainer/`、**E-026**：**代码驱动确定性渲染**（`frame(t)` 纯函数 + Pillow 逐帧 + ffmpeg 只做封装），**不是 AI 文生视频**；三条禁令：不读时钟 / 不用无种子随机 / 不联网；等宽字体放中文要切雅黑 |
+| 想给这类片子配音 / 「可以配个声音吗」 | **E-027**：声音也是 `sample(t)` 纯函数，事件表从同一份 BEATS 派生；包络从 0 起回 0 收、频率边界 glide、不依赖 ffmpeg 滤镜；人声旁白做成外部 wav 插槽（`narration.md` + `amix`），**别假装能自动生成人声**；两个 ffmpeg 能力不同，`need_audio=True` 要实测编码器再挑 |
 | 截图看不出参数变化 | 大概率是缓存帧：置前窗口 + 相机轻微位移 + `ZoomBoundingBox` + `Redraw()` + `Wait()` + sleep |
 | 选多重曲面上的单一面 | `GeometryFilter = ObjectType.Surface`（不要 |Brep）+ `SubObjectSelect=true` + `DisablePreSelect()` |
 | 工具栏按钮装完消失 | 查 `ToolbarFiles[i].GetGroup(0).Visible`，设 True 后**正常退出 Rhino** 才写入 default.rui |
