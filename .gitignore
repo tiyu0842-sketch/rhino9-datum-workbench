@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# 渲染中间产物：帧序列单个 200KB+，上千张不入库；成片 mp4 入库
+design-lab/**/frames/
+design-lab/**/probe_*.png

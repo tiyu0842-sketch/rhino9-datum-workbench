@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B-rep 特征取消 · 可交互预览</title>
+<style>
+  :root{
+    --ground:#12141A; --panel:#171A22; --line:#2B2F3A;
+    --text:#ECEDEF; --muted:#9A9EA8;
+    --surface:#5CC8E8; --feature:#FF8A28; --accent:#FFD25A; --good:#8BD17C;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--text);
+    font-family:"Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+    display:flex; flex-direction:column; min-height:100vh;
+  }
+  header{
+    display:flex; align-items:baseline; gap:14px;
+    padding:14px 20px 6px; border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:15px; margin:0; letter-spacing:.12em; color:var(--muted); font-weight:500}
+  header .t{font-family:Consolas,monospace; font-size:13px; color:var(--accent)}
+  header .hint{margin-left:auto; font-size:12px; color:var(--muted)}
+  .stage{position:relative; flex:1; display:flex; align-items:center; justify-content:center; padding:10px 16px}
+  canvas{max-width:100%; max-height:100%; aspect-ratio:16/9; border-radius:10px;
+         box-shadow:0 10px 40px rgba(0,0,0,.55); display:block}
+  .controls{
+    border-top:1px solid var(--line); background:var(--panel);
+    padding:12px 20px 16px; display:flex; flex-direction:column; gap:12px;
+  }
+  .row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  button{
+    background:#20242E; color:var(--text); border:1px solid var(--line);
+    border-radius:8px; padding:8px 16px; font-size:13px; cursor:pointer;
+    font-family:inherit; transition:.15s;
+  }
+  button:hover{border-color:var(--surface); color:var(--surface)}
+  button.primary{background:var(--accent); color:#191207; border-color:var(--accent); font-weight:700}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; height:4px; border-radius:3px;
+    background:var(--line); outline:none; flex:1; min-width:120px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background:var(--accent); cursor:pointer; border:2px solid var(--ground);
+  }
+  .knob{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); min-width:180px}
+  .knob b{color:var(--text); font-family:Consolas,monospace; font-weight:600; min-width:52px; text-align:right}
+  .knob label{white-space:nowrap}
+  .sw{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted)}
+  .sw input{accent-color:var(--feature); width:16px; height:16px}
+  .legend{font-size:11px; color:#6E7484; letter-spacing:.04em}
+</style>
+</head>
+<body>
+<header>
+  <h1>B-REP / FEATURE CANCELLATION</h1>
+  <span class="t" id="clock">0.0 s</span>
+  <span class="hint">画面由 frame(t) 实时算出 · 拖滑块立即重绘</span>
+</header>
+
+<div class="stage"><canvas id="c" width="1600" height="900"></canvas></div>
+
+<div class="controls">
+  <div class="row">
+    <button class="primary" id="play">暂停</button>
+    <input type="range" id="seek" min="0" max="1000" value="0">
+    <button id="shot">导出当前帧</button>
+    <button id="reset">重置参数</button>
+  </div>
+  <div class="row">
+    <div class="knob"><label>播放速度</label><input type="range" id="speed" min="25" max="300" value="100"><b id="speedV">1.00×</b></div>
+    <div class="knob"><label>轴测角度</label><input type="range" id="yaw" min="20" max="120" value="62"><b id="yawV">0.62</b></div>
+    <div class="knob"><label>圆角半径 R</label><input type="range" id="rad" min="10" max="80" value="30"><b id="radV">3.0</b></div>
+    <div class="knob"><label>结构线密度</label><input type="range" id="iso" min="2" max="14" value="6"><b id="isoV">6</b></div>
+    <div class="sw"><input type="checkbox" id="labels" checked><label for="labels">编号与标注</label></div>
+  </div>
+  <div class="legend">结构线密度下限为 2 —— 只降密度，不做全隐藏（等参线是读曲面的依据）</div>
+</div>
+
+<script id="sb" type="application/json">{"beats":[{"id":0,"scene":"title","dur":3.2,"title":"同一个立方体，两种「多出来的形状」","sub":"为什么一个孔能一键消失，一个圆角不能？","note":"B-rep 的两层结构 · Rhino 9 / FeatureWorks 实证","metrics":[]},{"id":1,"scene":"two_layers","dur":5.4,"title":"B-rep 有两层，不是一整块","sub":"钻孔只动了第二层","lines":["① 底层曲面 UnderlyingSurface —— 一整张没被破坏的平面","② 裁剪环 trim loops —— 只是画在它上面的边界"],"metrics":[]},{"id":2,"scene":"hole_untrim","dur":6.0,"title":"孔 = 加了一个 inner loop","sub":"底层曲面一点没坏，所以「取消」就是删掉那个环","lines":["RemoveHoles(指定内环, tol)  →  孔闭合","整面级 UntrimFace 会连外环一起抹掉 —— 那是错的粒度"],"metrics":[["面数 / faces",8,7,0],["体积 / volume",233214.16,236607.08,2]]},{"id":3,"scene":"selective_holes","dur":6.6,"title":"两个孔，只勾一个（E-024）","sub":"loop 级精度官方就有，不必先去圆角","lines":["H1 的两个内环 [7, 8] 被删，H2 纹丝不动","旧实现 UntrimFace → 两个孔一起没；新实现只删选中的"],"metrics":[["inner loops",4,2,0],["体积 / volume",233214.16,236607.08,2]]},{"id":4,"scene":"fillet","dur":7.2,"title":"圆角不是裁剪，是新增了一整圈曲面","sub":"滚球扫出的过渡面，四边都与邻面共享边","lines":["没有更大的底层曲面可以还原  →  UntrimOuterLoop 恒为 null","只能：删整圈过渡面 → 相邻面重新求交 → CreateSolid 缝合"],"metrics":[]},{"id":5,"scene":"independence","dur":7.0,"title":"打破伪约束：去布尔不需要先去圆角","sub":"圆角盒 + 1 孔 → 只删孔的内环 → 得到纯圆角盒","lines":["删 [11, 12] 两个内环，4 组圆角面全部完好","两个模块因此完全独立、任意顺序"],"metrics":[["面数 / faces",11,10,0],["体积 / volume",235922.14,239315.06,2]]},{"id":6,"scene":"conclusion","dur":5.2,"title":"孔是可抹的边界，圆角是须重缝的实体","sub":"机器给候选 · 人裁决 · 明确报出，不偷偷改","lines":["模块 B 去除布尔切割   ↔   RemoveHoles(指定内环)","模块 A 去除圆角       ↔   删整圈 + 重缝","两者互不依赖，没有总开关"],"metrics":[]},{"id":7,"scene":"outro","dur":4.0,"title":"每一帧都由代码算出","sub":"frame(t) 纯函数 · 不读时钟 · 不用随机 · 不联网","lines":["改一句字幕 = 一次 diff + 重渲染，不是重新抽卡","design-lab/002 · 参数与分镜在同一份 storyboard.py"],"metrics":[]}],"config":{"fps":24,"width":1600,"height":900,"iso_yaw":0.62,"fillet_radius":3.0,"isoline_density":6,"show_labels":true,"playback_speed":1.0,"theme":"manim-dark","seed":20261123},"palette":{"ground":"#12141A","grid":"#24262C","vignette":"#0B0C10","text":"#ECEDEF","muted":"#9A9EA8","line":"#8E929C","surface":"#5CC8E8","feature":"#FF8A28","accent":"#FFD25A","good":"#8BD17C","bad":"#FF6B5E","glow":"#3A6EA5"}}</script>
+<script>
+(function(){
+  const SB = JSON.parse(document.getElementById('sb').textContent);
+  const BEATS = SB.beats, CFG = SB.config;
+  const P = SB.palette;
+  const DUR = BEATS.reduce((a,b)=>a+b.dur, 0);
+  const cvs = document.getElementById('c'), ctx = cvs.getContext('2d');
+  const W = cvs.width, H = cvs.height;
+
+  // ---- 可调参数（与 render.py 的 CONFIG 对应）----
+  const K = {
+    yaw: CFG.iso_yaw, scale: 5.2, cx: W*0.63, cy: H*0.46,
+    R: CFG.fillet_radius, iso: CFG.isoline_density,
+    labels: true, speed: 1.0
+  };
+
+  const ease = u => u<0.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2;
+  const clamp01 = u => Math.max(0, Math.min(1, u));
+  const ramp = (u,a,b) => clamp01((u-a)/Math.max(1e-6,b-a));
+
+  function hex(h, a=1){
+    h = h.replace('#','');
+    return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;
+  }
+  function proj(p, s){
+    const yaw = s.yaw ?? K.yaw, sc = s.scale ?? K.scale;
+    const cx = s.cx ?? K.cx, cy = s.cy ?? K.cy;
+    const x1 = p[0]*Math.cos(yaw) - p[1]*Math.sin(yaw);
+    const y1 = p[0]*Math.sin(yaw) + p[1]*Math.cos(yaw);
+    return [cx + sc*((x1-y1)*0.8660254), cy + sc*((x1+y1)*0.5 - p[2])];
+  }
+  function poly(pts3, fill, stroke, lw, s){
+    const xy = pts3.map(p=>proj(p,s));
+    ctx.beginPath(); xy.forEach((q,i)=> i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
+    ctx.closePath();
+    if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+    if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw||2; ctx.setLineDash([]); ctx.stroke(); }
+  }
+  function line3(a,b,stroke,lw,s,dash){
+    const p=proj(a,s), q=proj(b,s);
+    ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]);
+    ctx.strokeStyle=stroke; ctx.lineWidth=lw||1; ctx.setLineDash(dash||[]); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  const BOX = [[-45,-32,0],[45,-32,0],[45,32,0],[-45,32,0],[-45,-32,24],[45,-32,24],[45,32,24],[-45,32,24]];
+  const TOP=[4,5,6,7], FRONT=[0,1,5,4], RIGHT=[1,2,6,5];
+
+  function drawBox(alpha, showIso, s){
+    const a = alpha/255;
+    poly(FRONT.map(i=>BOX[i]), hex(P.surface,.09*a), hex(P.line,.85*a), 2, s);
+    poly(RIGHT.map(i=>BOX[i]), hex(P.surface,.09*a), hex(P.line,.85*a), 2, s);
+    poly(TOP.map(i=>BOX[i]), hex(P.surface,.16*a), hex(P.line,.85*a), 2, s);
+    if(showIso){
+      const n = Math.max(2, Math.round(K.iso));
+      for(let i=1;i<n;i++){
+        const f=i/n, x=-45+90*f, y=-32+64*f;
+        line3([x,-32,24],[x,32,24], hex(P.surface,.16*a), 1, s);
+        line3([-45,y,24],[45,y,24], hex(P.surface,.16*a), 1, s);
+      }
+    }
+  }
+  function drawUnderlying(alpha){
+    const a = alpha/255;
+    const big=[[-78,-60,24],[78,-60,24],[78,60,24],[-78,60,24]];
+    poly(big, hex(P.surface,.045*a), null, 0);
+    ctx.setLineDash([11,7]);
+    for(let i=0;i<4;i++) line3(big[i], big[(i+1)%4], hex(P.surface,.80*a), 2, null, [11,7]);
+    ctx.setLineDash([]);
+    const n = Math.max(2, Math.round(K.iso));
+    for(let i=1;i<n;i++){
+      const f=i/n, x=-78+156*f, y=-60+120*f;
+      line3([x,-60,24],[x,60,24], hex(P.surface,.14*a), 1, null);
+      line3([-78,y,24],[78,y,24], hex(P.surface,.14*a), 1, null);
+    }
+  }
+  function drawHole(cxy, r, ring, alpha, shrink){
+    const a=alpha/255, rr=Math.max(0.001, r*shrink);
+    const pts=[]; for(let i=0;i<64;i++){const th=2*Math.PI*i/64; pts.push([cxy[0]+rr*Math.cos(th), cxy[1]+rr*Math.sin(th), 24]);}
+    poly(pts, hex(P.ground,.94*a), null, 0);
+    if(shrink>0.02){
+      const n=Math.max(2, Math.round(K.iso));
+      for(let i=0;i<n;i++){
+        const th=2*Math.PI*i/n;
+        line3([cxy[0]+rr*Math.cos(th), cxy[1]+rr*Math.sin(th),24],
+              [cxy[0]+rr*Math.cos(th), cxy[1]+rr*Math.sin(th),0], hex(P.surface,.52*a), 1, null);
+      }
+    }
+    const xy=pts.map(p=>proj(p)); ctx.beginPath();
+    xy.forEach((q,i)=> i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
+    ctx.closePath(); ctx.strokeStyle=hex(ring,a); ctx.lineWidth=4; ctx.setLineDash([]); ctx.stroke();
+    if(shrink>0.05){
+      const p=proj([cxy[0]+rr,cxy[1],24]);
+      ctx.beginPath(); ctx.arc(p[0],p[1],5,0,7); ctx.fillStyle=hex(P.accent,a); ctx.fill();
+    }
+  }
+  function drawFillet(R, alpha, lift){
+    const a=alpha/255;
+    const edges=[[[-45,-32],[45,-32],[0,1]],[[45,-32],[45,32],[-1,0]],
+                 [[45,32],[-45,32],[0,-1]],[[-45,32],[-45,-32],[1,0]]];
+    edges.forEach(([A,B,inw])=>{
+      const outer=[], inner=[];
+      for(let i=0;i<25;i++){
+        const f=i/24, x=A[0]+(B[0]-A[0])*f, y=A[1]+(B[1]-A[1])*f;
+        outer.push([x,y,24+lift]);
+        inner.push([x+inw[0]*R, y+inw[1]*R, 24+lift-R*0.72]);
+      }
+      poly(outer.concat(inner.slice().reverse()), hex(P.feature,.34*a), null, 0);
+      poly(outer, hex(P.feature,a), 3);
+      poly(inner, hex(P.feature,.7*a), 2);
+    });
+  }
+
+  function beatAt(t){
+    let acc=0;
+    for(let i=0;i<BEATS.length;i++){
+      const b=BEATS[i];
+      if(t < acc+b.dur || i===BEATS.length-1)
+        return {b, u: Math.max(0,Math.min(1,(t-acc)/b.dur)), t0: acc};
+      acc += b.dur;
+    }
+    const b=BEATS[BEATS.length-1];
+    return {b, u:1, t0: acc-b.dur};
+  }
+
+  function drawGeometry(b, u, t){
+    const sc = b.scene;
+    if(sc==='title'){
+      const yaw = K.yaw + 0.55*Math.sin(t*0.55);
+      const a = 255*ease(ramp(u,0.05,0.45));
+      const s={cx:W*0.78, cy:H*0.68, scale:2.45, yaw};
+      const E=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+      E.forEach(([i,j])=>line3(BOX[i],BOX[j],hex(P.line,.75*a/255),2,s));
+      const q=proj([0,0,24],s);
+      [P.surface,P.feature].forEach((col,i)=>{
+        const x=q[0]+(i*2-1)*62, y=q[1]+18*Math.sin(t*1.2+i);
+        ctx.beginPath(); ctx.arc(x,y,9,0,7); ctx.fillStyle=hex(col,a/255); ctx.fill();
+      });
+    } else if(sc==='two_layers'){
+      const a=255*ease(ramp(u,0,0.30));
+      drawUnderlying(a);
+      const k=ease(ramp(u,0.32,0.72));
+      drawBox(a*(0.35+0.65*k), false);
+      if(k>0.05&&K.labels){ const q=proj([0,0,24]); ctx.fillStyle=hex(P.surface,a/255);
+        ctx.font='21px Consolas,monospace'; ctx.textAlign='center'; ctx.fillText('UnderlyingSurface',q[0],q[1]-66); }
+      if(u>0.58){
+        drawHole([0,0],10,P.feature,255*ease(ramp(u,0.58,0.82)),1);
+        if(K.labels){ const q=proj([0,0,24]); ctx.fillStyle=hex(P.feature,1);
+          ctx.font='21px Consolas,monospace'; ctx.textAlign='left'; ctx.fillText('trim loop',q[0]+132,q[1]+8); }
+      }
+    } else if(sc==='hole_untrim'){
+      const a=255*ease(ramp(u,0,0.22));
+      drawUnderlying(Math.max(0,a-90));
+      drawBox(a,true);
+      const sh=1-ease(ramp(u,0.42,0.78));
+      drawHole([0,0],10,P.feature,a,sh);
+      if(sh<0.12&&K.labels){ const q=proj([0,0,24]); ctx.fillStyle=hex(P.good,a/255);
+        ctx.font='21px "Microsoft YaHei"'; ctx.textAlign='center'; ctx.fillText('孔闭合 / hole closed',q[0],q[1]-54); }
+    } else if(sc==='selective_holes'){
+      const a=255*ease(ramp(u,0,0.20));
+      drawBox(a,true);
+      const s1=1-ease(ramp(u,0.46,0.76));
+      drawHole([-24,0],10,P.feature,a,s1);
+      drawHole([24,0],10,P.line,a,1);
+      if(K.labels){
+        const q1=proj([-24,0,24]), q2=proj([24,0,24]);
+        ctx.font='21px Consolas,monospace'; ctx.textAlign='center';
+        ctx.fillStyle=hex(P.accent,a/255); ctx.fillText('H1 [7,8]',q1[0],q1[1]-58);
+        ctx.fillStyle=hex(P.muted,a/255); ctx.fillText('H2 保留',q2[0],q2[1]-58);
+        ctx.strokeStyle=hex(P.accent,a/255); ctx.lineWidth=2;
+        ctx.strokeRect(q1[0]-68,q1[1]-42,136,84);
+      }
+    } else if(sc==='fillet'){
+      const a=255*ease(ramp(u,0,0.22));
+      drawBox(a,false);
+      const grow=ease(ramp(u,0.18,0.52)), lift=26*ease(ramp(u,0.62,0.92));
+      drawFillet(K.R*Math.max(0.08,grow), a, lift);
+      if(u>0.52){
+        const k=ease(ramp(u,0.52,0.68)), x=1330, y=236;
+        ctx.strokeStyle=hex(P.bad,k); ctx.lineWidth=5;
+        ctx.beginPath(); ctx.moveTo(x-18,y-18); ctx.lineTo(x+18,y+18);
+        ctx.moveTo(x-18,y+18); ctx.lineTo(x+18,y-18); ctx.stroke();
+        if(K.labels){ ctx.fillStyle=hex(P.bad,k); ctx.textAlign='center'; ctx.font='21px Consolas,monospace';
+          ctx.fillText('UntrimOuterLoop',x,y+56); ctx.fillText('\\u2192 null',x,y+88); }
+      }
+      if(K.labels&&u<0.55){ const q=proj([0,0,24]); ctx.fillStyle=hex(P.feature,a/255);
+        ctx.textAlign='center'; ctx.font='21px "Microsoft YaHei"';
+        ctx.fillText('新增过渡面 R='+K.R.toFixed(1), q[0], q[1]+96); }
+    } else if(sc==='independence'){
+      const a=255*ease(ramp(u,0,0.20));
+      drawBox(a,false);
+      drawFillet(K.R,a,0);
+      const sh=1-ease(ramp(u,0.45,0.85));
+      drawHole([0,0],10,P.accent,a,sh);
+      if(K.labels){
+        const q=proj([0,0,24]);
+        ctx.font='21px "Microsoft YaHei"'; ctx.textAlign='right';
+        ctx.fillStyle=hex(P.feature,a/255); ctx.fillText('4 组圆角面 完好', q[0]-250, q[1]+6);
+        if(sh<0.55){ ctx.fillStyle=hex(P.good,a/255); ctx.fillText('= 纯圆角盒', q[0]-232, q[1]+60); }
+      }
+    } else if(sc==='conclusion'){
+      const a=255*ease(ramp(u,0,0.28))/255;
+      ctx.fillStyle=hex(P.surface,.09*a); ctx.strokeStyle=hex(P.surface,.65*a); ctx.lineWidth=2;
+      ctx.beginPath(); ctx.roundRect(150,190,610,380,18); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=hex(P.feature,.09*a); ctx.strokeStyle=hex(P.feature,.65*a);
+      ctx.beginPath(); ctx.roundRect(840,190,610,380,18); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle=hex(P.line,.5*a); ctx.beginPath(); ctx.moveTo(800,210); ctx.lineTo(800,550); ctx.stroke();
+      ctx.textAlign='center'; ctx.font='26px "Microsoft YaHei"';
+      const put=(x,y,s,c)=>{ctx.fillStyle=hex(c,a); ctx.fillText(s,x,y);};
+      put(455,250,'孔 / HOLE',P.surface); put(1145,250,'圆角 / FILLET',P.feature);
+      put(455,330,'裁剪环 inner loop',P.text); put(1145,330,'新增过渡曲面',P.text);
+      put(455,390,'可抹 → RemoveHoles',P.good); put(1145,390,'须重缝 → CreateSolid',P.bad);
+      put(455,470,'模块 B 去除布尔切割',P.surface); put(1145,470,'模块 A 去除圆角',P.feature);
+      if(u>0.62){ const k=ease(ramp(u,0.62,0.82)); ctx.font='29px "Microsoft YaHei"';
+        ctx.fillStyle=hex(P.accent,k); ctx.fillText('互不依赖 · 任意顺序 · 没有总开关',800,620); }
+    } else if(sc==='outro'){
+      const code=['def frame(t):','    beat, u, t0 = beat_at(t)','    return render_beat(beat, u, t)   # 纯函数','',
+                  '# 不读时钟 · 不用随机 · 不联网','# 改一句字幕 = diff + 重渲染'];
+      ctx.textAlign='left'; ctx.font='23px Consolas,monospace';
+      code.forEach((ln,i)=>{
+        const k=ease(ramp(u,0.08+i*0.085,0.20+i*0.085)); if(k<=0) return;
+        const shown=ln.slice(0,Math.max(0,Math.round(ln.length*k)));
+        ctx.fillStyle = i<3?hex(P.surface) : hex(P.muted);
+        ctx.fillText(shown,150,210+i*52);
+      });
+      if(u>0.72){
+        ctx.fillStyle=hex(P.surface,.086); ctx.strokeStyle=hex(P.surface,.43); ctx.lineWidth=1;
+        ctx.beginPath(); ctx.roundRect(150,560,1300,80,12); ctx.fill(); ctx.stroke();
+        ctx.fillStyle=hex(P.text); ctx.font='23px Consolas,monospace'; ctx.textAlign='center';
+        ctx.fillText('storyboard.py  →  render.py  →  encode.py  →  preview.html',800,608);
+      }
+    }
+  }
+
+  function drawCaptions(b, u){
+    const a = 255*ease(ramp(u,0.02,0.20))*(1-ease(ramp(u,0.90,1.0)));
+    if(a<=0) return;
+    ctx.textAlign='left';
+    if(b.scene!=='conclusion' && b.scene!=='outro' && b.lines){
+      b.lines.forEach((ln,i)=>{
+        const k=ease(ramp(u,0.16+i*0.10,0.34+i*0.10)); if(k<=0) return;
+        const la=a*k/255, y=132+i*46;
+        ctx.fillStyle=hex(P.accent,la); ctx.beginPath(); ctx.arc(96,y+13,4,0,7); ctx.fill();
+        ctx.fillStyle=hex(P.muted,la); ctx.font='26px "Microsoft YaHei"';
+        ctx.fillText(ln,116,y+22);
+      });
+    }
+    if(b.scene==='title'){
+      const k=clamp01(ramp(u,0.06,0.42)), kk=1+2.70158*Math.pow(k-1,3)+1.70158*Math.pow(k-1,2);
+      const ta=255*clamp01(ramp(u,0.06,0.30))/255;
+      const cx=W*0.5, cy=300+(1-kk)*46;
+      ctx.textAlign='center';
+      ctx.fillStyle=hex(P.text,ta); ctx.font='bold 74px "Microsoft YaHei"';
+      ctx.fillText(b.title,cx,cy);
+      ctx.fillStyle=hex(P.accent,ta); ctx.font='29px "Microsoft YaHei"';
+      ctx.fillText(b.sub,cx,cy+92);
+      ctx.fillStyle=hex(P.muted,ta); ctx.font='21px "Microsoft YaHei"';
+      ctx.fillText(b.note||'',cx,cy+150);
+      return;
+    }
+    const ty=H-168;
+    ctx.fillStyle=hex(P.accent,a/255);
+    ctx.beginPath(); ctx.roundRect(62,ty+4,10,54,5); ctx.fill();
+    ctx.textAlign='left';
+    ctx.fillStyle=hex(P.text,a/255); ctx.font='bold 58px "Microsoft YaHei"';
+    ctx.fillText(b.title,92,ty+54);
+    ctx.fillStyle=hex(P.muted,a/255); ctx.font='29px "Microsoft YaHei"';
+    ctx.fillText(b.sub,94,ty+130);
+
+    if(b.metrics && b.metrics.length && K.labels){
+      const mk=ease(ramp(u,0.34,0.80));
+      b.metrics.forEach((m,i)=>{
+        const [lab,v0,v1,dec]=m, val=v0+(v1-v0)*mk;
+        const y=112+i*96;
+        ctx.textAlign='right';
+        ctx.fillStyle=hex(i===0?P.good:P.accent,a/255); ctx.font='40px Consolas,monospace';
+        ctx.fillText(val.toFixed(dec),1510,y+40);
+        ctx.fillStyle=hex(P.muted,a/255); ctx.font='21px "Microsoft YaHei"';
+        ctx.fillText(lab,1510,y+86);
+      });
+    }
+  }
+
+  function drawHud(t,b){
+    const x0=92,x1=W-92,y=44;
+    ctx.lineWidth=3; ctx.setLineDash([]);
+    ctx.strokeStyle=hex(P.line,.43); ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+    let acc=0;
+    BEATS.forEach(bt=>{
+      const xa=x0+(x1-x0)*acc/DUR, xb=x0+(x1-x0)*(acc+bt.dur)/DUR;
+      ctx.strokeStyle = bt.id===b.id? hex(P.accent,.92) : hex(P.line,.43);
+      ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(xa,y); ctx.lineTo(xb-4,y); ctx.stroke();
+      acc+=bt.dur;
+    });
+    const xp=x0+(x1-x0)*Math.max(0,Math.min(1,t/DUR));
+    ctx.beginPath(); ctx.arc(xp,y,7,0,7); ctx.fillStyle=hex(P.accent,1); ctx.fill();
+    ctx.font='21px Consolas,monospace'; ctx.fillStyle=hex(P.muted,.78);
+    ctx.textAlign='left'; ctx.fillText('B-REP / FEATURE CANCELLATION',x0,30);
+    ctx.textAlign='right';
+    ctx.fillText(String(b.id+1).padStart(2,'0')+' / '+String(BEATS.length).padStart(2,'0')+'   '+t.toFixed(1)+'s',x1,30);
+  }
+
+  function render(t){
+    const {b,u}=beatAt(t);
+    ctx.fillStyle=P.ground; ctx.fillRect(0,0,W,H);
+    // 网格（静态逻辑，按 t 不变）
+    ctx.strokeStyle=hex(P.grid,.35); ctx.lineWidth=1;
+    for(let x=0;x<W;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    // 两粒冷光斑
+    const g1=ctx.createRadialGradient(W*0.16,H*0.22,10,W*0.16,H*0.22,340);
+    g1.addColorStop(0,hex(P.glow,.17)); g1.addColorStop(1,hex(P.glow,0));
+    ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+    const g2=ctx.createRadialGradient(W*0.84,H*0.74,10,W*0.84,H*0.74,420);
+    g2.addColorStop(0,hex(P.glow,.12)); g2.addColorStop(1,hex(P.glow,0));
+    ctx.fillStyle=g2; ctx.fillRect(0,0,W,H);
+
+    drawGeometry(b,u,t);
+    drawCaptions(b,u);
+    drawHud(t,b);
+    document.getElementById('clock').textContent = t.toFixed(1)+' s';
+  }
+
+  // ---- 播放控制 ----
+  let t=0, playing=true, last=performance.now(), scrubbing=false;
+  const seek=document.getElementById('seek'), playBtn=document.getElementById('play');
+  seek.max=String(Math.round(DUR*1000));
+
+  function loop(now){
+    const dt=(now-last)/1000; last=now;
+    if(playing && !scrubbing){ t+=dt*K.speed; if(t>=DUR){t=DUR; playing=false; playBtn.textContent='重播';} }
+    else if(playing) t=Number(seek.value)/1000;
+    seek.value=String(Math.round(t*1000));
+    render(t);
+    requestAnimationFrame(loop);
+  }
+  playBtn.onclick=()=>{
+    if(!playing && t>=DUR-1e-3) t=0;
+    playing=!playing; playBtn.textContent=playing?'暂停':'播放';
+  };
+  seek.oninput=()=>{ scrubbing=true; t=Number(seek.value)/1000; };
+  seek.onchange=()=>{ scrubbing=false; };
+
+  const bind=(id,vid,fmt,apply)=>{
+    const el=document.getElementById(id), out=document.getElementById(vid);
+    const upd=()=>{ apply(Number(el.value)); out.textContent=fmt(Number(el.value)); };
+    el.oninput=upd; upd();
+  };
+  bind('speed','speedV',v=>(v/100).toFixed(2)+'×', v=>K.speed=v/100);
+  bind('yaw','yawV',v=>(v/100).toFixed(2), v=>K.yaw=v/100);
+  bind('rad','radV',v=>(v/10).toFixed(1), v=>K.R=v/10);
+  bind('iso','isoV',v=>String(v), v=>K.iso=v);
+  document.getElementById('labels').onchange=e=>K.labels=e.target.checked;
+
+  document.getElementById('reset').onclick=()=>{
+    K.yaw=CFG.iso_yaw; K.R=CFG.fillet_radius; K.iso=CFG.isoline_density;
+    K.labels=true; K.speed=1;
+    document.getElementById('yaw').value=String(Math.round(K.yaw*100));
+    document.getElementById('rad').value=String(Math.round(K.R*10));
+    document.getElementById('iso').value=String(K.iso);
+    document.getElementById('speed').value='100';
+    document.getElementById('labels').checked=true;
+    ['yaw','rad','iso','speed'].forEach(id=>document.getElementById(id).dispatchEvent(new Event('input')));
+  };
+  document.getElementById('shot').onclick=()=>{
+    const a=document.createElement('a');
+    a.download='brep_frame_'+t.toFixed(2)+'s.png';
+    a.href=cvs.toDataURL('image/png'); a.click();
+  };
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
