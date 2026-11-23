@@ -258,11 +258,57 @@ RhinoIronPython.chm），`Content/XML/<lang>/` 是模板与材质资源，不是
 **遗留**：未逐页扒全部 1256 个帮助页（官网无全量索引、多数为别名/锚点，无收益）；
 34 页原文只留要点与缓存路径，未全文入库。v1.5 编码仍等 B 线面板验收。
 
+## E-019 · Grasshopper：搭通 ≠ 有效，GH 只预览不落地（2026-11-23）
+
+**假设**（三条都要被检验）：
+1. 「求解器报 `solved=true`、0 报错 → 定义是对的」
+2. 「GH 视口里看得到 → 文档里有几何」
+3. 「要在活画布上搭定义，只能靠手点」
+
+**做法**：
+- 用 `g1_apply_graph` 在活画布搭「渐变立方体阵列」：滑块 + 8 组件 + 连线，一次提交
+- 用 `g1_get_canvas_graph(include_data=true)` 逐输出核对 item 数与抽样值
+- 平行投影正视图截图 + `doc.Objects.Count` 对照
+
+**实测**：
+- 第一版 **13 对象 / 17 连线**，`solved=true` / `reported=0` / 0 warning；
+  但 `Series.Start` 漏接、默认 **0** → 序列 `0…9`，边长 `0,4,…,36`，
+  `Center Box` 第 1 项 = **`Singular Box`**（尺寸为 0 的退化盒）
+- 修正版 **14 对象 / 18 连线**：Series `1…10`、半径 `2…20`、边长 `4…40`、
+  X `45…450`、点 `{45,0,2}`、Box 10 项全为 `Box`（无 Singular）
+- **`doc.Objects.Count = 0`**（视口 10 个盒子，文档 0 实体）
+- 组件库 `ObjectProxies` = **2336 个 / 29 类**（GH 核心 1344 + Kangaroo2 120 + 第三方 872）
+- 工具链 `g1_*` 全套可用（search / describe / place / place_slider / connect / connect_many /
+  solve / get_canvas_graph / clear_canvas / apply_graph），GH2 另有 `g2_*` 一套
+
+**结论**：
+- ✅ 推翻假设 1：`solved=true` 只表示没抛异常，**不校验几何有效性** → 必须读数据 + 看几何
+- ✅ 推翻假设 2：GH 只画 preview，`Objects.Count=0` 是正常行为，不是失败
+- ✅ 推翻假设 3：`g1_*` 可编程搭定义、求解、读回，无需手点
+- ⚠️ 工具 schema 不统一：`g1_place_slider` 的 `min/value/max` 要求 object，
+  而 `g1_apply_graph.sliders[]` 收数字 → **优先用批量路径**，别跟单接口绕
+- ⚠️ GH 给的是「你亲手写下的历史」，不是从结果反推的历史 → 不能替代 FeatureWorks
+  （见 `feature-recognition.md` §8 / §9）
+
+**回填**：
+- 新增 `references/grasshopper-spatial-logic.md`（三层对照 / Item-List-Tree / 匹配规则 /
+  四步构造序列 / 坑位清单 / 何时 GH vs C#）
+- 新增 `references/grasshopper-component-index.md`（2336 组件、29 类）
+- 新增 `scripts/Export_GH_Components.py`（可移植导出）
+- `SKILL.md`：description + 何时使用 + **第 9 步「参数化与演示纪律」** + 决策表 4 行 + 参考清单
+- 仓库新增 `design-lab/`（协作载体：README + 001-gradient-boxes.md + 截图）
+
+**遗留**：
+- `place_slider` 的 object 参数正确形状未查明（选择了绕过）
+- GH2（`g2_*`）未实测，两代 API 差异待对比
+- 未验证「拖滑块 → 结果实时变」，未找到 set_slider_value 一类接口
+- 001 条目的 6 项改进未做（X 从 0 起、累加间距、Bake、.gh 存档、GH2 版）
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**19 条实验**，其中 **8 条推翻了初始假设**（E-015 推翻 E-014 真因，
-  E-016 再推翻 E-014 的判断方法与 E-015 附带结论）。E-017 / E-018 为概念与资料精化，不计推翻，
-  同样保留判断演化。高推翻率说明「先验证再相信」不是口号。
+- 截至 2026-11-23：**20 条实验**，其中 **9 条推翻了初始假设**（E-015 推翻 E-014 真因，
+  E-016 再推翻 E-014 的判断方法与 E-015 附带结论，E-019 推翻「solved=true 即成功」）。
+  E-017 / E-018 为概念与资料精化，不计推翻，同样保留判断演化。高推翻率说明「先验证再相信」不是口号。
 - 编号提示：台账历史上有两条 E-016（一条 `###` 一条 `##`），不作改动，新实验顺延编号。
 - 查坑顺序：`error-catalog.md`（按症状）→ 本台账（按实验编号，看结论演化）→ 专题文档（按领域）。
 - 新实验编号顺延；若结论修正旧条目，在本条写「修正 E-XXX」并在旧条补一行指向，不删改旧记录。
