@@ -38,6 +38,10 @@ agent_created: true
    - 按固定字段追加到 `references/experiment-log.md`（假设/做法/**实测数字**/结论/回填到哪/遗留）；
    - 同步把新坑按症状写进 `error-catalog.md`、把 API 事实写进 `rhinocommon-pitfalls.md`、把领域结论写进对应专题；
    - 下次遇到同类问题**先查这三处**，不要重新跑一遍验证——这是省 token 最直接的方式。
+8. **动手实现前先查官方命令表**：先查 `rhino-command-index.md` 有没有现成命令（1256 条全量），
+   有就抓官方页确认选项、再查 `rhino-command-reference.md` 的「命令 ↔ API ↔ 几何」对照；
+   没有才反射 `RhinoCommon.xml` 找 API。**别凭命令名猜 API，也别重造官方已有交互**
+   （`UntrimHoles` 逐孔选边、`DeleteFaces` face loop 都是这么漏掉的）。
 
 ## 关键决策表
 
@@ -66,11 +70,14 @@ agent_created: true
 - `references/error-catalog.md` — **先查这张表**：按"你看到的现象"索引（症状→原因→怎么办），并区分"真失败 / 已在工作 / 已回滚 / 只有人能处理"
 - `references/experiment-log.md` — **实验台账**：每条实验的假设/实测数字/结论/回填位置。查"这个坑以前踩过没、当时怎么判断的"就来这里
 - `references/feature-recognition.md` — B-rep 特征识别与取消（两类算法、证据信号、DisplayConduit 聚焦、实测体积/面数）
+- `references/rhino-command-index.md` — Rhino 9 全量 1256 命令索引（活进程导出，17 功能域 + 26 字母组，无遗漏）
+- `references/rhino-command-reference.md` — 命令体系精讲：9 条官方原文、命令↔API↔几何三层对照、检索纪律
 - `references/rhinocommon-pitfalls.md` — 已实测的 API 行为、参数签名、赋值顺序坑
 - `references/display-modes.md` — 显示模式/光照/等参线的实测参数组合与调参判据
 - `references/verification-playbook.md` — 反射验证、像素统计、截图、Yak 安装的完整流程
 - `scripts/Compile_Roslyn.py` — 进程内 Roslyn 编译（支持 `ROOT`/`FILES`/`OUT_OVERRIDE` 覆盖）
 - `scripts/Build_Package.py` — manifest + yak 打包模板
+- `scripts/Export_Rhino_Commands.py` — 在 Rhino Python 里 exec，导出全量命令名（可移植路径，无本机硬编码）
 - `assets/DatumPlane_light.svg` / `DatumPlane_dark.svg` — RUI 内联图标示例（40×40 viewBox，明暗两套）
 
 需要某一类细节时再打开对应 reference，不要一次全读。

@@ -221,11 +221,48 @@ Cardiff ORCA 综述 §2.4.3 / Wikipedia Feature recognition / ScienceDirect 混�
 **遗留**：v1.5 实现时把「显式方法库表 + 置信度/依据 + 逆序剥离」落进 Core；仍等用户重开 Rhino
 敲 `FWSelect` 验收 v1.4 自动弹面板，通过后再编码。
 
+## E-018 · 2026-11-23 · 扒官网命令体系：全量 1256 条 + 官方原文，纠正「命令文档=原理」
+
+**假设**：用户提出把 Rhino 官网所有指令与用法扒下来整理成文档、我学习一遍，做插件会方便很多
+（「懂了原理、构造之后再去实现」）。需核实：(a) 官网是否有全量索引可扒；(b) 全量整理是否真省事；
+(c) 命令文档是否等于内核原理。
+
+**做法**：反射确认 `Command.GetCommandNames(bool english, bool loaded)` 签名；从运行中的
+Rhino 9.1.26314.9001 导出 `loaded=True` 1052 / `loaded=False` **1256** 条到 `_tmp/rhino_commands_all.txt`。
+官网探活：`index.htm` 200 但仅 1225B 跳转页、`commands/` 目录 403、单命令页需浏览器 UA 才 200；
+`zh-cn`/`zh-tw` 中文版存在；`Untrim` 等是 `trim.htm` 锚点；`seealso/sak_*.htm` 是主题分类页。
+批量下载 51 页、34 页提取出有效正文。本机检查：无完整离线命令手册（仅 RhinoScript.chm /
+RhinoIronPython.chm），`Content/XML/<lang>/` 是模板与材质资源，不是命令文档。
+
+**实测/证据**：
+- `Brep` 关键词在 1256 条里命中 **0**；无任何特征识别 / 取消特征类命令 → 命令层不解释内核。
+- `SetObjectDisplayMode` 官方 *"Their display in other viewports won't be affected"* → 逐视口独立是官方行为，
+  Alias 全视图联动必须自己遍历视口。
+- `FilletEdge` 官方 *"creates a tangent surface ... then trims and joins the original faces"* → 官方背书第 8 节
+  「倒角 = 新增过渡面 + 原面裁小」；`ChainEdges` / 双击相切边印证「整圈一起删」。
+- `DeleteFaces` 官方支持 **Polysurface** + face loop（单击→双击定方向、Ctrl 剔单面/整圈、sub-object filter）
+  → 圆角整圈选取可直接复用官方语义。
+- `History` 官方 = 输入几何↔结果的连接（construction history），不存操作意图 → **不是 SW 特征树**。
+- `MakeHole` / `Trim` / `ShrinkTrimmedSrf` / `CreateSolid` 官方原文分别与内环、两层结构、重缝一一对应。
+- 命令名表含 `FW2Panel`（已降级 v2、当前未加载）→ **命令名存在 ≠ 插件已加载 / 面板已注册**，与 E-016 同类。
+
+**结论**：✅ 整理命令体系确实省试错（E-016 漏看 `UntrimHoles` 就是反例），但
+❌ **命令文档 ≠ 内核原理**；真正提速靠「命令 ↔ RhinoCommon API ↔ B-rep 几何」三层对照。
+⚠️ 全量 1256 条平铺会稀释检索 → 拆成「全量索引（只查）+ 精讲（才读）」才符合省 token。
+
+**回填**：新增 `references/rhino-command-index.md`（1256 条、17 域 + 26 字母组、680 行）、
+`references/rhino-command-reference.md`（精讲 + 9 条官方原文 + 6 条 v1.5 决策 + 检索纪律）、
+`scripts/Export_Rhino_Commands.py`（可移植导出脚本）；`SKILL.md` 加第 8 步与参考清单。
+`INTERACTION_SPEC.md` 未改。
+
+**遗留**：未逐页扒全部 1256 个帮助页（官网无全量索引、多数为别名/锚点，无收益）；
+34 页原文只留要点与缓存路径，未全文入库。v1.5 编码仍等 B 线面板验收。
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**18 条实验**，其中 **8 条推翻了初始假设**（E-015 推翻 E-014 真因，
-  E-016 再推翻 E-014 的判断方法与 E-015 附带结论）。E-017 为概念精化，不计推翻，但同样保留判断演化。
-  高推翻率说明「先验证再相信」不是口号。
+- 截至 2026-11-23：**19 条实验**，其中 **8 条推翻了初始假设**（E-015 推翻 E-014 真因，
+  E-016 再推翻 E-014 的判断方法与 E-015 附带结论）。E-017 / E-018 为概念与资料精化，不计推翻，
+  同样保留判断演化。高推翻率说明「先验证再相信」不是口号。
 - 编号提示：台账历史上有两条 E-016（一条 `###` 一条 `##`），不作改动，新实验顺延编号。
 - 查坑顺序：`error-catalog.md`（按症状）→ 本台账（按实验编号，看结论演化）→ 专题文档（按领域）。
 - 新实验编号顺延；若结论修正旧条目，在本条写「修正 E-XXX」并在旧条补一行指向，不删改旧记录。
