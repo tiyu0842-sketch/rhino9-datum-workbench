@@ -94,7 +94,7 @@ Rhino B-rep 的面 = **完整底层曲面 `UnderlyingSurface()` + trim 环**。�
 
 ## 6. 版本与产物
 
-v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环）→ v1.3.1（鬼影自愈）→ v1.3.2（ObjectCulling 真半透明，rhp 88576 bytes / 0 error / 46 warning，yak 48422 bytes，装到 `…\1.3.2.0\`）→ **v1.4.0**（面板类补类级 `[Guid]` 修 `type must have a GuidAttribute` 注册失败；`FWSelect` 识别后自动弹面板的两段式；rhp 89088 bytes / 0 error，已真安装到 `…\1.4.0.0\`，**实机验收待用户重启**）。
+v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环）→ v1.3.1（鬼影自愈）→ v1.3.2（ObjectCulling 真半透明，rhp 88576 bytes / 0 error / 46 warning，yak 48422 bytes，装到 `…\1.3.2.0\`）→ **v1.4.0**（面板类补类级 `[Guid]` 修 `type must have a GuidAttribute` 注册失败；`FWSelect` 识别后自动弹面板的两段式；rhp 89088 bytes / 0 error，已真安装到 `…\1.4.0.0\`）。**加载与面板状态见 E-020**：插件 `LoadMode=2` 从不自动加载，`PlugIn.LoadPlugIn(guid)` 一次即完成（无需重开 Rhino），16 个 `FW*` 命令与两个面板均已注册可见；**仅剩面板内控件交互（勾选→取消→回毛坯）待用户实机点验**。
 **装完必须重开 Rhino**，否则进程里仍是旧的 `Assembly.Load(byte[])` 实验程序集（曾堆到 40+ 个，易崩）。
 
 ## 7. 下一版待做（从痛点出发，不重写）

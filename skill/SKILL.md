@@ -26,7 +26,9 @@ agent_created: true
 
 ## 使用流程（按顺序执行）
 
-1. **报错先查目录，再读环境事实**：遇到任何异常/反常现象，先查 `references/error-catalog.md`（按症状索引）。然后以 `C:\Program Files\Rhino 9\System\RhinoCommon.xml` 为 API 权威，反射 `GetMethods()/GetProperties()` 确认成员存在与签名。绝不凭记忆改代码。
+1. **先查知识地图**：`references/INDEX.md` 按「你看到的现象」直接指到正确的文件和章节——
+   这是省 token 的第一道门。**不要凭直觉挑一份文档通读**。
+2. **报错先查目录，再读环境事实**：遇到任何异常/反常现象，先查 `references/error-catalog.md`（按症状索引）。然后以 `C:\Program Files\Rhino 9\System\RhinoCommon.xml` 为 API 权威，反射 `GetMethods()/GetProperties()` 确认成员存在与签名。绝不凭记忆改代码。
 2. **用进程内 Roslyn 编译**：本机只有 .NET 运行时无 SDK。直接执行 `scripts/Compile_Roslyn.py`（在 Rhino 的 Python 里 exec），用 `OUT_OVERRIDE` 全局指定输出路径，避免 `Assembly.LoadFrom` 锁文件。
 3. **把交互逻辑与核心逻辑分离**：命令类只负责 `GetPoint/GetObject` 取参数，业务放进无交互的 public static Core。这样可以用 `Assembly.Load(File.ReadAllBytes(rhp))` 反射端到端验证，既不锁文件也不卡在交互命令上。
 4. **验证三件套**（缺一不可）：
@@ -39,6 +41,7 @@ agent_created: true
    - 结论被推翻也**不删旧记录**，加一条 `修正 E-XXX` 保留判断演化过程；
    - 按固定字段追加到 `references/experiment-log.md`（假设/做法/**实测数字**/结论/回填到哪/遗留）；
    - 同步把新坑按症状写进 `error-catalog.md`、把 API 事实写进 `rhinocommon-pitfalls.md`、把领域结论写进对应专题；
+   - **完整回填清单见 `references/INDEX.md` §3**（9 项检查表，含仓库同步与脱敏复查）；
    - 下次遇到同类问题**先查这三处**，不要重新跑一遍验证——这是省 token 最直接的方式。
 8. **动手实现前先查官方命令表**：先查 `rhino-command-index.md` 有没有现成命令（1256 条全量），
    有就抓官方页确认选项、再查 `rhino-command-reference.md` 的「命令 ↔ API ↔ 几何」对照；
@@ -80,7 +83,8 @@ agent_created: true
 
 ## 参考与脚本
 
-- `references/error-catalog.md` — **先查这张表**：按"你看到的现象"索引（症状→原因→怎么办），并区分"真失败 / 已在工作 / 已回滚 / 只有人能处理"
+- `references/INDEX.md` — **知识地图（先查这里）**：症状 → 文件 → 章节的路由表 + 9 项回填检查表 + 10 份文档职责表
+- `references/error-catalog.md` — **按症状查表**：（症状→原因→怎么办），并区分"真失败 / 已在工作 / 已回滚 / 只有人能处理"
 - `references/experiment-log.md` — **实验台账**：每条实验的假设/实测数字/结论/回填位置。查"这个坑以前踩过没、当时怎么判断的"就来这里
 - `references/feature-recognition.md` — B-rep 特征识别与取消（两类算法、证据信号、DisplayConduit 聚焦、实测体积/面数）
 - `references/grasshopper-spatial-logic.md` — **GH 空间逻辑精讲**：命令/构造/内核三层对照、Item-List-Tree、匹配规则、四步构造序列、坑位清单、何时 GH vs C#
