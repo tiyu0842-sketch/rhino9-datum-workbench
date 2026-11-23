@@ -78,7 +78,7 @@ featureworks-v2/
   FeatureWorks_v20.rhp         真机编译产物（15360 字节）
   README.md                    判据、实测表、7 个 API 差异、下一版待做
 docs/
-  从零到一_基准面迭代与渲染复盘.md  基准面四版迭代与 IdeaS 渲染 token 账
+  从零到一_基准面迭代与渲染复盘.md  四阶段迭代与观测显示调参复盘
 ```
 
 ## 几条经过实测的关键结论
