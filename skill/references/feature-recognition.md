@@ -94,7 +94,7 @@ Rhino B-rep 的面 = **完整底层曲面 `UnderlyingSurface()` + trim 环**。�
 
 ## 6. 版本与产物
 
-v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环）→ v1.3.1（鬼影自愈）→ v1.3.2（ObjectCulling 真半透明，rhp 88576 bytes / 0 error / 46 warning，yak 48422 bytes，装到 `…\1.3.2.0\`）→ **v1.4.0**（面板类补类级 `[Guid]` 修 `type must have a GuidAttribute` 注册失败；`FWSelect` 识别后自动弹面板的两段式；rhp 89088 bytes / 0 error，已真安装到 `…\1.4.0.0\`）。**加载与面板状态见 E-020**：插件 `LoadMode=2` 从不自动加载，`PlugIn.LoadPlugIn(guid)` 一次即完成（无需重开 Rhino），16 个 `FW*` 命令与两个面板均已注册可见；**仅剩面板内控件交互（勾选→取消→回毛坯）待用户实机点验**。
+v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环）→ v1.3.1（鬼影自愈）→ v1.3.2（ObjectCulling 真半透明，rhp 88576 bytes / 0 error / 46 warning，yak 48422 bytes，装到 `…\1.3.2.0\`）→ v1.4.0（面板类补类级 `[Guid]` 修 `type must have a GuidAttribute` 注册失败；`FWSelect` 识别后自动弹面板的两段式；rhp 89088 bytes / 0 error，已真安装到 `…\1.4.0.0\`）。**加载与面板状态见 E-020**：插件 `LoadMode=2` 从不自动加载，`PlugIn.LoadPlugIn(guid)` 一次即完成（无需重开 Rhino），16 个 `FW*` 命令与两个面板均已注册可见；面板内控件交互（勾选→取消→回毛坯）待用户实机点验。→ **v1.5.0**（编号双向选择 + 显式语义，见 §10）。
 **装完必须重开 Rhino**，否则进程里仍是旧的 `Assembly.Load(byte[])` 实验程序集（曾堆到 40+ 个，易崩）。
 
 ## 7. 下一版待做（从痛点出发，不重写）
@@ -216,3 +216,27 @@ v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环�
 > Features`；Mechanitec `SolidWorks FeatureWorks Guide`；Cardiff ORCA
 > `Intelligent Techniques for Automatic Feature Recognition in CAD Models` §2.4.3；
 > Wikipedia `Feature recognition`；ScienceDirect S016636151000028X 引言综述。
+
+## 10. v1.5：从「文字列表」升级为「人能在模型上裁决」的界面（2026-11-23 晚）
+
+用户看 v1.4 面板截图后的三点批评，全部指向同一件事：**识别结果必须能与几何对上，且操作语义不能靠默认猜测**。
+
+| 批评原话 | 本质问题 | 落地 |
+|---|---|---|
+| 「一个一个 flat，我都不知道这是哪个跟哪个」 | 特征列表与模型之间**没有可辨识映射** | `FwFocusGroup.Id`（F1/F2…、H1/H2…）；conduit 在组包围盒中心用 `Draw2dText` 画同号标签；面板行首同号；点行 → 该组青色粗线、其余压暗；另有「缩放到选中项」 |
+| 「为什么不能选边缘，然后取消它的特征」 | 面板单向：只能从文字出发，CAD 用户习惯从**几何**出发 | `FWPickFeature`：`GetObject{SubObjectSelect=true}` → `ObjRef.GeometryComponentIndex`；`BrepFace` 直接查组，`BrepEdge` 靠 `BrepFace.AdjacentEdges()` 反查所属面 → `PickGroup` 回写面板勾选 |
+| 「要勾选保留全部还是删除选中的」 | 旧版“不勾=全部取消”是**隐式破坏性默认** | 三个显式按钮：`取消选中 N 项`（N=0 拒绝执行）、`保留全部`（模型不动，只关聚焦）、`全部取消 → 回毛坯` |
+
+关键纪律：
+
+1. **选中 ≠ 执行**。视口点边只打勾 + 高亮，绝不直接改文档；改模型必须再点显式按钮。
+2. **编号必须两边共用同一份**：`FeatureVisuals` 索引与 `AllGroupCount`（圆角在前、孔洞在后）严格对齐；
+   抽面失败也放占位，否则编号错位比没有编号更糟。
+3. **回调用自定义委托 `FocusPickHandler`**，不用 `Action` / C# event —— 本机 WeaverBird 让 `System.Action` 都 CS0433。
+4. **面板注册用 `_registered` 闸门**，别用 `DockBarIdInUse` 判注册（E-020：浮动面板恒 false）。
+5. **打包脚本不得覆盖 README / manifest**：旧 `Build_Package.py` 每次 build 都把两个文件重写成 v1.0 模板，
+   包内说明与真实功能脱节；v1.5 起只在文件缺失时生成，并把 `使用手册.md` / `INTERACTION_SPEC.md` 一并入包。
+6. 当前进度：rhp 96256 B / 0 error，yak 62259 B / sha256 `44664b48…`，
+   真安装到 `…\特征识别工具\1.5.0.0\`（rhp sha256 `a03c0624…` 一致）。
+   **运行中实例仍 1.4.0.0**，`FWPickFeature` 需重开 Rhino 才能注册。
+   `FWPickFeature` 是交互命令，无法脚本同步驱动 —— 双向选择仍需用户实机点验。

@@ -425,12 +425,59 @@ RhinoIronPython.chm），`Content/XML/<lang>/` 是模板与材质资源，不是
 - 用户重启后实机点菜单 `I` / `M` 确认（进程当前仍 2.8）
 - 布局页 detail 不参与
 
+## E-023 · FeatureWorks 面板重做：可辨识性 > 算法复杂度（2026-11-23 晚）
+
+**用户原话**：「你不觉得这个界面的交互很麻烦嘛……为什么我不能去选择那个边缘？
+我去选择边缘，然后取消它的特征不更好吗？……这一个一个 flat，我都不知道这是哪个跟哪个」
+并明确要「勾选保留全部，还是将选择的删除」。
+
+**假设**：问题不在识别算法，而在**识别结果没有可辨识映射** + **破坏性操作用了隐式默认**。
+本轮不动算法、只重做交互层。
+
+**做法**：
+1. 反射核实 Eto / Rhino API（不凭印象写）：
+   - `Eto.Forms.CheckBoxList`：有 `Orientation`、`SelectedKeys`（可读可写）、
+     `SelectedKeysChanged`、`MouseDoubleClick`，**没有 SelectedIndex**；
+   - `BrepFace.AdjacentEdges()` → `Int32[]`（边→面反查的关键）；
+   - `Rhino.Geometry.ComponentIndexType.BrepFace / BrepEdge`；
+   - `RhinoViewport.ZoomBoundingBox(BoundingBox)`；
+   - `DisplayPipeline.Draw2dText(string, Color, Point3d, middleJustified, height, fontface)`。
+2. `FwFocusGroup` 加稳定 Id（F1…/H1…）；`FwFocusConduit` 加 `FeatureVisuals` +
+   `FocusedIndex`，逐组画编号标签，命中组青色粗线、其余压暗。
+3. 新增 `FWPickFeature` 命令：`GetObject{SubObjectSelect=true}` → 面直接查组、边用
+   `AdjacentEdges()` 反查 → `FwFocusSession.PickGroup` 通知面板勾选（自定义委托，避开 Action 冲突）。
+4. 面板改成纵向编号列表 + 三个显式动作：`取消选中 N 项`（N=0 拒绝）、`保留全部`、`全部取消`。
+5. 编译 → 反射 → yak → 真安装 → 哈希核对。
+
+**实测数字**：
+- 首编译 4 error：`RhinoView` 在 `Rhino.Display` 不是 `Rhino.DocObjects` → 补 using 后
+  **96256 B / 0 error / 49 warning**（其余是既有 CS8603/CS0618/CS1701 噪声）
+- 反射：程序集 1.5.0.0；`FwPickFeatureCommand` 存在；
+  `FwFocusSession` 含 `GroupAt / FindGroupByEdge / PickGroup / SetFocus`
+- yak **62259 B**，sha256 `44664b48…`；rhp sha256 `a03c0624…`，真安装
+  `packages\9.0\特征识别工具\1.5.0.0\` 哈希一致
+- **运行实例仍 1.4.0.0**（`has FwPickFeatureCommand: False`），需重开 Rhino
+
+**结论**：
+- ✅ 推翻「文字列表 + 勾选就够了」的设计假设：**可辨识性先于算法 sophistication**。
+  用户要的是「能指认」而不是「更多特征类型」。
+- ✅ 选中必须 ≠ 执行。视口点边只打勾；改模型要点显式按钮，且空勾选不执行。
+  旧版「不勾=全部取消」是隐式破坏性默认。
+- ✅ 交互 API 必须先反射：CheckBoxList 没有 SelectedIndex、RhinoView 在 Display 命名空间、
+  `AdjacentEdges()` 返回 int[] —— 凭印象写会连续 4 个编译错误。
+- ⚠️ 打包脚本会覆盖人工维护的 README/manifest（重写成 v1.0 模板）—— 已改成只在缺失时生成。
+- ⚠️ 交互命令无法脚本同步驱动，`FWPickFeature` 的“点边→勾选”仍需用户实机点验。
+
+**回填**：`INTERACTION_SPEC.md` §10；`feature-recognition.md` §10 + 版本线；
+`error-catalog.md` 交互命令 +4 行；`INDEX.md` 症状表；`README.md` / `使用手册.md` v1.5 段落；
+`MEMORY.md` 特征工具版本升 1.5。
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**23 条实验**，其中 **12 条推翻了初始假设**（E-015 推翻 E-014 真因，
+- 截至 2026-11-23：**24 条实验**，其中 **13 条推翻了初始假设**（E-015 推翻 E-014 真因，
   E-016 再推翻 E-014 的判断方法与 E-015 附带结论，E-019 推翻「solved=true 即成功」，
   **E-020 推翻 E-014 的"面板未注册"判据**，**E-021 推翻"命令只改了一个视口"的猜想**，
-  **E-022 推翻 E-021 的需求方向判断**）。
+  **E-022 推翻 E-021 的需求方向判断**，**E-023 推翻「文字列表足够」的界面假设**）。
   E-017 / E-018 为概念与资料精化，不计推翻，同样保留判断演化。高推翻率说明「先验证再相信」不是口号。
   注意：E-021→E-022 是"技术实现正确、需求理解错误"的典型样本 —— 推翻的层次比前几条更高。
 - 编号提示：台账历史上有两条 E-016（一条 `###` 一条 `##`），不作改动，新实验顺延编号。

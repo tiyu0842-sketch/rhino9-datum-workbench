@@ -3,9 +3,8 @@
 
 Run INSIDE Rhino 9's Python 3 (ScriptEditor, or mcp__rhino__run_python):
 
-    p = r"<path-to>/featureworks/verification/Compile_Roslyn.py"
+    p = r"C:\\Users\\21251\\WorkBuddy\\2026-11-21-15-41-26\\FeatureWorks\\verification\\Compile_Roslyn.py"
     exec(compile(open(p, encoding="utf-8").read(), p, "exec"))
-    # Optionally set globals ROOT / OUT_OVERRIDE / ASSEMBLY_NAME before exec to override paths.
 
 Rationale (same as DatumPlanePlugin): no standalone .NET 8 SDK on this machine,
 but Rhino 9 ships Microsoft.CodeAnalysis and has every RhinoCommon reference
@@ -23,11 +22,11 @@ from System.Text import Encoding
 from System import AppDomain
 
 ROS = r"C:\Program Files\Rhino 9\System"
-# Portable path: this script lives in featureworks/verification/, parent is the plugin root.
-_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
-ROOT = globals().get("ROOT") or os.path.dirname(_HERE)
+ROOT = os.environ.get("FEATUREWORKS_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
-OUT = os.path.join(ROOT, "RhinoFeatureWorks.rhp")
+# 与 DatumPlane 一样支持 OUT_OVERRIDE：Rhino 可能正锁着 canonical .rhp，
+# 编译输出要能改名，否则 Assembly.LoadFrom 锁文件会让新版本写不进去。
+OUT = globals().get("OUT_OVERRIDE") or os.path.join(ROOT, "RhinoFeatureWorks.rhp")
 ASSEMBLY_NAME = "RhinoFeatureWorks"
 
 try:
@@ -44,9 +43,11 @@ from Microsoft.CodeAnalysis.CSharp import (CSharpSyntaxTree, CSharpParseOptions,
                                            LanguageVersion, CSharpCompilation,
                                            CSharpCompilationOptions)
 
-FILES = ["AssemblyInfo.cs", "FeatureWorksPlugin.cs", "FwModel.cs", "FwGraph.cs",
+FILES = globals().get("FILES") or ["AssemblyInfo.cs", "FeatureWorksPlugin.cs", "FwModel.cs", "FwGraph.cs",
          "FwEngine.cs", "FwReconstruct.cs", "FwSurfaceEvidence.cs", "FwSelfTest.cs",
-         "FwSession.cs", "FwPanel.cs", "FwCommands.cs"]
+         "FwSession.cs", "FwPanel.cs", "FwCommands.cs",
+         "FwFocus.cs", "FwSelectCommand.cs", "FwPickFeatureCommand.cs",
+         "FwCancel.cs", "FwCancelCommand.cs", "FwCancelPanel.cs"]
 
 refs, seen, skipped = [], set(), 0
 for a in AppDomain.CurrentDomain.GetAssemblies():

@@ -13,9 +13,7 @@ import shutil
 import zipfile
 import hashlib
 
-# Portable path: this script lives in featureworks/verification/, parent is the plugin root.
-_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
-ROOT = globals().get("ROOT") or os.path.dirname(_HERE)
+ROOT = os.environ.get("FEATUREWORKS_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INSTALL = os.path.join(ROOT, "install")
 RHP = "RhinoFeatureWorks.rhp"
 VERSION = sys.argv[1] if len(sys.argv) > 1 else "1.0.0.0"
@@ -54,23 +52,25 @@ I 曲面证据 · J 整体修复
 """ % VERSION
 
 readme_path = os.path.join(ROOT, "README.md")
-with io.open(readme_path, "w", encoding="utf-8", newline="\n") as f:
-    f.write(README)
-
-manifest = """---
+manifest_path = os.path.join(ROOT, "manifest.yml")
+# v1.5 起：README / manifest 是人工维护的交付文档，打包脚本**不得覆盖**。
+# 旧版脚本每次 build 都把这两个文件重写成 v1.0 模板，导致包内说明与真实功能脱节。
+if not os.path.exists(readme_path):
+    with io.open(readme_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(README)
+if not os.path.exists(manifest_path):
+    manifest = """---
 name: 特征识别工具
 version: %s
 authors:
 - FeatureWorks Tools
-description: Rhino 9 FeatureWorks-style feature recognition v%s - AFAG face adjacency graph, onion-peel recognition (fillet chains / holes / extrude cuts), feature tree persisted in Brep.UserDictionary, suppress and parameter-driven rebuild, geometry-invariant concave detection
+description: Rhino 9 FeatureWorks-style feature recognition v%s - AFAG face adjacency graph, onion-peel recognition (fillet chains / holes / extrude cuts)
 url: https://www.rhino3d.com
 keywords: []
 platform: win
 """ % (VERSION, VERSION)
-
-manifest_path = os.path.join(ROOT, "manifest.yml")
-with io.open(manifest_path, "w", encoding="utf-8", newline="\n") as f:
-    f.write(manifest)
+    with io.open(manifest_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(manifest)
 
 if not os.path.isdir(INSTALL):
     os.makedirs(INSTALL)
@@ -80,6 +80,11 @@ shutil.copyfile(readme_path, os.path.join(INSTALL, "README.md"))
 print("install/: synced rhp + manifest + README")
 
 FILES = [RHP, "manifest.yml", "README.md"]
+# 手册与交互规格存在时一并入包，避免用户装完只能看命令行提示。
+for extra in ("使用手册.md", "INTERACTION_SPEC.md"):
+    if os.path.exists(os.path.join(ROOT, extra)):
+        FILES.append(extra)
+        shutil.copyfile(os.path.join(ROOT, extra), os.path.join(INSTALL, extra))
 with zipfile.ZipFile(YAK, "w", zipfile.ZIP_DEFLATED) as z:
     for f in FILES:
         z.write(os.path.join(ROOT, f), f)

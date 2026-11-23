@@ -1,9 +1,9 @@
 ---
 name: 特征识别工具
-version: 1.4.0.0
+version: 1.5.0.0
 authors:
 - FeatureWorks Tools
-description: Rhino 9 FeatureWorks-style feature cancellation v1.4 - two-step workflow pick a Brep then the feature panel opens automatically, separate fillet channel (delete transition faces plus native-surface re-sew) and hole channel (UntrimFace), source object culled and redrawn as a see-through shell while feature faces stay solid orange, overlay self-heals on document change. Docked panels now register correctly with class level GuidAttribute.
+description: Rhino 9 FeatureWorks-style feature cancellation v1.5 - numbered F1/F2/H1 labels drawn on the model match the panel rows, two-way selection (click a row to highlight in viewport; pick an edge/face in the viewport to tick the matching row), explicit Keep all / Cancel selected / Cancel all semantics (no tick means no change), separate fillet channel (delete transition faces plus native-surface re-sew) and hole channel (UntrimFace), automatic panel open after FWSelect, overlay self-heals on document change.
 url: https://www.rhino3d.com
 keywords: []
 platform: win

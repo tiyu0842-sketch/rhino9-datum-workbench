@@ -12,11 +12,13 @@
 3. **`nff/` — NormalFaceFilter 法线筛面**（2026-11-22 新增，已完成真机验证）
    按参考方向筛选 Mesh 面，为 AI 分面前处理。Python + C# 双实现，24 项模拟测试 + 真机验证全过；
    真实 Rhino 9 上抓出并修复了 5 个模拟层掩盖的 API 错误（详见 `nff/HANDOFF.md` 第 4.6 节）。
-4. **`featureworks/` — RhinoFeatureWorks v1.3.2 特征取消**（**正式实现**）
+4. **`featureworks/` — RhinoFeatureWorks v1.5 特征取消**（**正式实现**）
    SolidWorks FeatureWorks 风格：选中一个没有历史的 B-rep 实体 → 判断哪些面被改过（trim / 布尔 / 倒角）→
    删除特征 → 几何恢复成可重新编辑的毛坯，省掉倒角/布尔后想再编辑时的手工备份。
    **圆角与孔洞是两套算法**（孔洞走 `Brep.UntrimFace`，圆角走删整圈过渡面 + `CreateSolid` 重缝）。
    `FWSelect` / `FWCancel` / `FWCancelPanel` 交互闭环、9/9 自测、yak 真安装。
+   v1.5 面板重做：视口逐组编号 ↔ 面板行双向选择（点边/面反查特征）、
+   `保留全部 / 取消选中 N / 全部取消` 显式语义，空勾选不执行（E-023）。
    方向纠偏的完整复盘见 `featureworks/HANDOFF.md`。
 5. **`featureworks-v2/` — 已降级的实验记录**（⚠️ 非发布物料）
    一次方向走偏的实现：做的是「备份对象恢复」而非几何 untrim，未解决痛点。
@@ -85,11 +87,11 @@ nff/
   make_test_mesh.py                7 面测试网格（真机修正版）
   HANDOFF.md                       交接说明 + 第 4.6 节真机验证记录
 featureworks/                    ← 正式实现（v1.3.2）
-  src/                         16 个源文件：识别引擎/证据/聚焦显示/取消/面板
+  src/                         17 个源文件：识别引擎/证据/聚焦显示/取消/面板/视口拾取
   verification/                11 个 Probe 脚本 + Roslyn 编译 + 打包
   README.md / 使用手册.md       命令与交互说明
   HANDOFF.md                   方向纠偏复盘：什么是对的、什么是走偏的
-  RhinoFeatureWorks_v1.3.2.0.yak  真安装验证过的发行包
+  RhinoFeatureWorks_v1.5.0.0.yak  真安装验证过的发行包（v1.3.2 一并保留）
 featureworks-v2/                ← 已降级，实验记录，勿用
   src/                         v2 识别引擎（备份对象恢复，非 untrim）
   README.md / BETA_NOTICE.md   顶部已加降级声明
