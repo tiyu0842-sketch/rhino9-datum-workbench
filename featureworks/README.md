@@ -1,9 +1,21 @@
-# 特征识别工具 / RhinoFeatureWorks v1.3.2
+# 特征识别工具 / RhinoFeatureWorks v1.4.0
 
 Rhino 9 SolidWorks FeatureWorks 风格**特征取消**插件（独立包，与「基准面工具」并存）。
 
 核心用途：倒完角 / 布尔完不满意，不想手工备份、重画——选中实体，插件识别出做过的特征，
 把特征面亮橙、其余面半透明锁定，勾掉不要的，几何回到可再编辑的毛坯。
+
+## v1.4 新增（本轮）：面板注册修复 + 两段式自动弹面板
+
+**① 面板注册失败已修。** v1.3.2 里 `FWPanel` / `FwCancelPanel` 只有 `static readonly Guid PanelId` 字段，
+但 Rhino 9 的 `Panels.RegisterPanel` 要求**面板类带类级 `[Guid(...)]` 特性**，
+否则报 `type must have a GuidAttribute (Parameter 'type')`，面板根本注册不上。
+v1.4 给两个面板类都加了 `[Guid]`，值与各自 `PanelId` 一致。
+
+**② 两段式交互（参考 XNurbs 辅助面板）：** 敲 `FWSelect` → 点选对象（点选即"载入"，
+不需要先把对象加进面板）→ 自动识别 → 视口高亮 + **自动弹出「特征取消」面板**，
+面板列出识别到的特征并集（圆角通道 / 孔洞通道）。在面板里勾选即可剥离/抑制特征回毛坯。
+省略了 v1.3 里"再单独敲一次 `FWCancelPanel`"那一步。面板若意外没弹出，仍可手动敲 `FWCancelPanel`。
 
 ## v1.3 新增（本轮）
 

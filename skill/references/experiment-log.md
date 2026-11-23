@@ -130,9 +130,26 @@
 - 结论：✅ 界面**代码里有**，是本进程没重启导致新版 `OnLoad` 没跑。⚠️ 也说明此前"反射验证面板控件树 PASS"不等于"UI 真的出现"——两者是不同层级的验证。
 - 回填：`error-catalog.md` 新增两条（装新版没重启 / 测试程序集污染）。
 - 遗留：**待用户在干净重启的 Rhino 里敲 `FWSelect` + `FWCancelPanel` 实测**；这一步只有人能做（无界面槽位驱动不了停靠面板与交互拾取）。
+- **修正 E-015**：用户随后重启并截图，报错 `type must have a GuidAttribute (Parameter 'type')`——真因**不是没重启**，而是面板类缺 `[Guid]`。E-014 的"没重启"判断被推翻，保留原文作为判断演化记录。
+
+### E-015 · 2026-11-23 · 面板注册失败真因：缺类级 GuidAttribute
+- 假设：面板注册失败是没重启 / 老程序集占位（E-014）。
+- 做法：用户重启后截图命令行报错；查 `RhinoCommon.xml` 的 `Panels.RegisterPanel` 文档。
+- 实测：报 `type must have a GuidAttribute (Parameter 'type')`；XML 明确写面板类"must have ... a GuidAttribute applied with a unique Id"。源码里 `FwPanel`/`FwCancelPanel` 只有 `public static readonly Guid PanelId` **字段**，没有类级 `[Guid]` 特性。
+- 结论：❌ 推翻 E-014。✅ 给两个类加 `[Guid(与PanelId同值)]` 即修复。**关键区分：`static Guid` 字段 ≠ `[Guid]` 类特性**，Rhino 只认后者。
+- 回填：`error-catalog.md`「面板注册」条（已加）；`rhinocommon-pitfalls.md` Eto 段。
+- 遗留：需真机重启后敲命令确认面板出现（只有人能做）。
+
+### E-016 · 2026-11-23 · 两段式交互（XNurbs 风格自动弹面板）
+- 假设：点选物体后让用户再单独敲 `FWCancelPanel` 太绕，应像 XNurbs 辅助面板那样"命令→点选→识别→自动弹面板"。
+- 做法：在 `FWSelect` 识别成功后调 `FwCancelPanel.Open()`；面板 `PanelShown` 回调自行 `Refresh` 出两通道清单；外层 try/catch 保证面板打不开不影响聚焦本身。
+- 实测：进程内 Roslyn 编译 89088 bytes / 0 error / 46 warning；UTF-16 字节检索确认新提示串与 `1.4.0.0` 进入 rhp；打包 49409 bytes，安装目录 rhp 哈希与编译产物一致（c39ca77ff6418473）。XNurbs 官方页确认其"single simple UI for all kinds of modeling"的辅助面板范式，但具体自动弹出细节无公开源码，按用户描述实现。
+- 结论：✅ 实现为 v1.4.0。
+- 回填：`README` / `使用手册` 顶部加 v1.4 段落。
+- 遗留：真机确认自动弹出时机与面板可用性。
 
 ## 统计与复用提示
 
-- 截至 2026-11-23：**14 条实验**，其中 **6 条推翻了初始假设**。高推翻率说明「先验证再相信」不是口号。
+- 截至 2026-11-23：**16 条实验**，其中 **7 条推翻了初始假设**（E-015 推翻了 E-014）。高推翻率说明「先验证再相信」不是口号。
 - 查坑顺序：`error-catalog.md`（按症状）→ 本台账（按实验编号，看结论演化）→ 专题文档（按领域）。
 - 新实验编号顺延；若结论修正旧条目，在本条写「修正 E-XXX」并在旧条补一行指向，不删改旧记录。

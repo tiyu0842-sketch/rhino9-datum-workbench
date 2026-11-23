@@ -54,6 +54,9 @@
 - Rhino 9 面板类 = `Eto.Forms.Panel` 子类 + `IPanel`；注册用 `Rhino.UI.Panels.RegisterPanel(plugin, type, title, icon, PanelType.System)`，打开用 `Panels.OpenPanel(guid)`。
 - `Command` 在 `Rhino.Commands` 与 `Eto.Forms` 之间歧义，用全名。`TableLayout.Spacing` 是 `Eto.Drawing.Size`，`StackLayout.Spacing` 是 `int`。`GetObject` 用 `SetCommandPrompt()` 方法而非属性。
 - 反射 Assembly.Load 不会触发插件 `OnLoad`，面板不会注册——这是测试条件限制，别误判为代码 bug。
+- **`Panels.RegisterPanel(plugin, type, caption, icon, panelType)` 要求面板类有类级 `[Guid("...")]` 特性**（`System.Runtime.InteropServices.GuidAttribute`），否则报 `type must have a GuidAttribute (Parameter 'type')`。只有 `public static readonly Guid PanelId` **字段不算**——Rhino 读的是特性不是字段。修法：给类加 `[Guid(与 PanelId 同值)]`。`Panels.OpenPanel(guid)` 用的就是这个 Guid。
+- 想让命令触发后自动弹面板（XNurbs 风格两段式）：在命令拿到对象、算完结果后直接调 `面板类.Open()`（内部 `Register()` + `Panels.OpenPanel(PanelId)`）；面板实现 `PanelShown(uint docSerialNumber, ShowPanelReason reason)` 回调并在其中 `Refresh()`，弹出时即可显示刚算好的数据。外层 try/catch 包住，面板失败不能连累命令主流程。
+- 遇到"面板注册失败"先分清两层原因：①类缺 `[Guid]`（真 bug，截图会报 GuidAttribute）；②插件没 `OnLoad`（没重启或反射加载）。报错文本能直接区分。
 - **多选：`ListBox` 没有多选**。勾选多个用 `CheckBoxList`，读 `SelectedKeys`（`IEnumerable<string>`）；`Items[i]` 返回 `IListItem`，按 `.Key` 匹配组号，别拿索引当身份。
 - `RhinoGet.GetInteger(prompt, bool acceptNothing, ...)` 有 bool 参数；`GetNumber(prompt, bool, ref v, lo, hi)` 同理。漏传编译不过。
 

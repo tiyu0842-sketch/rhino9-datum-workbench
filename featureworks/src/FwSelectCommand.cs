@@ -8,7 +8,10 @@ using Rhino.Input.Custom;
 namespace RhinoFeatureWorks;
 
 /// <summary>
-/// FWSelect —— 交互入口：点一个实体 → 识别 → 特征面亮橙、其余面半透明锁定。
+/// FWSelect —— 交互入口（两段式，参考 XNurbs 辅助面板）：
+///   第一段：点一个实体（点选即"载入"，无需先把对象加进面板）
+///   第二段：自动识别 → 视口里特征面亮橙、其余面半透明锁定 → 自动弹出取消面板
+/// 面板列出识别到的特征并集（圆角通道 / 孔洞通道），在面板里勾选即可剥离/抑制特征回毛坯。
 /// 再次运行同一命令即关闭聚焦（toggle），不会留下任何文档改动。
 /// </summary>
 [CommandStyle(Style.ScriptRunner)]
@@ -54,6 +57,20 @@ public class FwSelectCommand : Command
 
         RhinoApp.WriteLine(FwFocusSession.Begin(doc, ore.ObjectId, brep, features));
         RhinoApp.WriteLine(FwFocusSession.Report());
+
+        // 两段式交互：点选 + 识别完成后自动弹出取消面板，省略"再单独开面板"那一步。
+        // 面板的 PanelShown 回调会自己 Refresh 出刚识别的两通道特征清单。
+        try
+        {
+            FwCancelPanel.Open();
+            RhinoApp.WriteLine("已在「特征取消」面板列出识别结果，勾选即可剥离 / Feature panel opened.");
+        }
+        catch (Exception ex)
+        {
+            // 面板打不开不能连累聚焦本身——视口高亮仍然可用，命令行仍可 FWCancel。
+            RhinoApp.WriteLine("面板自动弹出失败 / auto-open panel failed: " + ex.Message);
+        }
+
         RhinoApp.WriteLine("提示 / Tip: 再运行 FWSelect 关闭聚焦；FWFocus 只看通道清单。");
         return Result.Success;
     }

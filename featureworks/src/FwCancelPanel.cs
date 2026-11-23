@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Eto.Forms;
 using Rhino;
 using Rhino.Commands;
@@ -24,6 +25,7 @@ namespace RhinoFeatureWorks;
 ///
 /// 改文档的操作都落在同一个 Undo 记录里，Ctrl+Z 一次回退。
 /// </summary>
+[Guid("B4D8E21A-7C36-4F59-8A0D-3E7B1C6F9D24")]
 public class FwCancelPanel : Eto.Forms.Panel, IPanel
 {
     public static readonly Guid PanelId = new Guid("B4D8E21A-7C36-4F59-8A0D-3E7B1C6F9D24");

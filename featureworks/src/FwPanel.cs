@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Eto.Forms;
 using Rhino;
 using Rhino.Commands;
@@ -15,6 +16,7 @@ namespace RhinoFeatureWorks;
 /// 实测 Rhino 9：面板类就是 Eto.Forms.Panel 的子类，用
 /// Panels.RegisterPanel(plugin, type, title, icon) 注册；Eto 2.13 随 Rhino 9 自带。
 /// </summary>
+[Guid("7A4E1C93-5B2D-4E68-9F31-0C8D5E6A7B42")]
 public class FwPanel : Panel, IPanel
 {
     public static readonly Guid PanelId = new Guid("7A4E1C93-5B2D-4E68-9F31-0C8D5E6A7B42");
