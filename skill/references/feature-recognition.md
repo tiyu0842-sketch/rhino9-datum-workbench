@@ -94,12 +94,125 @@ Rhino B-rep 的面 = **完整底层曲面 `UnderlyingSurface()` + trim 环**。�
 
 ## 6. 版本与产物
 
-v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环）→ v1.3.1（鬼影自愈）→ **v1.3.2**（ObjectCulling 真半透明，yak 真安装）。
-rhp 88576 bytes / 0 error / 46 warning；`RhinoFeatureWorks_v1.3.2.0.yak` 48422 bytes，装到 `…\packages\9.0\特征识别工具\1.3.2.0\`。**装完必须重开 Rhino**。
+v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环）→ v1.3.1（鬼影自愈）→ v1.3.2（ObjectCulling 真半透明，rhp 88576 bytes / 0 error / 46 warning，yak 48422 bytes，装到 `…\1.3.2.0\`）→ **v1.4.0**（面板类补类级 `[Guid]` 修 `type must have a GuidAttribute` 注册失败；`FWSelect` 识别后自动弹面板的两段式；rhp 89088 bytes / 0 error，已真安装到 `…\1.4.0.0\`，**实机验收待用户重启**）。
+**装完必须重开 Rhino**，否则进程里仍是旧的 `Assembly.Load(byte[])` 实验程序集（曾堆到 40+ 个，易崩）。
 
 ## 7. 下一版待做（从痛点出发，不重写）
 
-1. 孔体重放：只取消圆角、保留孔（几何已验证可行）
+1. 孔体重放：只取消圆角、保留孔（几何已验证可行，方案见第 8 节）
 2. 框选 sub-object + 特征面白名单
 3. 圆弧识别、NURBS 曲率降级
 4. GH 组件、工具栏 RUI / 图标
+
+## 8. 概念澄清：为什么「使用感差」是结构性的（2026-11-23 用户长篇复盘）
+
+用户困惑："想让 Rhino 像 SW/Creo 一样有建模历史，倒角切割后能编辑回退""是不是我没表达清楚""使用感太差"。
+**结论：不全然是表达问题，是建模范式差异造成的信息缺口。**
+
+- SW/Creo 存**操作意图**（在边 E 上倒 R5、孔 Ø10），模型 = 特征树重放结果；回退 = 删节点 / 改参数。
+- Rhino 存**结果几何**（Face / Edge / Trim loop），**不存操作历史**。倒完角不知道从哪条边来、R 多少。
+- 因此 FeatureWorks 做的是**逆向工程**：从结果反推曾发生的操作。同一个最终 B-rep 可由无数操作序列产生
+  → **不适定问题（ill-posed）**，机器只能给高置信度候选，不可能像 SW 那样 100% 确定。
+- 推论：**交互必须「机器给候选 + 人做裁决」**（分类 → 细分 → 手动框选）。用户草图里自己写的
+  "先选 1、2 分类，再到细分选项，其实可以手动框选" 正是这个范式的直觉表达，**别改成全自动**。
+
+### 三类操作对「原生曲面」的精确影响（修正「都没改变原生曲面」的说法）
+
+| 操作 | 底层 Surface | 拓扑 | 能否 Untrim 回退 |
+|---|---|---|---|
+| 布尔差集 / 打孔 | 完全不动 | 宿主面多内环 | ✅ 直接恢复 |
+| 倒角 / 倒圆角 | 原面被裁小（没坏） | **新增过渡曲面** + 两条新边 | ⚠️ 删过渡面 + 重缝 |
+| 圆管切除 + 混接 Blend | **拟合出全新 NURBS 面** | 边界重连 | ❌ 无原生可回退，救不回来 |
+
+> 混接面是重新拟合的，不存在可 Untrim 的解析原生曲面 —— 这条边界必须对用户明说，别承诺能救。
+
+### 「保留主体 / 保留全部」的真问题：粒度错配
+
+用户观察："保留时容易把整个面都保留下来，导致识别时出错"。**不是 bug**：
+特征信息在 **loop（内环）** 上，而"保留"落在 **face** 上；`UntrimFace` 语义是抹掉这张面**全部**内环，
+反过来"整面保留"就是"一个都不抹"，同一面上的孔与槽必然同生共死。与第 5 节记的 A 方案限制同源。
+
+三条实现路径（**第 2 条经 E-016 全网调研修正**）：
+1. **整面恢复（现状 A 方案）**：最稳，保留只能全有/全无。
+2. **复用官方 `UntrimHoles` 语义**：~~RhinoCommon 无现成 API~~ ← **错**。Rhino 9 官方命令层有
+   `Untrim / UntrimAll / UntrimBorder / UntrimHoles`，其中 `UntrimHoles` 支持**逐个选孔边、框选、
+   按「最大边缘长度」筛选、`全部`**，`UntrimBorder` 只去外边界而**保留内部孔**。
+   即「只删某些孔、保留其他孔」原生做得到；API 层 `Brep.UntrimFace` 是整面级，需要在 Core 层
+   按 inner loop 逐个识别来搭桥，或用 `RhinoApp.RunScript` 调命令。代价仍是 trim 重建。
+3. **孔体重放（推荐）**：先整体 Untrim 得干净毛坯 → 把"要保留"的孔/槽用布尔差集**重新切回去**。
+   "保留"变成"重新执行已知操作"，最接近用户想要的"历史感"，且不碰 trim 细节；数值路径已验证
+   `240000 → 236607.08`（见第 1 节实测表）。
+
+> **v1.5 取舍**：先做路径 3（稳、语义最像历史树），路径 2 留作「精确保留」高级选项。
+> 详见工作区 `FeatureWorks/INTERACTION_SPEC.md` §3；SW 的 `Delete Faces`（删倒角并记尺寸以便重施加）
+> 正是孔体重放的工业原型，而 `Select Tangency`（抓整圈相切边）对应「圆角必须整圈一起删」。
+> **修正上一轮「Rhino 官方不给这个命令」**：官方给了完整 Untrim 原语族，缺的是
+> 「识别 + 分组 + 回到毛坯」的闭环 —— 这才是本插件的准确定位。
+
+### 同轮显示模式反馈
+
+- "一个视图切 Alias、所有视图跟着变" 在 Rhino 原生**不是默认行为**（默认逐视口独立），
+  用户喜欢的联动其实是"设为默认显示模式 / 对全部视口应用"，待现场核实。
+- "结构线太密、隐藏后阴影变暗"：**不要全隐藏等参线**（用户明确要三度灰阶 + 等参线看曲面）。
+  正解 = 降 `IsocurveDensity` + 提亮环境光 / 减弱 AO + 保留一盏柔和方向光；阴影变暗多由 AO 压暗部所致。
+
+## 9. 原理精化：不是「无限猜」，是有限方法库上的受约束反向推断（2026-11-23 用户追问）
+
+用户追问："SW 里 FeatureWorks 没有历史记录却仍能重新识别，是不是大致去猜 + 有交互、只把大致种类弄了，
+因为实现方法就那几种，所以根据方法去约束、反向推导出来？" —— **基本全对**，且对应正式学术方法。
+
+### 术语与出处
+
+- **hint-based / evidence-based / trace-based feature recognition**（Vandenbrande & Requicha 1993；
+  Ji & Marefat 称 evidence-based，Regli 称 trace-based）。核心 = **generate-and-test**：
+  hint generation → feature completion（几何补全，生成最大不侵入实体的特征体积）→ verification。
+- hint 定义 = *minimal indispensable portion of a feature's boundary*：特征被其他操作相交破坏后，
+  边界上仍必然残留的最小部分。例：两个相对平面 → slot hint；一根轴 / 圆柱面 → hole hint；
+  螺纹属性也可作 hole hint（hint 不必只来自几何）。用户说的「判断曲面是否被修剪」，
+  就是 Rhino 语境下的一种 hint。
+- 基于 **feature presence rules**（特征存在规则）；文献明确 hint 生成/补全算法是 **feature-type specific**，
+  一类特征一套规则、不能复用到新特征类型 → 这是「方法有限 → 规则可枚举」的硬依据。
+- 其他路线：graph-based / AAG（Joshi & Chang；我们的 AFAG 洋葱剥皮属此类，特征相交时丢弧是已知弱点）、
+  volume decomposition、rule-based、ANN。综述普遍认为真实工业零件（数百面）会让多数方法停机。
+
+### 对「不适定」的精化（修正第 8 节的粗略表述，旧条不删）
+
+第 8 节说「不适定 → 机器只能给候选」，容易被读成「无边界乱猜」。更精确：
+**假设空间是封闭且有限的**（可解析面类型有限 → 能产生它们的建模操作有限 → 反向推断收敛得了）。
+不适定指的是**同一结果对应多个合法假设**，不是「没有约束」。工程解法因此是：
+有限模板匹配 + 置信度排序 + 多解时交人裁决 —— 既不是放弃自动化，也不是追求全自动。
+
+### SW 里的字面印证
+
+- 自动识别第一个界面就是**勾选有限特征类型清单**（Extrudes / Drafts / Revolves / Holes /
+  Fillets-Chamfers / Ribs / Volume / Sheet Metal）→ 用户说的「方法就那几种」被做成可枚举的表。
+- Intermediate Stage 可 `Find Patterns` / `Combine Features` / **Re-Recognize as alternate features**
+  → 多解改判口。
+- **识别过的特征退出后续计算**（recognized features removed from further calculations），
+  剩余几何再送进去重跑；顺序 = 建模顺序的**逆序**：
+  `Fillet/Chamfer（尺寸递增）→ Drafts → Holes → Ribs → Cut → Shell → Boss`。
+  理由：细节特征会干扰大特征识别，先细后粗降低模型复杂度。
+- 交互式一次只认一类，人指定类型 + 手选面/边，SW 反推 sketch / 方向 / 终止条件 / 参数
+  = hint completion 的工业实现。CATI 原句：计算机「不直觉地考虑最佳建模方法，也不考虑设计意图」。
+- **重要前提修正**：SW 原生 `.sldprt` **有** FeatureManager 历史树；FeatureWorks 专用于
+  **导入的 dumb solid**（STEP / IGES / Parasolid 只带 B-rep）。它做的是**重建**历史，
+  官方与业界用词克制：*rudimentary feature history*、*may not create the exact feature tree*、
+  目标 *workable tree, not perfect tree*。→ 不是「它没记录」，是「输入里没有、按方法约束补一个粗糙的」；
+  这反而强化用户洞察：没有历史 → 只能靠方法约束反推 → **交互是必要组成，不是补丁**。
+
+### 对 v1.5 的落地决策（已写入 INTERACTION_SPEC.md §2.1）
+
+1. 把隐含的孔洞/圆角双通道升级成**显式方法库表**：`生成方法 → 期望拓扑签名 → 反推规则 → 适用边界`；
+   一类一套规则，别做万能分类器。
+2. 每个候选输出**置信度 + 一句依据**（判孔：圆柱面 + 内环 + 共轴；判圆角：等半径 + 相切链），面板显示理由。
+3. 高置信批量、**低置信不自动执行**进面板等裁决（对应 Auto / Interactive 两级）。
+4. **逆序剥离 + 已识别退出候选池**：先圆角/倒角（小→大）→ 孔槽 → 最后保留主体。
+5. **保留 = 重新执行**（孔体重放），对应 `Delete Faces` 记尺寸再重施加，而非「不删某些环」。
+6. 诚实边界：Rhino 自由度（自由曲面 / 混接 / 任意布尔）使假设空间远大于 SW 机加工域，
+   文献明说 3D / freeform 特征识别至今困难 → 我们置信度天花板更低，**结构上更依赖人裁决**。
+
+> 出处：help.solidworks.com 2025 `Recognizing Features Automatically`；GoEngineer
+> `FeatureWorks: Automatic vs Interactive Recognition`；CATI `Advanced Techniques for Recognizing
+> Features`；Mechanitec `SolidWorks FeatureWorks Guide`；Cardiff ORCA
+> `Intelligent Techniques for Automatic Feature Recognition in CAD Models` §2.4.3；
+> Wikipedia `Feature recognition`；ScienceDirect S016636151000028X 引言综述。

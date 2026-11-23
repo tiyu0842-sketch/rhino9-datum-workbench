@@ -148,8 +148,84 @@
 - 回填：`README` / `使用手册` 顶部加 v1.4 段落。
 - 遗留：真机确认自动弹出时机与面板可用性。
 
+## E-016 · 全网调研 + 只读探活：命令层 Untrim 能力 / 程序集枚举不可作安装判据
+
+**假设**：(a) 上一轮的结论「loop 级手术 RhinoCommon 无现成 API、风险高」成立；
+(b)「AppDomain 里没有 FeatureWorks 程序集」可作为「没安装 / 没重启」的判据（E-014 用过）。
+
+**做法**：用户授权全网调研（xNurbs 交互范式 / SW FeatureWorks 流程 / 同类插件 / 显示模式参数 /
+Rhino 官方 Untrim 命令族），并做一次真实 Rhino 9 只读探活（程序集枚举 + 面板 `DockBarIdInUse` +
+命令枚举 + DisplayMode 枚举 + 源码核对）。
+
+**实测 / 查证**：
+- 官方文档 `docs.mcneel.com/rhino/9/help/zh-cn/commands/trim.htm` 明确列有
+  `Untrim` / `UntrimAll` / `UntrimBorder`（只去外边界、**保留内部孔**）/ `UntrimHoles`
+  （逐孔选边、框选、`全部`、按「最大边缘长度」筛选；菜单「实体 > 洞 > 将洞删除」）。
+- `SurfaceIsocurveDensity` 官方值：`-1` 全隐藏 / `0` 边界+knot / `1` 加一条 interior / `>=2` 加 N+1 条；
+  NOVEDGE 建议 modest 0–2；暗曲面配浅色结构线；AO 压暗部、高 AO 吃 FPS。
+- SW FeatureWorks：Auto / Interactive 双模式；交互模式一次只认一类，顺序
+  Fillet→Drafts→Holes→Ribs→Cut→Shell→Boss；`Delete Faces` 记尺寸以便重施加；
+  `Select Tangency` 抓整圈相切边；`Recognize similar` / `Combine Features`；
+  **父特征（Boss/Base）不可删**；官方忠告 "a workable feature tree, not a perfect feature tree"。
+- xNurbs 官网只有 "one simple UI" 与「选曲线/点 → 生成曲面」两段式，**无公开自动弹面板源码**。
+- 竞品：CADacombs（`RemoveTrim` / `DeleteFaces` / `MergeAllFaces`，LGPL 开源）、
+  TIGER Fillet+（闭式解真实球面/圆柱面圆角 + 滑杆实时预览）。
+- 探活：三个 Alias 模式在；两个面板 `inUse=False`；**进程内无任何 FeatureWorks 程序集**；
+  `Panels.GetRegisteredPanelIds()` 不存在；`Command.GetCommandNames()` 无 0 参数重载。
+- 源码核对：`FwSelectCommand.cs:65` 确有 `FwCancelPanel.Open()`；`FwCancelPanel.cs:33-34` 双
+  `CheckBoxList`、`:208 Refresh()`、`:238 PanelShown`、`:242 Register()`、`:257 Open()`。
+
+**结论**：
+- **(a) 被推翻**：API 层整面级没错，但**命令层有 loop 级能力**。第 8 节「三路径」第 2 条改写为
+  「复用官方 `UntrimHoles` 语义、API 层需搭桥」，不再说「无现成 API」。修正上一轮给用户的建议。
+- **(b) 被推翻**：插件可能**按需加载**，「进程里没有程序集」不能推断「没安装 / 没重启」。
+  这是对 **E-014 判断方法的第二次修正**（E-015 已修过真因 = 缺类级 `[Guid]`）。
+  判安装查磁盘 `…\packages\9.0\<名>\<版本>\`；判面板注册查 `DockBarIdInUse`；别用程序集枚举。
+- 定位修正：官方给了完整 Untrim 原语族，缺的是「识别 + 分组 + 回到毛坯」闭环 —— 这正是差异化。
+
+**回填位置**：`feature-recognition.md` 第 8 节三路径；`rhinocommon-pitfalls.md` 新增只读探活段；
+工作区新增 `FeatureWorks/INTERACTION_SPEC.md`（术语对照 / v1.5 规格 / 显示参数 / 验收清单 / 出处）。
+**遗留**：v1.4 自动弹面板仍需用户重开 Rhino 实机验收；本轮未改插件代码、未动显示模式、未推 GitHub。
+
+## E-017 · 2026-11-23 · 原理追问：FeatureWorks 的「重新识别」是不是按方法约束反推
+
+**假设**：用户提出 SW FeatureWorks 无历史仍能重新识别，机制是「大致猜 + 交互只给大致种类 +
+实现方法就那几种 → 按方法约束反向推导」。需核实是否成立、有无正式名称，以及第 8 节
+「不适定 → 机器只能给候选」是否表述过粗。
+
+**做法**：全网精准检索（SW 官方帮助 2025 / GoEngineer / CATI / Mechanitec 教程 +
+Cardiff ORCA 综述 §2.4.3 / Wikipedia Feature recognition / ScienceDirect 混合图+规则法综述），
+与专题第 8 节、`INTERACTION_SPEC.md` §2 交叉比对。**纯概念调研**：未改插件代码、未连 Rhino、未推 GitHub。
+
+**证据**：
+- 官方自动识别界面第一项 = 勾选**有限特征类型清单**（Extrudes / Drafts / Revolves / Holes /
+  Fillets-Chamfers / Ribs / Volume / Sheet Metal）；Intermediate Stage 有 `Re-Recognize as alternate features`。
+- 学术名称 **hint-based / evidence-based / trace-based**（Vandenbrande & Requicha 1993），
+  流程 generate-and-test：hint 生成 → 补全 → 验证；hint = 特征边界不可或缺的最小残留；
+  基于 feature presence rules，且**规则是 feature-type specific**（一类一套）。
+- 识别过的特征**退出后续计算**；顺序为建模逆序
+  `Fillet/Chamfer（尺寸递增）→ Drafts → Holes → Ribs → Cut → Shell → Boss`。
+- SW 原生零件**有** FeatureManager 历史树；FeatureWorks 专用于导入的 dumb solid，
+  输出 *rudimentary feature history* / *workable tree, not perfect tree*。
+- 综述：graph-based 在特征相交时丢弧；3D / freeform 特征识别至今困难；真实工业零件数百面
+  会让多数方法停机。
+
+**结论**：✅ 用户猜想成立，且比「猜」更精确 —— 是**有限方法库上的受约束反向推断**。
+⚠️ 精化第 8 节：不适定 = 同一结果对应多个合法假设，**不等于无约束乱猜**；假设空间封闭可枚举，
+所以工程解法是模板匹配 + 置信度排序 + 多解交人裁决。这从原理上解释了「使用感差的结构性成分」
+与「为何交互必须存在」。同时修正「它没有记录」：输入无历史，它重建一个粗糙的。
+
+**回填**：`feature-recognition.md` 新增第 9 节；`INTERACTION_SPEC.md` 新增 §2.1 原理与六条落地决策；
+`MEMORY.md` 核心愿景条目补原理精度；专题第 8 节不删改（保留判断演化）。
+
+**遗留**：v1.5 实现时把「显式方法库表 + 置信度/依据 + 逆序剥离」落进 Core；仍等用户重开 Rhino
+敲 `FWSelect` 验收 v1.4 自动弹面板，通过后再编码。
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**16 条实验**，其中 **7 条推翻了初始假设**（E-015 推翻了 E-014）。高推翻率说明「先验证再相信」不是口号。
+- 截至 2026-11-23：**18 条实验**，其中 **8 条推翻了初始假设**（E-015 推翻 E-014 真因，
+  E-016 再推翻 E-014 的判断方法与 E-015 附带结论）。E-017 为概念精化，不计推翻，但同样保留判断演化。
+  高推翻率说明「先验证再相信」不是口号。
+- 编号提示：台账历史上有两条 E-016（一条 `###` 一条 `##`），不作改动，新实验顺延编号。
 - 查坑顺序：`error-catalog.md`（按症状）→ 本台账（按实验编号，看结论演化）→ 专题文档（按领域）。
 - 新实验编号顺延；若结论修正旧条目，在本条写「修正 E-XXX」并在旧条补一行指向，不删改旧记录。
