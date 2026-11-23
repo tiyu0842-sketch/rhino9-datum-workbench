@@ -151,3 +151,37 @@
 - 正视图/俯视图用 `vp.SetToPlanView(origin, xAxis, yAxis, false)` + `ChangeToParallelProjection(True)`，平行投影下尺寸关系才是真的；注意沿 Y 投影时不同 y 的物体会在 x-z 上重叠，选投影方向要避开干扰物。
 - `ObjectColor` + `ColorSource=ColorFromObject` 在默认 Shaded 下**未生效**（对象仍是统一蓝色），疑似 display mode 用 material color 覆盖；要稳定上色需同时设材质或改显示模式的着色来源（待验证）。
 - `doc.BeginUndoRecord("...")` / `EndUndoRecord(undo)` 包住整批创建，用户可一次 `Ctrl+Z` 撤销。
+
+## v1.6 新增：B-rep loop 级取消 / 常驻鼠标 / 命名歧义（E-025，2026-11-23）
+
+- ★ **`Brep.RemoveHoles(IEnumerable<ComponentIndex>, double)` 返回 `Brep`，不是 `bool`**：
+  XML `<returns>` 原文「The Brep without holes if successful, **null** otherwise」，since 6.8。
+  参数须为 `BrepLoop.LoopType == BrepLoopType.Inner` 的 loop 的
+  `new ComponentIndex(ComponentIndexType.BrepLoop, loop.LoopIndex)`。
+  实测 盒+2孔 8 面 → 只删 H1 的 2 个环 → 7 面 / inner 2 / vol 236607.08。
+- `BrepLoop.LoopIndex` 是**全局编号**，不要直接当 `brep.Loops[i]` 的索引用；
+  稳妥做法是线性查找 `brep.Loops[k].LoopIndex == li`。
+  `BrepLoop.Face` / `BrepLoop.Trims` / `BrepTrim.Edge`（→ `BrepEdge.AdjacentFaces()`）都可用，
+  用来把孔洞组映射到它对应的 inner loop。
+- **`FeatureType` 枚举默认值是 `Fillet`**（`Fillet, Chamfer, SimpleHole, …`）。
+  用 `g.Type == FeatureType.Fillet` 判断「是不是圆角模块」会把未显式赋值的孔洞组误判成圆角。
+  模块归属一律用显式字符串标记（`FwFocusGroup.Channel`）。E-025 实测踩过，导致 `RemoveHoles` 静默收不到内环。
+- `Rhino.UI.MouseCallback`：`Enabled` 是**基类属性**（可读写）；事件签名统一为
+  `OnMouseDown/OnEndMouseDown/OnMouseMove/OnEndMouseMove/OnMouseUp/OnEndMouseUp/OnMouseDoubleClick/
+   OnMouseEnter/OnMouseLeave/OnMouseHover(MouseCallbackEventArgs e)`。
+  `MouseCallbackEventArgs` 实测成员：`View : RhinoView`、`MouseButton : Rhino.UI.MouseButton`
+  （`None/Left/Right/Middle`）、`Button : System.Windows.Forms.MouseButtons`、`ShiftKeyDown`、
+  `CtrlKeyDown`、`ViewportPoint : System.Drawing.Point`、`Cancel : Boolean`、`IsOverGumball()`。
+  左键接管设 `e.Cancel = true`，避免 Rhino 同时画自己的框选矩形。
+- `RhinoViewport.WorldToClient(Point3d) -> Point2d`（屏幕像素，X/Y 为 double）；
+  `DisplayPipeline.Draw2dRectangle(System.Drawing.Rectangle, Color, Int32, Color)`、
+  `Draw2dLine(Point, Point, Color, Single)`、`Draw2dText(...)`。
+  `Draw2d*` 与 `MouseCallbackEventArgs.ViewportPoint` 同一坐标系，可直接画拖框。
+- **CS0104 命名歧义（本机高频）**：同时 `using System.Drawing` + `Rhino.Geometry` 时
+  `Point` 双定义；同时 `using System` + `Rhino.DocObjects` 时 `Environment` 双定义。
+  解法：文件顶部加 `using Point = System.Drawing.Point;`，或写全 `System.Environment.NewLine`。
+  v1.6 首轮编译 16 个 error 全是这两类，加别名后 0 error。
+- `Brep.CreateFilletEdges(Brep, IEnumerable<int>, IEnumerable<double>, IEnumerable<double>,
+   BlendType, RailType, Double)` 可造圆角盒：实测 100×80×30 顶面 4 边 R3 →
+  10 面 / solid / vol 239315.06（FwSelfTest 的用法，`BlendType.Fillet` + `RailType.RollingBall`）。
+  比 `UntrimOuterLoop` 连调安全，做几何验证优先用它。

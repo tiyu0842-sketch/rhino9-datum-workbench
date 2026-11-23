@@ -17,8 +17,9 @@ namespace RhinoFeatureWorks;
 /// 做法：GetObject 打开子对象选择，拿到 ObjRef.GeometryComponentIndex：
 ///   BrepFace → 直接查 FwFocusSession.FindGroupByFace(index)
 ///   BrepEdge → 用 BrepFace.AdjacentEdges() 反查该边属于哪个特征面
-/// 命中后调用 PickGroup：视口高亮该组 + 回写面板勾选行（不直接执行取消）。
-/// 用户再决定「取消选中」还是「保留全部」，避免点一下就改模型。
+/// v1.6：常驻视口监听已经是主交互，本命令保留为「命令行精确点一条边」的补充入口。
+/// 命中后 PickGroup 写入共享选中集（Toggle），面板订阅 FwSelectionState.Changed 自动同步；
+/// 两个通道的勾选可以并存，不再像 v1.5 那样回写成单选。仍不直接执行取消。
 /// </summary>
 [CommandStyle(Style.ScriptRunner)]
 public class FwPickFeatureCommand : Command
@@ -78,8 +79,8 @@ public class FwPickFeatureCommand : Command
         string label = FwFocusSession.GroupLabel(group);
         FwFocusSession.PickGroup(group, "viewport");
         RhinoApp.WriteLine(
-            "已选中 " + label + "：视口已高亮，面板对应行已勾选；点「取消选中」才会改模型 / " +
-            "Selected " + label + ". Click 'Cancel selected' in the panel to apply.");
+            "已切换 " + label + " 的选中状态（共享选中集，面板同步）；按对应模块按钮才会改模型 / " +
+            "Toggled " + label + " in the shared selection; press a module button to apply.");
         return Result.Success;
     }
 }

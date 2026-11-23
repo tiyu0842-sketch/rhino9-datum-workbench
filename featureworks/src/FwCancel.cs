@@ -12,7 +12,7 @@ public class FwCancelOutcome
     public Brep? Brep { get; set; }
     public string Message { get; set; } = "";
     public double Volume { get; set; }
-    /// <summary>被"顺带"取消的其它特征组数（圆角通道走整件重建时会 &gt; 0）。</summary>
+    /// <summary>被"顺带"影响的其它特征数（圆角整件重缝时会 &gt; 0）。v1.6 必须如实报出。</summary>
     public int Collateral { get; set; }
     public bool Ok => Brep != null;
 
@@ -20,191 +20,153 @@ public class FwCancelOutcome
 }
 
 /// <summary>
-/// 取消特征：两个通道走两套几何算法，这不是实现取舍，是 Rhino 的几何事实。
+/// v1.6 两个**独立**执行器。这不是实现取舍，是 B-rep 的几何事实（E-024 真机实测）：
 ///
-/// 通道 A —— 孔洞/槽（布尔做出来的）
+/// 模块 B —— 去除布尔切割（孔 / 槽）
 ///   布尔减只改宿主面的 trim 内环，底层曲面没动。
-///   所以 Brep.UntrimFace(宿主面, tol) 直接把内环抹掉，孔就消失了，
-///   而且 Rhino 会顺手清掉变多余的孔壁面。
-///   实测：100x80x30 带 R6 通孔（7 面）→ UntrimFace → 6 面实体 240000。
+///   Brep.RemoveHoles(IEnumerable&lt;ComponentIndex&gt;, tol)（since 6.8）只删**指定的** inner loop：
+///     盒+2孔 8 面 / vol 228973.01 → RemoveHoles(loop7) → 7 面 / inner 2 / vol 232365.93
+///     圆角盒+1孔 11 面 / vol 235922.14 → RemoveHoles(该孔内环) → 10 面 / vol 239315.06
+///       = 纯圆角盒，**圆角完好**。所以「去布尔必须先去完圆角」是假的，两个模块任意顺序。
+///   旧版用 UntrimFace(host, tol) 是错的：官方定义「outer boundary is untrimmed AND all
+///     inner loops are removed」→ 8 面 / 2 孔 → 6 面 / 0 孔，两个孔一起没。
 ///
-/// 通道 B —— 圆角/倒角（过渡面做出来的）
-///   圆角面是滚球扫出来的过渡面，四边全部与相邻面共享，不是自由边。
-///   实测：对倒角盒任意一圈圆角面调用 UntrimOuterLoop 全部返回 null ——
-///   该 API 要求外环边是自由边，实体里的圆角面不满足。
-///   所以只能：删掉圆角面 → 剩余面取底层完整曲面 → CreateSolid 缝回毛坯。
+/// 模块 A —— 去除圆角
+///   圆角是滚球扫出的**新增过渡曲面**，四边与邻面共享，没有更大的底层曲面可还原；
+///   UntrimOuterLoop 官方要求外环边全 naked，对实体圆角面恒返回 null（实测）。
+///   所以只能删整圈过渡面 + 相邻面重新求交缝合。代价：底层完整曲面重缝会把同件的
+///   孔/槽 trim 一并抹平。用户拍板「明确报出，不偷偷改」——本版**如实报告**，
+///   不做孔体重放、不假装只取消了圆角。
 ///
-///   代价（本版明确告知，不藏）：剩余面取底层曲面会把同件其它特征（孔/槽）
-///   一并抹平，因为底层曲面本身是未修剪的完整曲面。也就是说
-///   「取消圆角」在本版 = 「整件回到毛坯」。
-///   对"倒完角不满意、要重新倒"这个主场景这正是想要的结果；
-///   对"只取消一处圆角、其它孔都留着"则需要后续的孔体重放（见 README 待办）。
+/// 两个模块共用一份 FwSelectionState 选中集，但执行时各取各的通道，互不牵连。
 /// </summary>
 public static class FwCancelService
 {
-    /// <summary>取消一组特征（按 group.Channel 自动分派到对应算法）。</summary>
-    public static FwCancelOutcome CancelGroup(Brep brep, FwFocusGroup group,
-        IList<FwFocusGroup>? allGroups, double tolerance = 0.001)
-    {
-        if (brep == null) return FwCancelOutcome.Fail("几何为空 / Brep is null.");
-        if (group == null) return FwCancelOutcome.Fail("特征组为空 / Group is null.");
-
-        bool isFillet = group.Channel == "Fillet" ||
-                        group.Type == FeatureType.Fillet || group.Type == FeatureType.Chamfer;
-        return isFillet
-            ? CancelFillet(brep, group, allGroups, tolerance)
-            : CancelHole(brep, group, tolerance);
-    }
+    /// <summary>严格两模块只认显式 Channel。
+    /// 不用 g.Type：FeatureType 枚举默认值恰好是 Fillet，手工构造或异常数据会把孔洞组
+    /// 误判成圆角组（E-025 实测踩过，导致 RemoveHoles 收不到任何内环）。</summary>
+    private static bool IsFilletChannel(FwFocusGroup g) => g.Channel == "Fillet";
 
     /// <summary>
-    /// 一次取消多组（含"整通道全部"）。
-    /// 多组无法逐组顺序处理——每取消一组面索引就失效，所以合并面集后
-    /// 一次重缝到毛坯，并把"顺带取消了几组"如实报出来。
+    /// 模块 B：去除布尔切割。只删选中组对应的 inner loops，外环 / 圆角 / 其它孔全留。
+    /// loop 索引由 FwFocusSession.FindInnerLoops 在识别时解析并存进 FwFocusGroup.Loops。
     /// </summary>
-    public static FwCancelOutcome CancelMany(Brep brep, IList<FwFocusGroup> groups,
-        IList<FwFocusGroup>? allGroups, double tolerance = 0.001)
+    public static FwCancelOutcome CancelBoolean(Brep brep, IList<FwFocusGroup> groups, double tol)
     {
         if (brep == null) return FwCancelOutcome.Fail("几何为空 / Brep is null.");
-        if (groups == null || groups.Count == 0) return FwCancelOutcome.Fail("没有选中任何组 / Nothing selected.");
+        if (groups == null || groups.Count == 0)
+            return FwCancelOutcome.Fail("没有选中要取消的布尔特征 / Nothing selected.");
 
-        var drop = new HashSet<int>();
+        var loops = new HashSet<int>();
         foreach (FwFocusGroup g in groups)
-            foreach (int i in g.Faces) drop.Add(i);
-
-        if (drop.Count == 0) return FwCancelOutcome.Fail("这些组没有面索引 / Empty face list.");
-
-        Brep? rebuilt = SurfaceEvidenceService.RepairToBlank(brep, drop, tolerance);
-        if (rebuilt == null)
+        {
+            // 严格两模块：圆角组的勾选不进布尔执行器（只看 Channel，不看 Type）。
+            if (IsFilletChannel(g)) continue;
+            foreach (int li in g.Loops)
+            {
+                // LoopIndex 是全局编号，用线性查找比直接当列表索引更保险。
+                BrepLoop? lp = null;
+                for (int k = 0; k < brep.Loops.Count; k++)
+                    if (brep.Loops[k].LoopIndex == li) { lp = brep.Loops[k]; break; }
+                if (lp == null || lp.LoopType != BrepLoopType.Inner) continue;
+                loops.Add(li);
+            }
+        }
+        if (loops.Count == 0)
             return FwCancelOutcome.Fail(
-                "重建毛坯失败 / RepairToBlank returned null (CreateSolid failed).");
+                "选中的布尔特征没有解析到 trim 内环 / No inner loops resolved. " +
+                "（可能识别结果把宿主面当成了孔壁面；请用 FWSelect 重新识别。）");
 
-        double vol = VolumeOf(rebuilt);
-        int total = allGroups?.Count ?? groups.Count;
-        int collateral = Math.Max(0, total - groups.Count);
-
-        var o = new FwCancelOutcome { Brep = rebuilt, Volume = vol, Collateral = collateral };
-        o.Message = string.Format(
-            "已取消 {0} 组（{1} 个面）→ 毛坯 faces={2} solid={3} vol={4:0.#}",
-            groups.Count, drop.Count, rebuilt.Faces.Count, rebuilt.IsSolid, vol);
-        if (collateral > 0)
-            o.Message += Environment.NewLine +
-                "注意 / Note: 整件重缝会连带恢复另外 " + collateral + " 组特征（圆角/孔洞）。";
-        return o;
-    }
-
-    // ---------------------------------------------------------------- 孔洞通道
-
-    private static FwCancelOutcome CancelHole(Brep brep, FwFocusGroup group, double tol)
-    {
-        var groupFaces = new HashSet<int>(group.Faces);
-        int host = FindHostFace(brep, groupFaces);
-        if (host < 0)
-            return FwCancelOutcome.Fail(
-                "没找到承载该孔洞的外表面（要求带内环且与该孔壁相邻）/ No host face with inner loop found.");
-
-        int loopsBefore = SafeLoopCount(brep, host);
-
+        int innerBefore = CountInnerLoops(brep);
         Brep? result = null;
-        try { result = brep.DuplicateBrep().UntrimFace(host, tol); }
-        catch (Exception ex) { return FwCancelOutcome.Fail("UntrimFace 异常 / threw: " + ex.Message); }
-
+        try
+        {
+            var cis = loops
+                .Select(i => new ComponentIndex(ComponentIndexType.BrepLoop, i))
+                .ToList();
+            // 官方返回 Brep（不是 bool）：成功返回去掉孔的新 Brep，失败返回 null。
+            result = brep.DuplicateBrep().RemoveHoles(cis, tol);
+        }
+        catch (Exception ex)
+        {
+            return FwCancelOutcome.Fail("RemoveHoles 异常 / threw: " + ex.Message);
+        }
         if (result == null)
-            return FwCancelOutcome.Fail("UntrimFace 返回 null，该面内环无法恢复 / UntrimFace returned null.");
+            return FwCancelOutcome.Fail(
+                "RemoveHoles 返回 null / failed. 选中的内环可能已不存在，请重新识别。");
 
-        int loopsAfter = SafeLoopCount(result, host);
-        int restored = Math.Max(0, loopsBefore - loopsAfter);
+        int innerAfter = CountInnerLoops(result);
+        int removed = Math.Max(0, innerBefore - innerAfter);
         double vol = VolumeOf(result);
 
         var o = new FwCancelOutcome { Brep = result, Volume = vol };
         o.Message = string.Format(
-            "已取消孔洞 [{0}]：宿主面 F{1} 的 loop 数 {2} → {3}（恢复 {4} 个开口）；结果 faces={5} solid={6} vol={7:0.#}",
-            group.Name, host, loopsBefore, loopsAfter, restored,
+            "模块 B 去除布尔切割：删除 {0} 个指定内环 / inner loops {1} → {2}（恢复 {3} 个开口）；" +
+            "结果 faces={4} solid={5} vol={6:0.#}；外环、圆角与其它孔保持原样。",
+            loops.Count, innerBefore, innerAfter, removed,
             result.Faces.Count, result.IsSolid, vol);
-
-        if (restored > 1)
+        if (removed < loops.Count)
             o.Message += Environment.NewLine +
-                "注意 / Note: 该宿主面原本带 " + restored +
-                " 个开口，UntrimFace 会把它们一并恢复（Rhino API 边界，不是实现取舍）；" +
-                "需要保留的孔请先单独取消、或后续用孔体重放。";
+                "注意 / Note: 实际只少掉 " + removed + " 个环（请求 " + loops.Count +
+                " 个），请核对结果；不会静默补做别的修改。";
         return o;
     }
 
-    /// <summary>找出承载孔洞的外表面：与该组孔壁面共享边、且自身带内环（&gt;1 loop）。</summary>
-    private static int FindHostFace(Brep brep, HashSet<int> groupFaces)
+    /// <summary>
+    /// 模块 A：去除圆角。删整圈过渡面 + 相邻面重新求交缝合。
+    /// <paramref name="allFillets"/> 用来保证「整圈」——实测只删 1 个圆角面会缝出变形过渡面。
+    /// 若重缝连带抹平孔/槽，Collateral 与消息里**明确报出**，不做孔体重放、不偷偷改。
+    /// </summary>
+    public static FwCancelOutcome CancelFilletModule(Brep brep,
+        IList<FwFocusGroup> selected, IList<FwFocusGroup> allFillets, double tol)
     {
-        foreach (BrepEdge edge in brep.Edges)
-        {
-            int[]? adj = edge.AdjacentFaces();
-            if (adj == null || adj.Length == 0) continue;
+        if (brep == null) return FwCancelOutcome.Fail("几何为空 / Brep is null.");
+        if (selected == null || selected.Count == 0)
+            return FwCancelOutcome.Fail("没有选中要取消的圆角 / Nothing selected.");
 
-            bool touchesGroup = false;
-            foreach (int a in adj)
-                if (groupFaces.Contains(a)) { touchesGroup = true; break; }
-            if (!touchesGroup) continue;
-
-            foreach (int a in adj)
-            {
-                if (a < 0 || a >= brep.Faces.Count) continue;
-                if (groupFaces.Contains(a)) continue;
-                if (SafeLoopCount(brep, a) > 1) return a;
-            }
-        }
-
-        // 退化：任意带内环且不属于该组的面。
-        for (int i = 0; i < brep.Faces.Count; i++)
-            if (!groupFaces.Contains(i) && SafeLoopCount(brep, i) > 1) return i;
-        return -1;
-    }
-
-    // ---------------------------------------------------------------- 圆角通道
-
-    private static FwCancelOutcome CancelFillet(Brep brep, FwFocusGroup group,
-        IList<FwFocusGroup>? allGroups, double tol)
-    {
-        // 圆角必须「整圈」一起删。
-        // 实测（Rhino 9）：10 面倒角盒只删 1 个圆角面 → 剩 9 面 74715.5，
-        // 因为另外 3 个圆角面被当成"保留面"去取底层曲面了，缝出来的是变形过渡面而不是尖角。
-        // 删掉全部 4 个圆角面 → 6 面 75000（正确毛坯）。
-        // 所以这里把同通道的所有组并进 drop，不管用户点了哪一组。
-        var drop = new HashSet<int>(group.Faces);
-        int mergedGroups = 1;
-        if (allGroups != null)
-        {
-            foreach (FwFocusGroup g in allGroups)
-            {
-                if (g.Channel != "Fillet" &&
-                    g.Type != FeatureType.Fillet && g.Type != FeatureType.Chamfer) continue;
-                int before = drop.Count;
-                foreach (int i in g.Faces) drop.Add(i);
-                if (drop.Count > before) mergedGroups++;
-            }
-        }
+        var drop = new HashSet<int>();
+        foreach (FwFocusGroup g in allFillets ?? selected)
+            foreach (int fi in g.Faces)
+                if (fi >= 0 && fi < brep.Faces.Count) drop.Add(fi);
+        foreach (FwFocusGroup g in selected)
+            foreach (int fi in g.Faces)
+                if (fi >= 0 && fi < brep.Faces.Count) drop.Add(fi);
 
         if (drop.Count == 0)
-            return FwCancelOutcome.Fail("该圆角组没有面索引 / Empty face list.");
+            return FwCancelOutcome.Fail("圆角组没有面索引 / Empty face list.");
 
+        int innerBefore = CountInnerLoops(brep);
         Brep? rebuilt = SurfaceEvidenceService.RepairToBlank(brep, drop, tol);
         if (rebuilt == null)
             return FwCancelOutcome.Fail(
-                "重建毛坯失败：删掉圆角面后剩余面无法缝合 / RepairToBlank returned null (CreateSolid failed).");
+                "重建失败：删掉圆角面后剩余面无法缝合 / RepairToBlank returned null (CreateSolid failed).");
 
+        int innerAfter = CountInnerLoops(rebuilt);
+        int lost = Math.Max(0, innerBefore - innerAfter);
         double vol = VolumeOf(rebuilt);
-        int holeGroups = 0;
-        if (allGroups != null)
-            foreach (FwFocusGroup g in allGroups)
-                if (g.Channel != "Fillet" &&
-                    g.Type != FeatureType.Fillet && g.Type != FeatureType.Chamfer) holeGroups++;
 
-        var o = new FwCancelOutcome { Brep = rebuilt, Volume = vol, Collateral = holeGroups };
+        var o = new FwCancelOutcome { Brep = rebuilt, Volume = vol, Collateral = lost };
         o.Message = string.Format(
-            "已取消圆角 [{0}]：整圈共 {1} 组 / {2} 个过渡面一并删除 → 剩余面取底层原生曲面重缝 → faces={3} solid={4} vol={5:0.#}",
-            group.Name, mergedGroups, drop.Count, rebuilt.Faces.Count, rebuilt.IsSolid, vol);
+            "模块 A 去除圆角：整圈共 {0} 个过渡面（选中 {1} 组 / 几何上整圈 {2} 组）" +
+            " → 相邻面重新求交缝合 → faces={3} solid={4} vol={5:0.#}。",
+            drop.Count, selected.Count, allFillets?.Count ?? selected.Count,
+            rebuilt.Faces.Count, rebuilt.IsSolid, vol);
 
-        if (holeGroups > 0)
+        if (lost > 0)
+        {
             o.Message += Environment.NewLine +
-                "注意 / Note: 圆角只能整件重缝（UntrimOuterLoop 在实体圆角面上返回 null），" +
-                "所以本件另外 " + holeGroups + " 组孔洞/槽也一并被恢复了。若只想取消圆角、保留孔洞，" +
-                "需要孔体重放 / hole replay —— 几何路径已实测可行（毛坯 240000 → 重挖孔 236607.08），列入下一版。";
+                string.Format(
+                    "【明确报出 / NOT silent】本件原有 {0} 个孔/槽 trim 内环，重缝后剩 {1} 个 —— " +
+                    "另外 {2} 处布尔切割被一并恢复。原因是圆角没有底层曲面可 untrim，" +
+                    "必须删过渡面后整件重缝（UntrimOuterLoop 在实体圆角面恒 null）。" +
+                    "按你的选择，本版不做孔体重放、不偷偷改回去；如需保住孔，请先用模块 B " +
+                    "单独处理布尔切割，或保留本结果后重挖孔。",
+                    innerBefore, innerAfter, lost);
+        }
+        else
+        {
+            o.Message += " 未检测到连带影响的孔/槽（本件无内环）。";
+        }
         return o;
     }
 
@@ -220,10 +182,16 @@ public static class FwCancelService
         catch { return 0; }
     }
 
+    /// <summary>精确数 inner loop（旧版用 Loops.Count-1 假设每面一个外环，够用但不严谨）。</summary>
     private static int CountInnerLoops(Brep brep)
     {
         int n = 0;
-        for (int i = 0; i < brep.Faces.Count; i++) n += Math.Max(0, SafeLoopCount(brep, i) - 1);
+        try
+        {
+            for (int i = 0; i < brep.Loops.Count; i++)
+                if (brep.Loops[i].LoopType == BrepLoopType.Inner) n++;
+        }
+        catch { }
         return n;
     }
 
@@ -237,15 +205,19 @@ public static class FwCancelService
 
 /// <summary>
 /// 命令与面板共用的执行器：取消 → 替换文档几何 → 重新识别 → 重开聚焦。
+/// v1.6：<paramref name="module"/> 必须显式给 "Fillet" 或 "Hole"，严格两模块、没有总开关；
+/// 只执行该模块通道里的选中项，另一模块的勾选**原样保留**。
 /// 两边都走这里，保证 Ctrl+Z 一次回退、聚焦状态一致、报告文字一致。
 /// </summary>
 public static class FwCancelRunner
 {
-    public static bool TryApply(RhinoDoc? doc, List<FwFocusGroup> targets,
-        IList<FwFocusGroup> pool, out string message)
+    public static bool TryApply(RhinoDoc? doc, string module,
+        List<FwFocusGroup> targets, out string message)
     {
         message = "";
         if (doc == null) { message = "没有活动文档 / No active document."; return false; }
+        if (module != "Fillet" && module != "Hole")
+        { message = "未知模块 / Unknown module: " + module; return false; }
         if (!FwFocusSession.HasActive)
         {
             message = "聚焦未开启：先运行 FWSelect 或点面板「选实体」/ Focus is OFF.";
@@ -253,8 +225,19 @@ public static class FwCancelRunner
         }
         if (targets == null || targets.Count == 0)
         {
-            message = "没有选中要取消的特征组 / Nothing selected.";
+            message = "该模块没有选中要取消的特征组 / Nothing selected in this module.";
             return false;
+        }
+        // 严格两模块：拒绝跨模块混选，避免旧版「勾了圆角又勾孔洞 → 整件回毛坯」。
+        foreach (FwFocusGroup t in targets)
+        {
+            // 与 Core 一致：只认显式 Channel，避免 FeatureType 默认值 Fillet 误判孔洞组。
+            bool isFillet = t.Channel == "Fillet";
+            if (isFillet != (module == "Fillet"))
+            {
+                message = "模块与选中项不匹配 / Selection belongs to the other module.";
+                return false;
+            }
         }
 
         Brep? source = FwFocusSession.SourceBrep;
@@ -266,12 +249,13 @@ public static class FwCancelRunner
         }
 
         double tol = doc.ModelAbsoluteTolerance;
-        uint undo = doc.BeginUndoRecord("FeatureWorks Cancel");
+        uint undo = doc.BeginUndoRecord("FeatureWorks " + module + " Cancel");
         try
         {
-            FwCancelOutcome outcome = targets.Count == 1
-                ? FwCancelService.CancelGroup(source, targets[0], pool, tol)
-                : FwCancelService.CancelMany(source, targets, pool, tol);
+            FwCancelOutcome outcome = module == "Fillet"
+                ? FwCancelService.CancelFilletModule(source, targets,
+                    new List<FwFocusGroup>(FwFocusSession.FilletGroups), tol)
+                : FwCancelService.CancelBoolean(source, targets, tol);
 
             message = outcome.Message;
             if (!outcome.Ok) return false;
@@ -279,16 +263,18 @@ public static class FwCancelRunner
             Brep result = outcome.Brep!;
 
             // 先关聚焦：conduit 还指着旧 Brep，不关会在 Replace 后画出错位的面。
+            // End 内部会停常驻监听、清共享选中集。
             FwFocusSession.End(doc);
 
             // 先识别再替换：写进文档的 Brep 必须和特征面索引来自同一份几何，
-            // 否则视口高亮会和实体错位（CleanBrep 可能被清理过，面序号与 result 不一定一致）。
+            // 否则视口高亮会和实体错位。
             var (clean, feats, _) = FwApi.Recognize(result, tol);
             Brep inDoc = clean ?? result;
 
             if (!doc.Objects.Replace(id, inDoc))
             {
-                message += Environment.NewLine + "替换文档几何失败（对象可能已删除）/ Replace failed.";
+                message += Environment.NewLine +
+                    "替换文档几何失败（对象可能已删除）/ Replace failed.";
                 return false;
             }
 

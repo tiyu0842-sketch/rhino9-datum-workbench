@@ -13,10 +13,12 @@ import shutil
 import zipfile
 import hashlib
 
-ROOT = os.environ.get("FEATUREWORKS_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 可移植路径：脚本位于 <FeatureWorks>/verification/，ROOT 指向其上一级。
+_HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(_HERE)
 INSTALL = os.path.join(ROOT, "install")
 RHP = "RhinoFeatureWorks.rhp"
-VERSION = sys.argv[1] if len(sys.argv) > 1 else "1.0.0.0"
+VERSION = sys.argv[1] if len(sys.argv) > 1 else "1.6.0.0"
 YAK = os.path.join(ROOT, "RhinoFeatureWorks_v%s.yak" % VERSION)
 
 README = """# 特征识别工具 / RhinoFeatureWorks v%s

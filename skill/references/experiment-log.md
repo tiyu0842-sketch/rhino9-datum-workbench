@@ -544,13 +544,72 @@ RhinoIronPython.chm），`Content/XML/<lang>/` 是模板与材质资源，不是
 `rhino-command-reference.md` UntrimHoles 官方原文；`error-catalog.md` 交互/崩溃 2 组；
 `INDEX.md` 症状表与计数；`SKILL.md` 决策表；项目 `INTERACTION_SPEC.md` §11；今日日志与 MEMORY。
 
+## E-025 — v1.6 常驻双向联动 + 严格两独立模块（实现与真机几何验证）
+
+**假设**：用户三问（「只能在那个框里选」「去布尔是不是必须先去完圆角」「为什么不 untrim 而补面」）
+可以在**不污染文档、不建临时对象**的前提下一起解决：
+常驻 `MouseCallback` 接管左键 + 一份共享选中集 + 两个独立执行器
+（模块 B 走 `RemoveHoles(指定内环)`，模块 A 走整圈重缝并明确报出连带影响）。
+用户拍板：「按方案全做」「严格两模块、不要总开关」「明确报出，不偷偷改」。
+
+**做法**：
+- 新增 `FwSelection.cs`：`FwSelectionState`（一份 `HashSet<int>`，视口/面板/两模块共同读写）
+  + `FwMouseWatcher : MouseCallback`（`OnMouseDown/Move/Up/Leave`，`e.Cancel=true` 接管左键，
+  `WorldToClient` 把每组世界包围盒 8 角投影成屏幕矩形做点选/拖框命中，Shift/Ctrl 加减选）。
+- `FwFocusGroup.Loops` 存 inner loop 索引（`BrepLoop.LoopIndex`），
+  `FindInnerLoops()` 用 `BrepTrim.Edge.AdjacentFaces()` 把孔洞组映射到内环；
+  `FwGroupVisual.Bounds` 供框选投影；conduit 三态着色 + 拖框矩形。
+- `FwCancel.cs` 重写：`CancelBoolean` / `CancelFilletModule` / `TryApply(doc, module, targets, out msg)`，
+  严格两模块、拒绝跨模块混选、删掉「全部取消 → 回毛坯」总开关。
+- 面板删互斥勾选、两个分区各一个执行按钮，订阅 `FwSelectionState.Changed` 双向同步。
+
+**实测数字**：
+
+| 项目 | 数字 |
+|---|---|
+| 进程内 Roslyn | 首轮 **16 error 全为 CS0104**（`Point` / `Environment` 在 `System.Drawing`·`System` 与 `Rhino.*` 双定义）→ 加 `using Point = System.Drawing.Point;` + `System.Environment.NewLine` → **0 error，rhp 103424 bytes**（v1.5 96256） |
+| 反射断言 | 版本 `1.6.0.0`；12 个类型齐全；`CancelBoolean(Brep, IList<FwFocusGroup>, Double)`、`CancelFilletModule(..., IList<FwFocusGroup>, Double)`、`TryApply(RhinoDoc, String, List<FwFocusGroup>, String ByRef)`；`MouseCallback.Enabled` 继承存在 |
+| 盒+2孔 `8 面 / inner 4 / vol 233214.16` | `FindInnerLoops`：H1 → `[7,8]`、H2 → `[10,11]`；4 个圆角组 → 空 |
+| 模块 B 只删 H1 | **`7 面 / inner 2 / vol 236607.08`**（H2 与其它几何全留） |
+| 模块 B 删两个孔 | `6 面 / inner 0 / vol 240000` |
+| 跨模块混选（`Channel="Fillet"` 塞进布尔执行器） | 明确拒绝，`No inner loops resolved`（严格两模块生效） |
+| 圆角盒 R3 `10 面 / 239315.06` + 1 孔 `11 面 / inner 2 / 235922.14` | 识别 4 个 Fillet 组（`Loops` 空）+ 1 个 Hole 组（`Loops=[11,12]`） |
+| 模块 B 只删该孔 | **`10 面 / inner 0 / vol 239315.06`，`SAME_AS_FILLETED=True`** —— 圆角完好，去布尔不需要先去圆角 |
+| 模块 A 重缝（连带孔） | `collateral=4`，结果消息原文含「【明确报出 / NOT silent】」，未做孔体重放 |
+| 打包 / 真安装 | yak `73265 bytes` sha256 `367973bb…`；安装目录 rhp `103424 bytes` sha256 `e3ff9710…` 与本地一致，manifest `1.6.0.0` |
+
+**结论**：
+- ✅ 用户三问在同一版里一起落地；`RemoveHoles` 的 loop 级精度让两模块**真正解耦、任意顺序**，
+  圆角盒证据（11→10 面 / 235922.14→239315.06）是最直接的反证。
+- ✅ 「只能在框里选」的根因是 conduit 自绘面不是文档对象；接管左键 + 屏幕投影命中测试后，
+  不建文档对象也能在原有视口框选（E-024 的诊断被实现验证）。
+- ✅ **发现并修复一个真实实现 bug**：`CancelBoolean` 初版用 `g.Type == FeatureType.Fillet` 过滤，
+  而 `FeatureType` 枚举**默认值恰好是 Fillet**，孔洞组被误判成圆角 → `RemoveHoles` 收不到任何内环
+  （纯几何验证第一轮 `B_only_H1 ok=False` 抓到）。改为只认显式 `g.Channel`，runner 同步改，
+  重编译后第二轮全部通过。**教训：判断模块归属别用带默认值的枚举，用显式字符串标记。**
+- ✅ `Brep.RemoveHoles(IEnumerable<ComponentIndex>, double)` 返回 **Brep**（成功返回去孔后的新 Brep，
+  失败 null），不是 bool —— 写 Core 前先读 XML 的 `<returns>`，别凭方法名猜。
+- ⚠️ 常驻 `MouseCallback` 的真实 GUI 手感（拖框矩形、hover、多视口、`e.Cancel=true` 对右键/gumball 的影响）
+  **尚未实机点过**：本轮 Rhino 是 E-024 崩溃后自动重开的空文档实例，交互命令按纪律不从脚本同步驱动。
+
+**回填**：`feature-recognition.md` §12；`rhinocommon-pitfalls.md`（RemoveHoles 返回值 / LoopIndex / MouseCallback / CS0104 / 枚举默认值）；
+`error-catalog.md`（3 组新症状）；`INDEX.md` 计数与入口；`SKILL.md` 决策表；
+项目 `INTERACTION_SPEC.md` §12、README、使用手册、manifest、AssemblyInfo、编译/打包脚本；
+今日日志与 MEMORY；GitHub 仓库副本本地提交。
+
+**遗留**：GUI 实机验收（需用户重开 Rhino）；`turn number` 所指未确认；
+`UntrimBorder` 能否替代 Defillet 仍开放（E-024 崩溃路径未重试）；12 个待推 commit + 本轮新提交待代理关闭后推送。
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**25 条实验**，其中 **14 条推翻了初始假设**（E-015 推翻 E-014 真因，
+- 截至 2026-11-23：**26 条实验**，其中 **14 条推翻了初始假设**（E-015 推翻 E-014 真因，
   E-016 再推翻 E-014 的判断方法与 E-015 附带结论，E-019 推翻「solved=true 即成功」，
   **E-020 推翻 E-014 的"面板未注册"判据**，**E-021 推翻"命令只改了一个视口"的猜想**，
   **E-022 推翻 E-021 的需求方向判断**，**E-023 推翻「文字列表足够」的界面假设**，
   **E-024 推翻「去布尔必须先去圆角」与「API 层只有整面级 UntrimFace」**）。
+  E-017 / E-018 为概念与资料精化，不计推翻；**E-025 是 E-024 方案的落地与真机验证，不新增推翻**，
+  但记录了一个纯实现层的反直觉坑（枚举默认值导致模块误判）与 CS0104 命名歧义。
+  高推翻率说明「先验证再相信」不是口号。
   E-017 / E-018 为概念与资料精化，不计推翻，同样保留判断演化。高推翻率说明「先验证再相信」不是口号。
   注意：E-021→E-022 是"技术实现正确、需求理解错误"的典型样本 —— 推翻的层次比前几条更高。
 - 编号提示：台账历史上有两条 E-016（一条 `###` 一条 `##`），不作改动，新实验顺延编号。

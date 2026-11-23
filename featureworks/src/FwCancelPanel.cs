@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Eto.Forms;
 using Rhino;
@@ -13,20 +14,26 @@ using Rhino.UI;
 namespace RhinoFeatureWorks;
 
 /// <summary>
-/// 取消面板（v1.5 重做交互）。
+/// 取消面板（v1.6 严格两模块 + 常驻双向联动）。
 ///
-/// 旧版把特征摊成一行扁平 checkbox，用户的原话是「一个一个 flat，我都不知道这是哪个跟哪个」，
-/// 而且「不勾 = 全部取消」极容易误删。v1.5 三点改动：
-///   1. 每个特征组有稳定编号 F1/F2…/H1/H2…，视口直接画同样的编号标签；
-///   2. 双向选择 —— 点面板行 → 视口高亮该组；点「视口拾取」后点边/面 → 对应行自动勾选；
-///   3. 操作语义显式化 —— 保留全部 / 取消选中(N) / 全部取消，不勾绝不删任何东西。
+/// 用户 v1.5 的三点批评与 v1.6 的对应改动：
+///   1. 「为什么选了框之后只能在框里选，不能在原有界面上框选标红的物体」
+///      → 常驻 FwMouseWatcher 接管左键，视口直接点选/拖框；conduit 画框选矩形与三态高亮。
+///   2. 「两边可以同时相互交互，而不是去选择那一边」
+///      → 删掉 OnListPicked 里的互斥清空，改为一份 FwSelectionState 共享选中集，
+///        视口 / 面板 / 两个模块共同读写。
+///   3. 「分成两个模块：单独去除圆角、去除布尔；去布尔是不是必须先去完圆角」
+///      → 两个独立执行器 + 各自按钮。布尔走 RemoveHoles(指定内环)，与圆角无关、任意顺序。
+///      → 按用户拍板「严格两模块、不要总开关」，删除「全部取消 → 回毛坯」按钮。
 ///
-/// 取消算法本身不变（两个通道两套几何算法），仍走 FwCancelRunner，同一个 Undo 记录。
+/// 圆角若连带抹平孔，执行器会在命令行与本报告里**明确报出**，不偷偷改（用户拍板）。
 /// </summary>
 [Guid("B4D8E21A-7C36-4F59-8A0D-3E7B1C6F9D24")]
 public class FwCancelPanel : Eto.Forms.Panel, IPanel
 {
     public static readonly Guid PanelId = new Guid("B4D8E21A-7C36-4F59-8A0D-3E7B1C6F9D24");
+
+    private delegate void PanelAction();
 
     private readonly CheckBoxList _filletList = new CheckBoxList
     {
@@ -34,17 +41,13 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
     };
     private readonly CheckBoxList _holeList = new CheckBoxList
     {
-        Height = 120, Orientation = Orientation.Vertical
+        Height = 130, Orientation = Orientation.Vertical
     };
     private readonly Label _source = new Label { Text = "（未选实体 / no target）" };
-    private readonly Label _status = new Label
-    {
-        Text = "勾选 = 要取消；不勾 = 保留。点行可在视口定位。"
-    };
-    private readonly Button _btnCancelSelected;
+    private readonly Label _status = new Label { Text = "" };
+    private readonly Button _btnRunFillet;
+    private readonly Button _btnRunHole;
     private readonly Button _btnKeepAll;
-    private readonly Button _btnCancelAll;
-    private readonly Button _btnPickEdge;
     private readonly Button _btnLocate;
     private bool _updating;
     private static bool _registered;
@@ -56,30 +59,29 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
         var btnRefresh = new Button { Text = "刷新 / Refresh" };
         btnRefresh.Click += (_, __) => Safe(Refresh);
 
-        _btnPickEdge = new Button { Text = "视口拾取边/面 → 选中特征 / Pick edge in model" };
-        _btnPickEdge.Click += (_, __) => Safe(() =>
-        {
-            RhinoApp.RunScript("_FWPickFeature", false);
-        });
-
         _btnLocate = new Button { Text = "缩放到选中项 / Zoom to selected" };
         _btnLocate.Click += (_, __) => Safe(DoLocate);
 
-        _btnCancelSelected = new Button { Text = "取消选中 0 项 / Cancel selected" };
-        _btnCancelSelected.Click += (_, __) => Safe(DoCancelSelected);
-        _btnKeepAll = new Button { Text = "保留全部（不改模型）/ Keep all" };
-        _btnKeepAll.Click += (_, __) => Safe(DoKeepAll);
-        _btnCancelAll = new Button { Text = "全部取消 → 回毛坯 / Cancel all" };
-        _btnCancelAll.Click += (_, __) => Safe(DoCancelAll);
+        _btnRunFillet = new Button { Text = "模块 A · 去除圆角（选中 0）" };
+        _btnRunFillet.Click += (_, __) => Safe(() => DoRunModule("Fillet"));
+        _btnRunHole = new Button { Text = "模块 B · 去除布尔切割（选中 0）" };
+        _btnRunHole.Click += (_, __) => Safe(() => DoRunModule("Hole"));
 
-        _filletList.SelectedKeysChanged += (_, __) => Safe(() => OnListPicked(_filletList));
-        _holeList.SelectedKeysChanged += (_, __) => Safe(() => OnListPicked(_holeList));
-        // 视口点边/面命中的组会回写到这里（自定义委托，避开 WeaverBird 的 Action 冲突）
-        FwFocusSession.PanelReceiver = OnViewportPicked;
+        // 「保留全部」= 什么都不改、关掉聚焦显示。不是取消总开关，纯粹是退出。
+        _btnKeepAll = new Button { Text = "关闭聚焦 / 保留全部（不改模型）" };
+        _btnKeepAll.Click += (_, __) => Safe(DoKeepAll);
+
+        _filletList.SelectedKeysChanged += (_, __) => Safe(OnListChanged);
+        _holeList.SelectedKeysChanged += (_, __) => Safe(OnListChanged);
+
+        // 视口拖框 / 点选 / 命令行点边 都写同一份共享选中集，面板订阅它即可。
+        FwSelectionState.Changed -= OnSelectionChanged;
+        FwSelectionState.Changed += OnSelectionChanged;
 
         var hint = new Label
         {
-            Text = "用法：点行=视口高亮；视口拾取=点模型的边/面来选中；勾选=要删除的特征"
+            Text = "视口：左键点选 / 拖框选中标红特征，Shift 或 Ctrl 加减选，点空白清空。\n" +
+                   "面板：勾选 = 要取消；两个模块各按各的按钮，互不牵连。F1/H1 编号与模型标签对应。"
         };
         var root = new TableLayout
         {
@@ -87,23 +89,22 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
             {
                 new TableRow(hint),
                 new TableRow(btnPick, btnRefresh),
-                new TableRow(_btnPickEdge),
                 new TableRow(_source),
                 new TableRow(new GroupBox
                 {
-                    Text = "圆角通道 / Fillet   删除过渡面 + 底层曲面重缝",
+                    Text = "模块 A · 去除圆角（删整圈过渡面 + 重缝；圆角无法 untrim）",
                     Content = _filletList,
                     Padding = new Eto.Drawing.Padding(4)
                 }),
+                new TableRow(_btnRunFillet),
                 new TableRow(new GroupBox
                 {
-                    Text = "孔洞通道 / Hole   UntrimFace 抹内环",
+                    Text = "模块 B · 去除布尔切割（RemoveHoles 指定内环，与圆角无关）",
                     Content = _holeList,
                     Padding = new Eto.Drawing.Padding(4)
                 }),
-                new TableRow(_btnLocate),
-                new TableRow(_btnCancelSelected),
-                new TableRow(_btnKeepAll, _btnCancelAll),
+                new TableRow(_btnRunHole),
+                new TableRow(_btnLocate, _btnKeepAll),
                 new TableRow(_status),
             },
             Spacing = new Eto.Drawing.Size(4, 5)
@@ -117,13 +118,13 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
                 Padding = new Eto.Drawing.Padding(6)
             },
             ExpandContentWidth = true,
-            MinimumSize = new Eto.Drawing.Size(390, 520)
+            MinimumSize = new Eto.Drawing.Size(410, 560)
         };
 
         Refresh();
     }
 
-    private void Safe(Action action)
+    private void Safe(PanelAction action)
     {
         try { action(); }
         catch (Exception ex)
@@ -167,93 +168,59 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
 
         RhinoApp.WriteLine(FwFocusSession.Begin(doc, ore.ObjectId, brep, feats));
         Refresh();
-        _status.Text = "已识别：点行定位、点边选中、勾选后取消 / Pick a row or an edge, tick, then cancel.";
+        _status.Text = "已识别：可在视口直接点选/拖框，或勾选后按对应模块按钮。";
     }
 
-    // ---------------------------------------------------------------- 双向选择
+    // ---------------------------------------------------------------- 一份共享选中集
 
-    private void OnListPicked(CheckBoxList source)
+    /// <summary>面板勾选变化 → 写回共享集（两个列表合并，不再互斥清空另一边）。</summary>
+    private void OnListChanged()
     {
         if (_updating) return;
-        var keys = new List<string>(source.SelectedKeys);
-        if (keys.Count != 1) return;
-        if (!int.TryParse(keys[0], out int index)) return;
+        var keys = new List<int>();
+        foreach (CheckBoxList list in new[] { _filletList, _holeList })
+            foreach (string key in list.SelectedKeys)
+                if (int.TryParse(key, out int i)) keys.Add(i);
+        FwSelectionState.ReplaceAll(keys, "panel");
 
-        // 同一时刻只允许一边有勾选，避免"两个通道各勾一个"的歧义
-        _updating = true;
-        try { (source == _filletList ? _holeList : _filletList).SelectedKeys = new string[0]; }
-        finally { _updating = false; }
-
-        FwFocusSession.SetFocus(index);
-        _status.Text = "已定位 " + FwFocusSession.GroupLabel(index) +
-            "：视口高亮中；点「取消选中」才执行 / Highlighted; click 'Cancel selected' to apply.";
-        UpdateSelectedCount();
+        // 勾选即在视口定位最后一次操作的那组。
+        var ordered = keys.OrderBy(k => k).ToList();
+        if (ordered.Count > 0) FwFocusSession.SetFocus(ordered[ordered.Count - 1]);
     }
 
-    private void OnViewportPicked(int index, string origin)
+    /// <summary>视口 / 命令行 / 执行器改了共享集 → 两个列表一起刷新勾选与按钮计数。</summary>
+    private void OnSelectionChanged(string origin)
     {
         _updating = true;
         try
         {
-            string key = index.ToString();
-            _filletList.SelectedKeys = new string[0];
-            _holeList.SelectedKeys = new string[0];
-            CheckBoxList target = index < FwFocusSession.FilletGroups.Count ? _filletList : _holeList;
-            target.SelectedKeys = new[] { key };
+            int cut = FwFocusSession.FilletGroups.Count;
+            var f = new List<string>();
+            var h = new List<string>();
+            foreach (int i in FwSelectionState.Selected)
+                (i < cut ? f : h).Add(i.ToString());
+            _filletList.SelectedKeys = f.ToArray();
+            _holeList.SelectedKeys = h.ToArray();
         }
         finally { _updating = false; }
-
-        FwFocusSession.SetFocus(index);
-        _status.Text = "视口选中 " + FwFocusSession.GroupLabel(index) +
-            "：对应行已勾选；点「取消选中」执行 / Selected from viewport.";
-        UpdateSelectedCount();
+        UpdateCounts();
     }
 
-    private List<int> CollectSelected()
+    private void UpdateCounts()
     {
-        var picked = new List<int>();
-        foreach (CheckBoxList list in new[] { _filletList, _holeList })
-            foreach (string key in list.SelectedKeys)
-                if (int.TryParse(key, out int i) && !picked.Contains(i)) picked.Add(i);
-        return picked;
+        int nf = FwSelectionState.FilletCount;
+        int nh = FwSelectionState.HoleCount;
+        _btnRunFillet.Text = "模块 A · 去除圆角（选中 " + nf + "）";
+        _btnRunHole.Text = "模块 B · 去除布尔切割（选中 " + nh + "）";
+        _status.Text = FwFocusSession.HasActive
+            ? string.Format("共享选中集：共 {0} 项（圆角 {1} / 布尔 {2}）。勾选 ≠ 执行；各模块单独按按钮。",
+                FwSelectionState.Count, nf, nh)
+            : "（未开启聚焦 / focus off）";
     }
 
-    private void UpdateSelectedCount()
-    {
-        _btnCancelSelected.Text = "取消选中 " + CollectSelected().Count + " 项 / Cancel selected";
-    }
+    // ---------------------------------------------------------------- 两个独立模块
 
-    private void DoLocate()
-    {
-        List<int> picked = CollectSelected();
-        if (picked.Count != 1)
-        {
-            _status.Text = "请先选中一行 / Select exactly one row.";
-            return;
-        }
-        FwFocusGroup? g = FwFocusSession.GroupAt(picked[0]);
-        Brep? src = FwFocusSession.SourceBrep;
-        RhinoView? view = RhinoDoc.ActiveDoc?.Views.ActiveView;
-        if (g == null || src == null || view == null) return;
-
-        BoundingBox bb = BoundingBox.Unset;
-        foreach (int fi in g.Faces)
-        {
-            if (fi < 0 || fi >= src.Faces.Count) continue;
-            BoundingBox one = src.Faces[fi].GetBoundingBox(true);
-            if (!one.IsValid) continue;
-            bb = bb.IsValid ? BoundingBox.Union(bb, one) : one;
-        }
-        if (!bb.IsValid) return;
-        view.ActiveViewport.ZoomBoundingBox(bb);
-        view.Redraw();
-        _status.Text = "已缩放到 " + g.Id + " / Zoomed to " + g.Id + ".";
-    }
-
-    // ---------------------------------------------------------------- 显式操作语义
-
-    /// <summary>只取消勾选的组；一个都没勾时**什么也不做**（旧版会误删全部）。</summary>
-    private void DoCancelSelected()
+    private void DoRunModule(string module)
     {
         if (!FwFocusSession.HasActive)
         {
@@ -261,28 +228,32 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
             return;
         }
 
-        List<int> picked = CollectSelected();
-        if (picked.Count == 0)
+        List<int> indices = FwSelectionState.IndicesInChannel(module);
+        if (indices.Count == 0)
         {
-            _status.Text = "请先勾选或在视口中点边/面；不勾不会删除任何特征 / Nothing ticked, nothing changed.";
+            _status.Text = module == "Fillet"
+                ? "模块 A 没有勾选圆角；不勾不会删任何东西 / Nothing ticked in module A."
+                : "模块 B 没有勾选布尔切割；不勾不会删任何东西 / Nothing ticked in module B.";
             return;
         }
 
         var targets = new List<FwFocusGroup>();
-        foreach (int i in picked)
+        foreach (int i in indices)
         {
             FwFocusGroup? g = FwFocusSession.GroupAt(i);
             if (g != null) targets.Add(g);
         }
         if (targets.Count == 0) return;
 
-        bool ok = FwCancelRunner.TryApply(RhinoDoc.ActiveDoc, targets, AllGroups(), out string message);
-        RhinoApp.WriteLine(message);
-        _status.Text = ok ? "已取消 " + targets.Count + " 组 / cancelled." : Short(message);
+        bool ok = FwCancelRunner.TryApply(RhinoDoc.ActiveDoc, module, targets, out string message);
+        RhinoApp.WriteLine(message);   // 连带影响孔时，这里会原文报出，不藏在面板里
+        _status.Text = ok
+            ? (module == "Fillet" ? "模块 A 已执行 / fillet module applied." : "模块 B 已执行 / boolean module applied.")
+            : Short(message);
         Refresh();
     }
 
-    /// <summary>保留全部：模型一个字节都不改，只关掉聚焦显示。</summary>
+    /// <summary>关闭聚焦：模型一个字节都不改。</summary>
     private void DoKeepAll()
     {
         if (!FwFocusSession.HasActive)
@@ -295,33 +266,35 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
         _status.Text = "已保留全部：模型未改动，聚焦显示已关闭 / Kept all; model untouched.";
     }
 
-    private void DoCancelAll()
+    private void DoLocate()
     {
-        if (!FwFocusSession.HasActive)
+        var picked = FwSelectionState.Selected.ToList();
+        if (picked.Count == 0)
         {
-            _status.Text = "先选实体 / Pick a solid first.";
+            _status.Text = "请先勾选或在视口框选特征 / Nothing selected.";
             return;
         }
+        Brep? src = FwFocusSession.SourceBrep;
+        RhinoView? view = RhinoDoc.ActiveDoc?.Views.ActiveView;
+        if (src == null || view == null) return;
 
-        var all = AllGroups();
-        if (all.Count == 0)
+        BoundingBox bb = BoundingBox.Unset;
+        foreach (int i in picked)
         {
-            _status.Text = "没有可取消的特征 / Nothing to cancel.";
-            return;
+            FwFocusGroup? g = FwFocusSession.GroupAt(i);
+            if (g == null) continue;
+            foreach (int fi in g.Faces)
+            {
+                if (fi < 0 || fi >= src.Faces.Count) continue;
+                BoundingBox one = src.Faces[fi].GetBoundingBox(true);
+                if (!one.IsValid) continue;
+                bb = bb.IsValid ? BoundingBox.Union(bb, one) : one;
+            }
         }
-
-        bool ok = FwCancelRunner.TryApply(RhinoDoc.ActiveDoc, all, all, out string message);
-        RhinoApp.WriteLine(message);
-        _status.Text = ok ? "已回到毛坯 / Back to blank" : Short(message);
-        Refresh();
-    }
-
-    private static List<FwFocusGroup> AllGroups()
-    {
-        var all = new List<FwFocusGroup>();
-        all.AddRange(FwFocusSession.FilletGroups);
-        all.AddRange(FwFocusSession.HoleGroups);
-        return all;
+        if (!bb.IsValid) return;
+        view.ActiveViewport.ZoomBoundingBox(bb);
+        view.Redraw();
+        _status.Text = "已缩放到 " + picked.Count + " 个选中组 / Zoomed to selection.";
     }
 
     private static string Short(string s) =>
@@ -332,11 +305,13 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
     {
         bool active = FwFocusSession.HasActive;
         _source.Text = active
-            ? string.Format("源对象 {0} · 面 {1} · 半透明锁定 {2} · 特征 {3} 组",
+            ? string.Format("源对象 {0} · 面 {1} · 半透明锁定 {2} · 特征 {3} 组（圆角 {4} / 布尔 {5}）",
                 FwFocusSession.SourceId.ToString("N").Substring(0, 8),
                 FwFocusSession.SourceBrep?.Faces.Count ?? 0,
                 FwFocusSession.LockedFaces.Count,
-                FwFocusSession.AllGroupCount)
+                FwFocusSession.AllGroupCount,
+                FwFocusSession.FilletGroups.Count,
+                FwFocusSession.HoleGroups.Count)
             : "（未选实体 / no target）";
 
         _updating = true;
@@ -347,13 +322,13 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
         }
         finally { _updating = false; }
 
+        OnSelectionChanged("refresh");
+
         int n = FwFocusSession.AllGroupCount;
-        _btnCancelSelected.Enabled = n > 0;
+        _btnRunFillet.Enabled = active && FwFocusSession.FilletGroups.Count > 0;
+        _btnRunHole.Enabled = active && FwFocusSession.HoleGroups.Count > 0;
         _btnKeepAll.Enabled = active;
-        _btnCancelAll.Enabled = n > 0;
-        _btnPickEdge.Enabled = active;
         _btnLocate.Enabled = n > 0;
-        UpdateSelectedCount();
     }
 
     private static void Fill(CheckBoxList list, List<FwFocusGroup> groups, int offset)
@@ -362,9 +337,13 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
         for (int i = 0; i < groups.Count; i++)
         {
             FwFocusGroup g = groups[i];
+            string loopInfo = g.Loops.Count > 0
+                ? " · " + g.Loops.Count + " 内环"
+                : "";
             list.Items.Add(new ListItem
             {
-                Text = string.Format("{0}  {1}  {2}  ·  {3} 面", g.Id, g.Name, g.Detail, g.Faces.Count),
+                Text = string.Format("{0}  {1}  {2}  ·  {3} 面{4}",
+                    g.Id, g.Name, g.Detail, g.Faces.Count, loopInfo),
                 Key = (offset + i).ToString()
             });
         }
@@ -372,7 +351,10 @@ public class FwCancelPanel : Eto.Forms.Panel, IPanel
 
     public void PanelShown(uint docSerialNumber, ShowPanelReason reason) => Refresh();
     public void PanelHidden(uint docSerialNumber, ShowPanelReason reason) { }
-    public void PanelClosing(uint docSerialNumber, bool allowHiding) { }
+    public void PanelClosing(uint docSerialNumber, bool allowHiding)
+    {
+        FwSelectionState.Changed -= OnSelectionChanged;
+    }
 
     public static void Register()
     {

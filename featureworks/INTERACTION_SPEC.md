@@ -233,3 +233,59 @@
 - 常驻 `MouseCallback` 的实际事件参数、框选命中与性能：尚未编码实测。
 - 用户提到的「turn number」未能在网上定位到确切软件/控件，本方案按主流 CAD 的
   特征树 / PropertyManager / 时间轴范式理解，**需向用户确认所指**。
+
+---
+
+## 12. v1.6 实现记录（已编码 / 已编译 / 已真机几何验证）
+
+### 12.1 用户拍板（AskUserQuestion 选项回传）
+
+```
+v1.6 是否按「常驻双向联动 + 两个独立模块」这个方向落地？ → 按方案全做（推荐）
+两个模块的执行语义要怎么摆？                          → 严格两模块、不要总开关
+去圆角时如果缝合仍会连带影响孔，你希望怎么处理？      → 明确报出，不偷偷改（推荐）
+```
+
+§11.3 清单据此修正：第 5 点里的「全部取消」总开关**删除**；两个模块的按钮各自独立。
+
+### 12.2 落地文件
+
+| 文件 | 改动 |
+|---|---|
+| `src/FwSelection.cs`（新增） | `FwSelectionState` 一份共享 `HashSet<int>` + `FwMouseWatcher : MouseCallback` 常驻监听；`WorldToClient` 8 角投影屏幕矩形，点选 / 拖框 / Shift-Ctrl 加减选 |
+| `src/FwFocus.cs` | `FwFocusGroup.Loops`（inner loop 索引）、`FwGroupVisual.Bounds`；`FindInnerLoops()` 用 `BrepTrim.Edge.AdjacentFaces()` 把孔洞组映射到内环；conduit 三态着色 + 拖框矩形；`Begin/End` 起停监听与选中集；修正过时几何注释 |
+| `src/FwCancel.cs`（重写） | `CancelBoolean`（`RemoveHoles(指定内环)`）/ `CancelFilletModule`（整圈重缝 + collateral 明确报出）；`FwCancelRunner.TryApply(doc, module, targets, out msg)` 严格两模块、拒绝跨模块混选 |
+| `src/FwCancelPanel.cs`（重写） | 删互斥勾选、删总开关；两个分区各一个执行按钮；订阅 `FwSelectionState.Changed` 双向同步 |
+| `src/FwCancelCommand.cs`（重写） | 命令行 `BooleanRemove` / `FilletRemove`，沿用共享选中集或按组号 |
+| `src/FwSelectCommand.cs` / `FwPickFeatureCommand.cs` | 常驻监听提示；`PickGroup` 改为写共享选中集 |
+| `src/AssemblyInfo.cs` / `manifest.yml` | 1.6.0.0 |
+| `verification/Compile_Roslyn.py` / `Build_Package.py` | FILES 加 `FwSelection.cs`；默认版本 1.6.0.0 |
+
+### 12.3 编译与真机验证数字（本轮，不是推测）
+
+- 进程内 Roslyn：**0 error**，rhp `103424 bytes`（v1.5 为 96256 bytes）。
+  首轮 16 个错全是 `Point` / `Environment` 在 `System.Drawing`·`System` 与 `Rhino.*` 双定义（CS0104），
+  加 `using Point = System.Drawing.Point;` / `System.Environment.NewLine` 后清零。
+- 反射断言：版本 `1.6.0.0`、12 个类型齐全、两个执行器签名、
+  `TryApply(RhinoDoc, String, List<FwFocusGroup>, String ByRef)`、`Loops`/`Bounds` 字段、
+  `MouseCallback.Enabled` 继承存在。
+- 纯几何（盒 + 2 孔，`8 面 / inner 4 / vol 233214.16`）：
+  - `FindInnerLoops` 把 H1 → `[7,8]`、H2 → `[10,11]`，4 个圆角组 → 空（正确）；
+  - 模块 B 只删 H1 → **`7 面 / inner 2 / vol 236607.08`**（H2 全留）；删两个 → `6 面 / inner 0 / 240000`；
+  - 把 `Channel="Fillet"` 的组塞进布尔执行器 → 明确拒绝（严格两模块）。
+- 纯几何（圆角盒 R3 `10 面 / 239315.06` + 1 孔 `11 面 / inner 2 / 235922.14`）：
+  - 模块 B 只删该孔内环 `[11,12]` → **`10 面 / inner 0 / 239315.06`**，
+    与纯圆角盒面数与体积逐项一致（`SAME_AS_FILLETED=True`）——**去布尔不需要先去圆角**；
+  - 模块 A（用删孔壁面 + 完整曲面重缝模拟圆角重缝路径）→ `collateral=4`，
+    结果消息原文含「【明确报出 / NOT silent】」，未做孔体重放。
+- **发现并修复的真实 bug（E-025）**：`CancelBoolean` 初版用 `g.Type == FeatureType.Fillet` 过滤，
+  而 `FeatureType` 枚举默认值恰好是 `Fillet`，导致孔洞组被误判成圆角、`RemoveHoles` 收不到任何内环。
+  改为只认显式 `g.Channel`，`FwCancelRunner` 的跨模块校验同步改；重编译后全部通过。
+
+### 12.4 仍待人工验收（如实标注）
+
+- 常驻 `MouseCallback` 在真实 GUI 里的手感（拖框矩形、Shift/Ctrl、hover 预览、多视口）尚未实机点过：
+  本轮 Rhino 是自动重开的空文档实例，交互命令按纪律不从脚本同步驱动。
+- `e.Cancel = true` 接管左键后是否影响其它视口操作（右键旋转、gumball）：未实测。
+- 「turn number」所指仍未确认。
+- 真实 GUI 上的 v1.5 面板点选、v2.10 Alias 当前视口独立，也仍待用户重开 Rhino 后一并验收。

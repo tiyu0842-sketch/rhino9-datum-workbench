@@ -21,7 +21,9 @@
 | **切一个视口，四个视口一起变**（要的是独立） | `display-modes.md` →「视口作用范围」；E-022；搜自己的 `foreach (... doc.Views)`，别怪 Rhino |
 | 改了默认设置值却不生效 | `error-catalog.md`「显示与视觉」→ 换键名带 `.v2` 后缀 |
 | 面板列表看不出对应模型哪一块 / 想点边选特征 | `feature-recognition.md` §10；`INTERACTION_SPEC.md` §10；E-023；编号双向映射 + `BrepFace.AdjacentEdges()` |
-| 去布尔是否必须先去圆角 / 为什么补面而不取消修剪 / 只能在小框里选 | `feature-recognition.md` §11；`rhinocommon-pitfalls.md`「B-rep 特征取消」；E-024；`RemoveHoles(指定内环)` + 常驻双向联动 |
+| 去布尔是否必须先去圆角 / 为什么补面而不取消修剪 / 只能在小框里选 | `feature-recognition.md` **§11（诊断）→ §12（v1.6 已落地）**；`rhinocommon-pitfalls.md`「B-rep 特征取消」「v1.6 新增」；**E-024 → E-025**；`RemoveHoles(指定内环)` + 常驻双向联动 |
+| 编译刷 CS0104 `Point`/`Environment` 歧义 / `RemoveHoles` 报「没解析到内环」 | `error-catalog.md`「v1.6 / E-025 新增症状」；`rhinocommon-pitfalls.md`「v1.6 新增」；**别用 `FeatureType` 默认值判断模块归属，用 `Channel`** |
+| 想让视口直接框选 conduit 高亮面 / 一份共享选中集 | `feature-recognition.md` §12.1；项目 `FwSelection.cs`（`MouseCallback` 接管左键 + `WorldToClient` 屏幕投影命中，不建文档对象） |
 | 截图空白 / 拿到缓存帧 | `rhinocommon-pitfalls.md` →「相机、截图与 Box 创建」；`verification-playbook.md` →「三」 |
 | 枚举不到对象、以为被删 | `rhinocommon-pitfalls.md` →「文档事件与对象枚举」（`HiddenObjects=true`） |
 | 半透明不生效、有鬼影、高亮只剩线框 | `rhinocommon-pitfalls.md` →「DisplayConduit 聚焦显示」；`feature-recognition.md` → §4 |
@@ -38,7 +40,7 @@
 | 查某个 GH 组件名 / 参数签名 | `grasshopper-component-index.md`；或运行时 `g1_search_components` / `g1_describe_component` |
 | 装了新插件后刷新 GH 组件清单 | `../scripts/Export_GH_Components.py` |
 | 要打包 yak、多版本并存、安装假失败 | `verification-playbook.md` →「五」；`rhinocommon-pitfalls.md` →「打包与安装」「打包补充」 |
-| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（25 条，含 14 条被推翻的假设） |
+| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**26 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地，不新增推翻） |
 | 结论被推翻了怎么处理 | `experiment-log.md` →「统计与复用提示」：**不删旧条，加「修正 E-XXX」** |
 
 ---
@@ -47,7 +49,7 @@
 
 | 任务 | 阅读顺序（只读需要的章节） |
 |---|---|
-| **改 FeatureWorks 功能** | `feature-recognition.md` §6/§7 → `error-catalog.md`「几何特征识别」→ `experiment-log.md` 相关 E 号 |
+| **改 FeatureWorks 功能** | `feature-recognition.md` §6/§7 → **§11/§12（v1.6 两模块与常驻联动）** → `error-catalog.md`「几何特征识别」+「v1.6 / E-025 新增症状」→ `experiment-log.md` 相关 E 号 |
 | **调显示模式** | `display-modes.md` 全文（短）→ `rhinocommon-pitfalls.md`「视口与布局」→ 用户立场见 `SKILL.md` |
 | **搭 GH 定义** | `grasshopper-spatial-logic.md` §4 → `grasshopper-component-index.md` 对应族 → 搭完必走 §5 第 5 步验证 |
 | **诊断一个报错** | `error-catalog.md`（按症状）→ `experiment-log.md`（看结论演化）→ 对应专题 → 反射确认 API |
@@ -87,7 +89,7 @@
 | `rhinocommon-pitfalls.md` | 已实测的 API 行为与签名 | 业务流程 |
 | `display-modes.md` | 光照/等参线/阴影的参数配方与判据 | 插件架构 |
 | `verification-playbook.md` | 反射/像素/截图/安装流程 | 几何原理 |
-| `feature-recognition.md` | B-rep 特征识别/取消专题（§0–§9） | GH 数据流 |
+| `feature-recognition.md` | B-rep 特征识别/取消专题（**§0–§12**；§11 诊断、§12 v1.6 实现与实测） | GH 数据流 |
 | `rhino-command-index.md` | 1256 条命令全量索引（只查） | 用法讲解 |
 | `rhino-command-reference.md` | 命令 ↔ API ↔ 几何 三层精讲 | 全量清单 |
 | `grasshopper-spatial-logic.md` | GH 构造序列/数据树/验证/教学纪律（§1–§9） | 组件清单 |

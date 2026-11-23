@@ -124,3 +124,15 @@
 | 退出后 Front 视图歪了 | CPlane 被基准面覆盖，旧版只记最后一个 `ViewportId`，前面的视口还原不到 | 逐视口存档原 CPlane + 退出遍历还原 + 残留自愈 |
 | "已有基准面，不能选择" | 激活态把"新建"当成禁止操作 | 激活态把 `Create` 映射为 `SwitchTo`，保留唯一恢复基线 |
 | 第5视窗退出后网格和镜头错开 | 把它的 CPlane 改回世界 XY，而相机仍垂直基准面 | 第5视窗保留基准面 CPlane，不参与还原 |
+
+## v1.6 / E-025 新增症状
+
+| 症状 | 原因 | 怎么办 |
+|---|---|---|
+| 编译刷出一串 `CS0104: 'Point' is an ambiguous reference` / `'Environment' is an ambiguous reference` | `System.Drawing.Point` vs `Rhino.Geometry.Point`；`System.Environment` vs `Rhino.DocObjects.Environment` | 文件顶加 `using Point = System.Drawing.Point;`，`Environment.NewLine` 写全 `System.Environment.NewLine`。v1.6 首轮 16 error 全属此类 |
+| 布尔模块报「没有解析到 trim 内环 / No inner loops resolved」，但组里明明有 `Loops` | 用 `g.Type == FeatureType.Fillet` 过滤模块，而 `FeatureType` 默认值恰好是 `Fillet` → 孔洞组被跳过 | 只认显式 `g.Channel`；跨模块校验也用 Channel。E-025 纯几何验证第一轮抓到 |
+| `RemoveHoles` 当成返回 `bool` 写，编译/运行不对 | 官方 `<returns>` 是「The Brep without holes if successful, **null** otherwise」 | `Brep? r = brep.DuplicateBrep().RemoveHoles(cis, tol);`，判 `r == null`，别判 bool |
+| 「只能在那个框里选，视口框选标红物不生效」 | conduit 自绘面不是文档对象 + `ObjectCulling` 剔除源对象，Rhino 原生拾取够不到 | 挂 `MouseCallback` 接管左键，`WorldToClient` 投影包围盒做屏幕命中；**不要**指望改子对象选择能救（v1.6 实测） |
+| 两个通道不能同时勾 / 「去选择那一边」 | 面板里写了互斥清空 `(source == A ? B : A).SelectedKeys = []` | 一份 `FwSelectionState` 共享 `HashSet<int>`，视口/面板/两模块共同读写，删互斥 |
+| 取消一个孔，同面其它孔也没了（v1.5） | `UntrimFace(host, tol)` 官方定义会抹掉外环 + **全部**内环 | 改 `RemoveHoles(指定 inner loop)`；E-024 已修正，v1.6 落地 |
+| 去圆角把孔一起抹了，却没告诉用户 | `RepairToBlank` 把所有非圆角面外扩成完整平面 | 检测 `CountInnerLoops` 前后差，结果消息原文报出「原有 N → 剩 M，另外 K 处被连带恢复」，按用户拍板不做孔体重放、不偷偷改 |

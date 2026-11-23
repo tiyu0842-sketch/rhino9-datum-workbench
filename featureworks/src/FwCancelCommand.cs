@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Rhino;
 using Rhino.Commands;
 using Rhino.Input;
@@ -8,14 +9,11 @@ using Rhino.Input.Custom;
 namespace RhinoFeatureWorks;
 
 /// <summary>
-/// FWCancel —— 取消特征。必须先在 FWSelect 的聚焦状态里才能用。
+/// FWCancel —— 命令行取消入口（v1.6 严格两模块）。
 ///
-/// 交互：
-///   1. 打印当前两个通道的清单（你能看到有哪些可取消）
-///   2. 选通道：Hole / Fillet / All
-///   3. 选组号（0 = 该通道全部）
-///   4. 取消 → 替换文档几何 → 重新识别 → 重新开聚焦（可以连着取消下一组）
-///
+/// 与面板共用 FwCancelRunner，但不再提供跨模块的 "All" 总开关（用户明确不要）。
+/// 优先使用共享选中集里属于该模块的勾选；没有勾选时，才退回「按组号」选择，
+/// 且 0 = 该模块全部（不是整件毛坯）。
 /// 整个过程在一个 Undo 记录里，Ctrl+Z 一次回到操作前。
 /// </summary>
 [CommandStyle(Style.ScriptRunner)]
@@ -40,42 +38,59 @@ public class FwCancelCommand : Command
         }
 
         RhinoApp.WriteLine(FwFocusSession.Report());
+        RhinoApp.WriteLine(string.Format(
+            "共享选中集：共 {0} 项（圆角 {1} / 布尔 {2}）",
+            FwSelectionState.Count, FwSelectionState.FilletCount, FwSelectionState.HoleCount));
 
         var go = new GetOption();
-        go.SetCommandPrompt("取消哪一类 / Cancel which channel");
-        int oHole = go.AddOption("Hole");
-        int oFillet = go.AddOption("Fillet");
-        int oAll = go.AddOption("All");
+        go.SetCommandPrompt("执行哪个模块 / Which module (no global cancel-all)");
+        int oHole = go.AddOption("BooleanRemove");
+        int oFillet = go.AddOption("FilletRemove");
         if (go.Get() != GetResult.Option) return Result.Cancel;
 
         int chosen = go.OptionIndex();
-        string channel;
-        var pool = new List<FwFocusGroup>();
-        if (chosen == oAll) { channel = "All"; pool.AddRange(fillets); pool.AddRange(holes); }
-        else if (chosen == oFillet) { channel = "Fillet"; pool.AddRange(fillets); }
-        else { channel = "Hole"; pool.AddRange(holes); }
-
+        string module = chosen == oFillet ? "Fillet" : "Hole";
+        var pool = new List<FwFocusGroup>(module == "Fillet" ? fillets : holes);
         if (pool.Count == 0)
         {
-            RhinoApp.WriteLine("该通道没有特征 / Channel '" + channel + "' is empty.");
+            RhinoApp.WriteLine("该模块没有特征 / Module '" + module + "' is empty.");
             return Result.Nothing;
         }
 
-        int pick = 0;
-        if (pool.Count > 1)
+        List<int> fromState = FwSelectionState.IndicesInChannel(module);
+        var targets = new List<FwFocusGroup>();
+
+        if (fromState.Count > 0)
         {
-            // Rhino 9 实测签名：GetInteger(prompt, acceptEnterAsDefault, ref value, lower, upper)
-            Result rc = RhinoGet.GetInteger(
-                string.Format("组号 1..{0}，0 = 全部 / Group index (0 = all of {1})", pool.Count, channel),
-                true, ref pick, 0, pool.Count);
-            if (rc != Result.Success) return rc;
+            foreach (int i in fromState)
+            {
+                FwFocusGroup? g = FwFocusSession.GroupAt(i);
+                if (g != null) targets.Add(g);
+            }
+            RhinoApp.WriteLine("沿用共享选中集里本模块的 " + targets.Count + " 组 / using current selection.");
+        }
+        else
+        {
+            int pick = 0;
+            if (pool.Count > 1)
+            {
+                Result rc = RhinoGet.GetInteger(
+                    string.Format("组号 1..{0}，0 = 本模块全部 / Group index (0 = all of module {1})",
+                        pool.Count, module),
+                    true, ref pick, 0, pool.Count);
+                if (rc != Result.Success) return rc;
+            }
+            if (pick == 0) targets.AddRange(pool);
+            else targets.Add(pool[pick - 1]);
         }
 
-        var targets = new List<FwFocusGroup>();
-        if (pick == 0) targets.AddRange(pool);
-        else targets.Add(pool[pick - 1]);
+        if (targets.Count == 0)
+        {
+            RhinoApp.WriteLine("没有选中要取消的特征组 / Nothing selected.");
+            return Result.Nothing;
+        }
 
-        bool ok = FwCancelRunner.TryApply(doc, targets, pool, out string message);
+        bool ok = FwCancelRunner.TryApply(doc, module, targets, out string message);
         RhinoApp.WriteLine(message);
 
         if (!ok) return Result.Failure;

@@ -1,0 +1,4 @@
+# Python bytecode caches (may embed absolute local paths)
+__pycache__/
+*.pyc
+*.pyo

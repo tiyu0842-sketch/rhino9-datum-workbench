@@ -3,7 +3,7 @@
 
 Run INSIDE Rhino 9's Python 3 (ScriptEditor, or mcp__rhino__run_python):
 
-    p = r"C:\\Users\\21251\\WorkBuddy\\2026-11-21-15-41-26\\FeatureWorks\\verification\\Compile_Roslyn.py"
+    p = r"<FeatureWorks>\verification\Compile_Roslyn.py"   # 改成你本机的实际路径
     exec(compile(open(p, encoding="utf-8").read(), p, "exec"))
 
 Rationale (same as DatumPlanePlugin): no standalone .NET 8 SDK on this machine,
@@ -22,7 +22,9 @@ from System.Text import Encoding
 from System import AppDomain
 
 ROS = r"C:\Program Files\Rhino 9\System"
-ROOT = os.environ.get("FEATUREWORKS_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 可移植路径：脚本位于 <FeatureWorks>/verification/，ROOT 指向其上一级。
+_HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(_HERE)
 SRC = os.path.join(ROOT, "src")
 # 与 DatumPlane 一样支持 OUT_OVERRIDE：Rhino 可能正锁着 canonical .rhp，
 # 编译输出要能改名，否则 Assembly.LoadFrom 锁文件会让新版本写不进去。
@@ -43,11 +45,12 @@ from Microsoft.CodeAnalysis.CSharp import (CSharpSyntaxTree, CSharpParseOptions,
                                            LanguageVersion, CSharpCompilation,
                                            CSharpCompilationOptions)
 
-FILES = globals().get("FILES") or ["AssemblyInfo.cs", "FeatureWorksPlugin.cs", "FwModel.cs", "FwGraph.cs",
+FILES = ["AssemblyInfo.cs", "FeatureWorksPlugin.cs", "FwModel.cs", "FwGraph.cs",
          "FwEngine.cs", "FwReconstruct.cs", "FwSurfaceEvidence.cs", "FwSelfTest.cs",
          "FwSession.cs", "FwPanel.cs", "FwCommands.cs",
          "FwFocus.cs", "FwSelectCommand.cs", "FwPickFeatureCommand.cs",
-         "FwCancel.cs", "FwCancelCommand.cs", "FwCancelPanel.cs"]
+         "FwCancel.cs", "FwCancelCommand.cs", "FwCancelPanel.cs",
+         "FwSelection.cs"]
 
 refs, seen, skipped = [], set(), 0
 for a in AppDomain.CurrentDomain.GetAssemblies():

@@ -275,7 +275,7 @@ v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环�
   配 Hover Preview、Shift 加减选、点空白清空。
   → 主流布局 = **图形区直接操作 + 常驻树状面板 + 一份共享选中集，双向同步、多选、可预览**。
 
-### 落地纪律（v1.6 待编码）
+### 落地纪律（v1.6 已按此编码，实测见 §12）
 
 1. **一份选中集**：`HashSet<int> SelectedGroups` 由视口与面板共同读写，取消「同一时刻只允许一边有勾选」。
 2. **不进模态命令**：`FWSelect` 后挂 `MouseCallback`（`OnMouseDown` / `OnMouseMove` / `OnMouseHover`），
@@ -285,3 +285,52 @@ v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环�
 4. **别再用 `UntrimFace` 做单个孔**，也别再整件 `RepairToBlank`；这是 E-024 修正 E-018 的核心。
 5. 开放项：`UntrimBorder` 命令层「去外环保留内环」能否进一步替代 `Defillet`，尚未验证
    （`DuplicateSubBrep` + `UntrimOuterLoop` 连调导致 Rhino 进程崩溃，按纪律未盲目重试）。
+
+## 12. v1.6 落地：常驻双向联动 + 严格两独立模块（E-025，已编译/已安装/已真机几何验证）
+
+§11 是诊断与方案，本节是实现与证据。**用户拍板三项**：
+「按方案全做」「严格两模块、不要总开关」「去圆角连带影响孔时明确报出，不偷偷改」。
+
+### 12.1 为什么接管左键而不是「保留源对象可拾取」
+
+E-024/§11 曾写「保留源对象可拾取 + `RhinoObject.SelectSubObject`」，v1.6 实际采用**另一条更稳的路**：
+conduit 自绘的橙色特征面永远不是文档对象，`ObjectCulling` 又让源对象退出绘制，
+无论怎么设置子对象选择，Rhino 原生框选都碰不到「标红的那一块」。
+所以 `FwMouseWatcher : MouseCallback` 接管左键（`e.Cancel=true`），
+用 `RhinoViewport.WorldToClient` 把每个 `FwGroupVisual.Bounds` 的 8 个角投影成屏幕矩形，
+点选取面积最小的命中组、拖框取相交组，写回**一份** `FwSelectionState` 共享选中集。
+不建文档对象、不进 Undo、不污染 .3dm；`FWSelect` 的 toggle / `End` 一并 Stop。
+
+> 这一条是「先验证需求，再验证代码」的又一次体现：§11 的直觉方案（改 Rhino 拾取）
+> 在 conduit 架构下做不到，实现时改用屏幕投影命中测试才真正解决「只能在框里选」。
+
+### 12.2 两个执行器的精确边界
+
+| 模块 | API | 只改什么 | 实测 |
+|---|---|---|---|
+| B 去除布尔切割 | `Brep.RemoveHoles(IEnumerable<ComponentIndex>, tol)`，`ComponentIndex(ComponentIndexType.BrepLoop, loop.LoopIndex)` | 选中的 inner loops | 盒+2孔 `8/4/233214.16` → 只删 H1 → `7/2/236607.08`；圆角盒+1孔 `11/2/235922.14` → `10/0/239315.06`（圆角完好） |
+| A 去除圆角 | 删整圈过渡面 → `UnderlyingSurface().ToBrep()` → `CreateSolid` | 整圈过渡面 + 相邻面重缝 | 连带恢复 4 个内环时 `collateral=4`，消息原文报出，**不做孔体重放** |
+
+`FwFocusGroup.Loops` 由 `FindInnerLoops()` 在 `FwFocusSession.Begin` 时解析：
+遍历 `brep.Loops` 中 `LoopType == Inner` 的环，用 `BrepTrim.Edge.AdjacentFaces()` 判断是否与孔洞组
+的孔壁面相邻；兜底再查组自身面上的内环。实测 H1→`[7,8]`、H2→`[10,11]`，4 个圆角组→空。
+
+### 12.3 严格两模块的三个闸门
+
+1. `FwSelectionState.IndicesInChannel(module)` 只取该通道的选中索引，另一通道勾选原样保留；
+2. `FwCancelRunner.TryApply(doc, module, targets, out msg)` 校验每个 target 的 `Channel` 与 module 一致，
+   跨模块混选直接拒绝；
+3. 面板删掉「全部取消 → 回毛坯」总开关，两个分区各一个按钮；N=0 拒绝执行。
+
+**踩过的坑（务必记住）**：初版 `CancelBoolean` 用 `g.Type == FeatureType.Fillet` 判断模块归属，
+而 `FeatureType` 枚举**默认值恰好是 Fillet**（`Fillet, Chamfer, SimpleHole, …`），
+手工构造/异常数据的孔洞组被误判成圆角 → `RemoveHoles` 收不到内环、静默失败。
+改为只认显式 `g.Channel`（`"Fillet"` / `"Hole"`），runner 同步改。
+**判断模块归属别用带默认值的枚举。**
+
+### 12.4 待人工验收
+
+常驻鼠标的 GUI 手感（拖框矩形、hover 黄色描边、Shift/Ctrl、多视口、`e.Cancel=true` 对右键旋转与
+gumball 的影响）尚未实机点过：本轮 Rhino 是 E-024 崩溃后自动重开的空文档实例，
+交互命令按纪律不从脚本同步驱动。需用户重开 Rhino（装完必须重开）后一并验收
+v1.5 面板、v2.10 Alias 当前视口独立、v1.6 常驻框选。

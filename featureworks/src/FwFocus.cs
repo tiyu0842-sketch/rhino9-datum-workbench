@@ -6,14 +6,21 @@ using Rhino;
 using Rhino.Display;
 using Rhino.DocObjects;
 using Rhino.Geometry;
+// Rhino.Geometry.Point 与 System.Drawing.Point 双定义；DrawForeground 里用屏幕像素坐标。
+using Point = System.Drawing.Point;
 
 namespace RhinoFeatureWorks;
 
 /// <summary>
-/// 一条「可取消的特征通道」——圆角通道或孔洞通道。
-/// 两类特征的取消方法在几何上不同，所以从数据层就分开：
-///   圆角/倒角 → Brep.UntrimOuterLoop(faceIndex)：只把外环扩回底层曲面，内环保留
-///   孔/槽     → Brep.UntrimFace(faceIndex, tol)：外环 + 所有内环一起去掉，孔消失
+/// 一条「可取消的特征通道」——圆角通道或孔洞（布尔切割）通道。
+/// v1.6 起两类特征从数据层就分开，而且**互不依赖**（E-024 推翻了「去布尔必须先去圆角」）：
+///   孔/槽（布尔）→ 底层曲面没动，只是宿主面多了 trim 内环
+///                  → Brep.RemoveHoles(指定内环, tol) 精确删选中的孔，圆角与其它孔全留
+///   圆角/倒角   → 滚球扫出的新增过渡曲面，四边与邻面共享，没有更大的底层曲面可还原
+///                  → 只能删整圈过渡面 + 相邻面重新求交缝合（UntrimOuterLoop 在实体圆角面恒 null）
+/// 旧注释写「孔洞 → UntrimFace」「圆角 → UntrimOuterLoop」是错的：
+/// UntrimFace 会把宿主面外环 + 全部内环一起抹掉（实测 8 面 → 6 面，两个孔一起没），
+/// UntrimOuterLoop 对实体圆角面返回 null。见 rhinocommon-pitfalls.md 与 E-024。
 /// </summary>
 public class FwFocusGroup
 {
@@ -24,18 +31,25 @@ public class FwFocusGroup
     public FeatureType Type;
     public string Name = "";
     public List<int> Faces = new();
+    /// <summary>v1.6：该孔洞组对应的 trim 内环索引（BrepLoop.LoopIndex）。
+    /// 布尔模块用 RemoveHoles(IEnumerable&lt;ComponentIndex&gt;, tol) 只删这些环，
+    /// 不再整面 UntrimFace 把同面其它孔一起抹掉。圆角组此字段恒为空。</summary>
+    public List<int> Loops = new();
     public string Detail = "";
 
     public string OneLine(int i) => string.Format(
         "[{0}] {1,-18} {2,-15} faces={3,-2} {4}", i, Name, Type, Faces.Count, Detail);
 }
 
-/// <summary>一个特征组在视口里的显示代理：子 Brep + 编号 + 锚点。</summary>
+/// <summary>一个特征组在视口里的显示代理：子 Brep + 编号 + 锚点 + 世界包围盒。
+/// v1.6 加 Bounds：常驻框选用 WorldToClient 把 8 个角投影成屏幕矩形做命中测试，
+/// 不再依赖 Rhino 原生拾取（conduit 自绘面不是文档对象，拾取不到）。</summary>
 public class FwGroupVisual
 {
     public Brep Brep = null!;
     public string Label = "";
     public Point3d Center;
+    public BoundingBox Bounds = BoundingBox.Unset;
 }
 
 /// <summary>
@@ -58,8 +72,12 @@ public class FwFocusConduit : DisplayConduit
     /// <summary>逐组显示代理（编号标签 + 独立颜色）。列表行号与这里的 Label 一一对应。</summary>
     public readonly List<FwGroupVisual> FeatureVisuals = new();
 
-    /// <summary>当前被面板行/视口点选命中的组（-1=无）。命中组画高亮粗线，其余压暗。</summary>
+    /// <summary>面板行点选定位的组（-1=无）。v1.6 起「选中」以 FwSelectionState 为准，
+    /// 这个字段只保留最后一次点行定位，用于标签高亮。</summary>
     public int FocusedIndex = -1;
+
+    /// <summary>鼠标悬停命中的组（-1=无）。由 FwMouseWatcher 写，只改描边不改选中集。</summary>
+    public int HoverIndex = -1;
 
     /// <summary>源对象 Id 与「画这些子面时」的几何指纹 —— 用来判断缓存是否已经过期。</summary>
     public Guid SourceId { get; set; } = Guid.Empty;
@@ -106,7 +124,12 @@ public class FwFocusConduit : DisplayConduit
     /// 把源对象本身从绘制里剔除，只画我们自己抽出来的两组子面。
     /// 实测原因：只往上叠一层高透明度灰，底色仍是原实体的不透明蓝，看起来「几乎没变」；
     /// 必须先把原对象剔除，剩下的半透明灰才真的能看穿。
-    /// 纯显示层，不影响拾取、不改文档。
+    ///
+    /// v1.6 更正（E-024）：旧注释写「不影响拾取」是错的。cull 之后 conduit 自绘的
+    /// 橙色特征面不是文档对象，Rhino 原生点选/框选都够不到，正是用户说的
+    /// 「只能在那个框里面去选择」。拾取改由常驻 FwMouseWatcher 接管左键，
+    /// 用屏幕投影做命中测试；这里只保留视觉效果，不再指望 Rhino 拾取。
+    /// 仍然不改文档、不建对象、不进 Undo。
     /// </summary>
     protected override void ObjectCulling(CullObjectEventArgs e)
     {
@@ -145,24 +168,36 @@ public class FwFocusConduit : DisplayConduit
         base.DrawForeground(e);
         if (Stale()) return;
 
-        // v1.5：逐组编号显示。用户不再需要猜「列表里的 Fillet_7 是模型上哪一块」——
-        // 每个特征组旁边直接画 F1/F2…/H1/H2…，面板行首是同一个编号；点行或点模型边/面，
-        // 该组立刻变亮、其余压暗（FocusedIndex）。
+        // v1.6：三态着色 —— 选中(青/粗) / 悬停(黄/中) / 普通(橙/细)。
+        // 选中集只有一份（FwSelectionState），视口拖框、点选、面板勾选写的是同一份。
         if (FeatureVisuals.Count > 0)
         {
             for (int i = 0; i < FeatureVisuals.Count; i++)
             {
                 FwGroupVisual v = FeatureVisuals[i];
                 if (v.Brep == null) continue;
-                bool hot = i == FocusedIndex;
-                var mat = new DisplayMaterial(hot ? Color.FromArgb(80, 220, 255) : Color.FromArgb(255, 138, 40));
-                mat.Transparency = hot ? 0.05 : 0.35;
+                bool selected = FwSelectionState.IsSelected(i);
+                bool hover = i == HoverIndex;
+                bool focus = i == FocusedIndex;
+
+                Color fill = selected ? Color.FromArgb(60, 200, 240)
+                    : hover ? Color.FromArgb(255, 220, 90)
+                    : focus ? Color.FromArgb(80, 220, 255)
+                    : Color.FromArgb(255, 138, 40);
+                Color wire = selected ? Color.FromArgb(0, 90, 130)
+                    : hover ? Color.FromArgb(150, 110, 0)
+                    : Color.FromArgb(200, 50, 0);
+                var mat = new DisplayMaterial(fill)
+                {
+                    Transparency = selected ? 0.08 : hover ? 0.15 : focus ? 0.05 : 0.35
+                };
                 e.Display.DrawBrepShaded(v.Brep, mat);
-                e.Display.DrawBrepWires(v.Brep,
-                    hot ? Color.FromArgb(0, 90, 130) : Color.FromArgb(200, 50, 0), hot ? 3 : 1);
+                e.Display.DrawBrepWires(v.Brep, wire, selected ? 3 : hover ? 2 : focus ? 3 : 1);
                 if (v.Center.IsValid)
-                    e.Display.Draw2dText(v.Label,
-                        hot ? Color.FromArgb(255, 255, 120) : Color.FromArgb(255, 245, 220),
+                    e.Display.Draw2dText((selected ? "[x] " : "") + v.Label,
+                        selected ? Color.FromArgb(230, 255, 255)
+                            : hover ? Color.FromArgb(255, 255, 140)
+                            : Color.FromArgb(255, 245, 220),
                         v.Center, true, 13, "Arial");
             }
         }
@@ -172,6 +207,20 @@ public class FwFocusConduit : DisplayConduit
             feature.Transparency = 0.15;
             e.Display.DrawBrepShaded(FeatureBrep, feature);
             e.Display.DrawBrepWires(FeatureBrep, Color.FromArgb(200, 50, 0), 2);
+        }
+
+        // 常驻拖框：直接画在视口 2D 层，坐标与 MouseCallbackEventArgs.ViewportPoint 同一系。
+        // 这是「在原有 Rhino 界面上框选已标红部分」的视觉反馈。
+        if (FwMouseWatcher.Dragging)
+        {
+            Point a = FwMouseWatcher.DragStart;
+            Point b = FwMouseWatcher.DragCurrent;
+            var r = new Rectangle(
+                Math.Min(a.X, b.X), Math.Min(a.Y, b.Y),
+                Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
+            if (r.Width > 1 && r.Height > 1)
+                e.Display.Draw2dRectangle(r, Color.FromArgb(80, 220, 255), 1,
+                    Color.FromArgb(45, 80, 220, 255));
         }
     }
 }
@@ -197,6 +246,61 @@ public static class FwFocusSession
     public static FocusPickHandler? PanelReceiver { get; set; }
 
     public static int AllGroupCount => FilletGroups.Count + HoleGroups.Count;
+
+    /// <summary>v1.6：常驻框选用 —— 每个特征组的世界包围盒，索引与 AllGroupCount 对齐。</summary>
+    public static IReadOnlyList<FwGroupVisual> Visuals =>
+        _conduit == null ? Array.Empty<FwGroupVisual>() : _conduit.FeatureVisuals;
+
+    /// <summary>选中集 / hover 变化后同步 conduit 描边，避免显示与勾选脱节。</summary>
+    public static void SyncSelectionVisuals()
+    {
+        if (_conduit == null) return;
+        _conduit.HoverIndex = FwSelectionState.HoverIndex;
+    }
+
+    /// <summary>
+    /// 把一个孔洞组映射到它对应的 trim 内环（BrepLoop.LoopIndex）。
+    /// 布尔模块的 RemoveHoles 只认 inner loop 的 ComponentIndex，必须精确到环：
+    /// 实测 UntrimFace 会把宿主面外环 + 全部内环一起抹掉（盒+2孔 8 面 → 6 面，两个孔一起没）。
+    /// 判据：该内环的任一条 trim 边与组里的孔壁面相邻。
+    /// </summary>
+    private static List<int> FindInnerLoops(Brep brep, FwFocusGroup g)
+    {
+        var set = new HashSet<int>();
+        var faces = new HashSet<int>(g.Faces);
+        try
+        {
+            for (int li = 0; li < brep.Loops.Count; li++)
+            {
+                BrepLoop lp = brep.Loops[li];
+                if (lp.LoopType != BrepLoopType.Inner) continue;
+                bool touches = false;
+                foreach (BrepTrim tr in lp.Trims)
+                {
+                    BrepEdge? edge = tr.Edge;
+                    if (edge == null) continue;
+                    int[]? adj = edge.AdjacentFaces();
+                    if (adj == null) continue;
+                    foreach (int a in adj)
+                        if (faces.Contains(a)) { touches = true; break; }
+                    if (touches) break;
+                }
+                if (touches) set.Add(lp.LoopIndex);
+            }
+            // 兜底：组自身面上带的内环（有些识别结果把宿主面也列进 Faces）。
+            if (set.Count == 0)
+                foreach (int fi in g.Faces)
+                {
+                    if (fi < 0 || fi >= brep.Faces.Count) continue;
+                    foreach (BrepLoop lp in brep.Faces[fi].Loops)
+                        if (lp.LoopType == BrepLoopType.Inner) set.Add(lp.LoopIndex);
+                }
+        }
+        catch { }
+        var list = set.ToList();
+        list.Sort();
+        return list;
+    }
 
     public static FwFocusGroup? GroupAt(int index)
     {
@@ -242,12 +346,14 @@ public static class FwFocusSession
         return -1;
     }
 
-    /// <summary>视口选中一组：高亮 + 通知面板把对应行勾上。</summary>
+    /// <summary>v1.6：点选一组写入共享选中集（视口、面板、两个模块读的是同一份）。
+    /// 不再走 v1.5 的 PanelReceiver 单选回写 —— 面板订阅 FwSelectionState.Changed 即可，
+    /// 这样两个通道的勾选可以并存，不再「去选择那一边」。</summary>
     public static bool PickGroup(int index, string origin)
     {
         if (_conduit == null || index < 0 || index >= AllGroupCount) return false;
         SetFocus(index);
-        try { PanelReceiver?.Invoke(index, origin); } catch { }
+        FwSelectionState.Toggle(index, origin);
         return true;
     }
 
@@ -262,6 +368,9 @@ public static class FwFocusSession
 
     public static string Begin(RhinoDoc doc, Guid id, Brep brep, List<RecognizedFeature> features)
     {
+        // v1.6：新会话先停旧监听、清旧选中集，避免换实体后仍勾着上一件的 F1。
+        FwMouseWatcher.Stop();
+        FwSelectionState.Clear(false);
         End(doc);
 
         FilletGroups.Clear();
@@ -287,7 +396,12 @@ public static class FwFocusSession
                 ? "F" + (FilletGroups.Count + 1).ToString()
                 : "H" + (HoleGroups.Count + 1).ToString();
             if (isFillet) FilletGroups.Add(g);
-            else HoleGroups.Add(g);
+            else
+            {
+                // 精确到 inner loop：布尔模块只删这些环，圆角与其它孔完全不受影响。
+                g.Loops = FindInnerLoops(brep, g);
+                HoleGroups.Add(g);
+            }
         }
 
         HashSet<int> featureFaces = FeatureFaceSet();
@@ -313,11 +427,12 @@ public static class FwFocusSession
             if (g == null) continue;  // 理论上不会发生；索引必须始终与 AllGroupCount 对齐
             Brep? sub = null;
             Point3d center = Point3d.Unset;
+            BoundingBox bounds = BoundingBox.Unset;
             try
             {
                 sub = brep.DuplicateSubBrep(new List<int>(g.Faces));
-                BoundingBox bb = sub.GetBoundingBox(true);
-                if (bb.IsValid) center = bb.Center;
+                bounds = sub.GetBoundingBox(true);
+                if (bounds.IsValid) center = bounds.Center;
             }
             catch { }
             // 索引必须和 AllGroupCount 一一对齐，失败也放占位（Brep 为 null 时不画）。
@@ -325,19 +440,25 @@ public static class FwFocusSession
             {
                 Brep = sub ?? null!,
                 Label = g.Id,
-                Center = center
+                Center = center,
+                Bounds = bounds
             });
         }
         conduit.Enabled = true;
         _conduit = conduit;
 
         Hook(doc);
+        // v1.6：常驻视口监听 —— 左键点选 / 拖框 / Shift-Ctrl 加减选，不进模态命令。
+        FwMouseWatcher.Begin();
+        FwSelectionState.Clear(false);
 
         doc.Views.Redraw();
 
         return string.Format(
-            "聚焦已开启 / Focus ON: 特征面 {0}（圆角 {1} 组 / 孔洞 {2} 组），其余 {3} 面半透明锁定",
-            featureFaces.Count, FilletGroups.Count, HoleGroups.Count, LockedFaces.Count);
+            "聚焦已开启 / Focus ON: 特征 {0} 组（圆角 {1} / 布尔切割 {2}），其余 {3} 面半透明锁定。" +
+            System.Environment.NewLine +
+            "可直接左键点选或拖框选中标红特征（Shift/Ctrl 加减选）；面板与两个模块共享同一份选中集。",
+            AllGroupCount, FilletGroups.Count, HoleGroups.Count, LockedFaces.Count);
     }
 
     // ---------------------------------------------------------------- 事件自愈
@@ -392,6 +513,10 @@ public static class FwFocusSession
     /// <summary>关闭聚焦。<paramref name="redraw"/>=false 用于从文档事件里回调，避免重入重绘。</summary>
     public static void End(RhinoDoc? doc, bool redraw = true)
     {
+        // v1.6：无论有没有 conduit 都要停监听、清选中集
+        // （文档事件回调可能在 conduit 已失效后才进来，不能只靠 _conduit 判空）。
+        FwMouseWatcher.Stop();
+        FwSelectionState.Clear(false);
         Unhook();
         if (_conduit == null) return;
         _conduit.Enabled = false;
@@ -399,6 +524,7 @@ public static class FwFocusSession
         _conduit.LockedBrep = null;
         _conduit.FeatureVisuals.Clear();
         _conduit.FocusedIndex = -1;
+        _conduit.HoverIndex = -1;
         _conduit.SourceId = Guid.Empty;
         _conduit.SourceFaceCount = 0;
         _conduit = null;
@@ -419,12 +545,12 @@ public static class FwFocusSession
             string.Format("源对象 {0} · 面总数 {1} · 锁定(半透明) {2}",
                 SourceId.ToString("N").Substring(0, 8),
                 SourceBrep?.Faces.Count ?? 0, LockedFaces.Count),
-            "-- 圆角通道 / fillet channel（取消方式 UntrimOuterLoop）--"
+            "-- 模块 A 去除圆角 / fillet module（删整圈过渡面 + 重缝；圆角无法 untrim）--"
         };
         if (FilletGroups.Count == 0) lines.Add("  (无 / none)");
         for (int i = 0; i < FilletGroups.Count; i++)
             lines.Add(string.Format("  {0,-4} {1}", FilletGroups[i].Id, FilletGroups[i].OneLine(i)));
-        lines.Add("-- 孔洞通道 / hole channel（取消方式 UntrimFace）--");
+        lines.Add("-- 模块 B 去除布尔切割 / boolean module（RemoveHoles 指定内环，与圆角/其它孔无关）--");
         if (HoleGroups.Count == 0) lines.Add("  (无 / none)");
         for (int i = 0; i < HoleGroups.Count; i++)
             lines.Add(string.Format("  {0,-4} {1}", HoleGroups[i].Id, HoleGroups[i].OneLine(i)));
