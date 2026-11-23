@@ -1,0 +1,13 @@
+---
+name: 法线筛面工具
+version: 1.2.0.0
+authors:
+- NormalFaceFilter Tools
+description: Filter mesh faces by normal direction for AI panel segmentation. Grasshopper component + Rhino command, with extract/hide workflow.
+url: https://github.com/tiyu0842-sketch/rhino9-datum-workbench
+keywords:
+- rhino9
+- mesh
+- normal
+- grasshopper
+platform: win

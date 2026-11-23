@@ -1,0 +1,14 @@
+---
+name: 特征识别工具 Beta
+version: 2.0.0-beta
+authors:
+- FeatureWorks Tools
+description: BETA - recognize fillets and chamfers on solids (list + highlight only, no editing yet). Multi-core, geometry-based, no feature tree required.
+url: https://github.com/tiyu0842-sketch/rhino9-datum-workbench
+keywords:
+- rhino9
+- feature-recognition
+- fillet
+- chamfer
+- beta
+platform: win
