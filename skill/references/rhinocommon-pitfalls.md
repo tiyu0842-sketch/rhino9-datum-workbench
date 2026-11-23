@@ -54,3 +54,37 @@
 - Rhino 9 面板类 = `Eto.Forms.Panel` 子类 + `IPanel`；注册用 `Rhino.UI.Panels.RegisterPanel(plugin, type, title, icon, PanelType.System)`，打开用 `Panels.OpenPanel(guid)`。
 - `Command` 在 `Rhino.Commands` 与 `Eto.Forms` 之间歧义，用全名。`TableLayout.Spacing` 是 `Eto.Drawing.Size`，`StackLayout.Spacing` 是 `int`。`GetObject` 用 `SetCommandPrompt()` 方法而非属性。
 - 反射 Assembly.Load 不会触发插件 `OnLoad`，面板不会注册——这是测试条件限制，别误判为代码 bug。
+- **多选：`ListBox` 没有多选**。勾选多个用 `CheckBoxList`，读 `SelectedKeys`（`IEnumerable<string>`）；`Items[i]` 返回 `IListItem`，按 `.Key` 匹配组号，别拿索引当身份。
+- `RhinoGet.GetInteger(prompt, bool acceptNothing, ...)` 有 bool 参数；`GetNumber(prompt, bool, ref v, lo, hi)` 同理。漏传编译不过。
+
+## 文档事件与对象枚举
+
+- `RhinoDoc.ReplaceRhinoObject` / `DeleteRhinoObject` / `AddRhinoObject` / `CloseDocument` / `OpenDocument` **全是静态事件**，用类名订阅；挂 `doc.` 实例会 CS0176。
+- `Rhino.DocObjects` 命名空间含 `Environment` 类型，与 `System.Environment` 撞名（CS0104）；`using Rhino.DocObjects` 的文件里写 `System.Environment.NewLine` 全名。
+- `ObjectTable` 迭代与 `doc.Objects.GetObjectList(...)` **默认不含隐藏对象**。要统计/清理隐藏对象必须传 `new ObjectEnumeratorSettings { HiddenObjects = true }`。排查「对象是不是被删了」前先加这个，否则会误判。
+- `ObjRef.Brep()` / `ObjRef.Geometry()` 返回**副本**，不能用 `ReferenceEquals` 判断几何是否被替换。改用面数、`GetBoundingBox(true)` 中心漂移等粗粒度指纹（>2%）。
+- 反射调用带可选参数的方法（如 `End(RhinoDoc doc, bool redraw = true)`）必须传齐全部实参，反射不会补默认值。
+- 多次 `Assembly.Load(File.ReadAllBytes(...))` 同一程序集名会**复用 AppDomain 里最早那份代码**；验证迭代时改 `ASSEMBLY_NAME`（`…C3/C4/C5/C6`）隔离。副作用是每个实例各自持有静态 conduit，清理要全部扫描 `End()`。
+
+## DisplayConduit 聚焦显示
+
+- 回调顺序：`CalculateBoundingBox` → `ObjectCulling` → `PreDrawObjects` → `PostDrawObjects` → `DrawForeground`（后者不参与深度剔除）。
+- 想让源对象「变半透明」，不能叠透明层（底色不变）。正确做法：`ObjectCulling(CullObjectEventArgs e)` 里对目标对象 `e.CullObject = true`，然后在 `PostDrawObjects` 画自己的 `DisplayMaterial{ Transparency=0.72 }` 子 Brep。
+- 需要「浮在实体前面」的高亮面必须画在 `DrawForeground`；放 `PostDrawObjects` 会被深度剔成线框。
+- 自己画的 Brep 要在 `CalculateBoundingBox` 里 `e.IncludeBoundingBox(brep.GetBoundingBox(true))`，否则视口裁剪/缩放会算错。
+- `DrawBrepShaded(Brep, DisplayMaterial)` 的 `Transparency` 取值 0..1。
+- 长时间存活的 conduit 必须做过期自愈：缓存的子面按面索引抽取，源对象一换就失效，会留下挪不走的蒙皮。见 `error-catalog.md`「鬼影」条。
+
+## B-rep 特征取消（Untrim）
+
+- `Brep.UntrimFace(int faceIndex, double tolerance)` 抹掉该面的**全部内环**，返回新 Brep；孔/槽壁随之自动清理。实测 7 面 → 6 面 240000；孔+槽 12 面 → 11 面 224000（槽保留）。
+- 副作用：同一宿主面有多个孔时，取消一个会把所有内环一起恢复。Rhino API 边界，须在命令输出里告知用户。
+- `Brep.UntrimOuterLoop(int faceIndex)` 对**实体圆角/倒角一律返回 null**（外环边被邻面共享）。圆角不能用 untrim。
+- 圆角/倒角唯一可行路径：删掉整圈过渡面 → 剩余面 `UnderlyingSurface().ToBrep()` → `Brep.CreateSolid(IEnumerable<Brep>, tolerance)` 重缝。**必须整圈删**：10 面盒只删 1 个 → 9 面 74715.5 变形；删 4 个 → 6 面 75000。
+- 带 trim 的面直接 `CreateSolid` 会因孔口/槽口留洞失败，必须先还原成完整解析面。
+- 证据信号：`face.UnderlyingSurface()`、`face.Loops.Count`、`face.Trims`、`TrimIndices()`、domain 跨度 vs trim 边界差（overhangZ）、面朝向反转（reversed）。倒角面是 `NurbsSurface`，别按曲面类型猜。
+- 曲面参数域是**弧长不是弧度**；柱面 U=轴向、V=周向。覆盖角 = 跨度/半径，取 `min(degU, degV)`。
+
+## 打包补充
+
+- Yak `manifest.yml` 的 `description` 是 YAML 值，出现 `v1.3: pick` 这种「冒号+空格」会解析失败；改写成不含 `: ` 的句子。

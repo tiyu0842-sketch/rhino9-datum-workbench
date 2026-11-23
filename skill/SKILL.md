@@ -1,6 +1,6 @@
 ---
 name: rhino9-plugin-workbench
-description: Rhino 9 / .NET 8 (RhinoCommon) C# plugin development workbench. Use when creating, modifying, compiling, packaging, deploying, or visually verifying Rhino 9 plugins — especially display modes, construction planes, viewport/datum tools, command menus, toolbars, or yak distribution. Loads a verification-first workflow plus verified API pitfalls and reusable scripts.
+description: Rhino 9 / .NET 8 (RhinoCommon) C# plugin development workbench. Use when creating, modifying, compiling, packaging, deploying, or visually verifying Rhino 9 plugins — especially display modes, construction planes, viewport/datum tools, command menus, toolbars, yak distribution, B-rep feature recognition/untrim (fillets, holes, restoring a blank), DisplayConduit focus/translucent/highlight overlays, and Eto panels. Loads a verification-first workflow, a symptom-indexed error catalog, an experiment log, verified API pitfalls and reusable scripts.
 agent_created: true
 ---
 
@@ -18,6 +18,9 @@ agent_created: true
 - 设计 `GetOption` 字母菜单、命令别名、Eto 面板、工具栏 RUI
 - 打包 `.yak`、真安装、多版本并存、排障 Yak 安装失败
 - 需要逐像素/反射/文档三件套验证 Rhino 侧改动
+- **B-rep 特征识别与取消**（圆角/孔/槽的 untrim、恢复毛坯、SolidWorks FeatureWorks 风格）→ 先读 `references/feature-recognition.md`
+- **`DisplayConduit` 聚焦/半透明/高亮显示**，或排查半透明不生效、蒙皮"鬼影" → 同上专题 §4 + `rhinocommon-pitfalls.md` 对应段
+- 做完任何一次真机实验 → 按下方「实验台账纪律」回填，别让结论只活在日志里
 
 ## 使用流程（按顺序执行）
 
@@ -30,6 +33,11 @@ agent_created: true
    - 视觉证据：截图 + 看图，必要时逐像素统计。见 `references/verification-playbook.md`
 5. **打包分发**：一律 `.yak`，不要 `.rhi`。用 `scripts/Build_Package.py` 模板生成 manifest + zip，`Yak.exe install <本地.yak>` 真安装，核对安装目录 rhp 哈希与 manifest 版本。
 6. **收尾清理**：调参临时显示模式用 `TMP_` 前缀并**当场删除**，绝不把 `ZZ_*` 之类测试模式留进用户的显示模式列表。
+7. **实验台账纪律（每次真机实验后必做，这是能力累积的核心）**：
+   - 结论被推翻也**不删旧记录**，加一条 `修正 E-XXX` 保留判断演化过程；
+   - 按固定字段追加到 `references/experiment-log.md`（假设/做法/**实测数字**/结论/回填到哪/遗留）；
+   - 同步把新坑按症状写进 `error-catalog.md`、把 API 事实写进 `rhinocommon-pitfalls.md`、把领域结论写进对应专题；
+   - 下次遇到同类问题**先查这三处**，不要重新跑一遍验证——这是省 token 最直接的方式。
 
 ## 关键决策表
 
@@ -45,10 +53,19 @@ agent_created: true
 | 工具栏按钮装完消失 | 查 `ToolbarFiles[i].GetGroup(0).Visible`，设 True 后**正常退出 Rhino** 才写入 default.rui |
 | Yak 安装 SIGTERM 假失败 | 先确认用户梯子/代理已关，再装；末尾的安全策略提示不影响安装结果 |
 | `.rhi` 安装报不兼容 | .NET 8 插件天生不支持老式 RhiExec，改用 yak |
+| 要"取消已做过的圆角/孔，恢复毛坯" | 先确认已有实现是否已做对；孔走 `UntrimFace`，圆角走删整圈+`CreateSolid` 重缝，**两套算法**；见 `feature-recognition.md` |
+| 实体上叠半透明层看不出淡化 | 不透明底色不变；用 `DisplayConduit.ObjectCulling` 剔除源对象再画自己的子 Brep |
+| 高亮面只剩线框 / 蒙皮鬼影 | 特征面画 `DrawForeground`；挂静态文档事件 + 包围盒指纹 `Stale()` 自愈 |
+| Eto 要勾选多项 | `CheckBoxList.SelectedKeys`，不是 `ListBox` |
+| 枚举不到对象、以为被删 | `ObjectEnumeratorSettings{ HiddenObjects=true }` 再判 |
+| 同名程序集重编后跑旧代码 | AppDomain 复用；改 `ASSEMBLY_NAME` 隔离各次验证 |
+| 结论"应该可以"但没数字 | 一律当作**未验证**，不许写进交付物 |
 
 ## 参考与脚本
 
 - `references/error-catalog.md` — **先查这张表**：按"你看到的现象"索引（症状→原因→怎么办），并区分"真失败 / 已在工作 / 已回滚 / 只有人能处理"
+- `references/experiment-log.md` — **实验台账**：每条实验的假设/实测数字/结论/回填位置。查"这个坑以前踩过没、当时怎么判断的"就来这里
+- `references/feature-recognition.md` — B-rep 特征识别与取消（两类算法、证据信号、DisplayConduit 聚焦、实测体积/面数）
 - `references/rhinocommon-pitfalls.md` — 已实测的 API 行为、参数签名、赋值顺序坑
 - `references/display-modes.md` — 显示模式/光照/等参线的实测参数组合与调参判据
 - `references/verification-playbook.md` — 反射验证、像素统计、截图、Yak 安装的完整流程

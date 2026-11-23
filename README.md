@@ -1,17 +1,26 @@
-# Rhino 9 插件工作台 + 基准面工具 + NFF 法线筛面 + FeatureWorks v2
+# Rhino 9 插件工作台 + 基准面工具 + NFF 法线筛面 + FeatureWorks 特征取消
 
-四件东西放在一个仓库，彼此印证：
+五件东西放在一个仓库，彼此印证：
 
 1. **`skill/` — Rhino 9 插件开发工作台**（Agent Skill）
-   一份可复用的工作流：怎么在没有 .NET SDK 的机器上编译、怎么才算"验证过"、显示模式怎么调出三度灰阶、常见错误按症状怎么查。
+   一份可复用的工作流：怎么在没有 .NET SDK 的机器上编译、怎么才算"验证过"、显示模式怎么调出三度灰阶、
+   常见错误按症状怎么查、B-rep 特征识别与 `DisplayConduit` 聚焦显示怎么做。
+   另含 **`experiment-log.md` 实验台账**：每次真机实验的假设与实测数字，结论被推翻也保留演化过程——
+   这是让 Agent 少踩坑、少重复验证（省 token）的核心。
 2. **`plugin/` — 基准面工具 v2.8**（一个真实插件的完整源码、文档与验证脚本）
    上面那套方法论的实际产物：从 v1.2 迭代到 v2.8，修过过曝、修过视图歪斜、改过交互方式，每一步都有实测记录。
 3. **`nff/` — NormalFaceFilter 法线筛面**（2026-11-22 新增，已完成真机验证）
    按参考方向筛选 Mesh 面，为 AI 分面前处理。Python + C# 双实现，24 项模拟测试 + 真机验证全过；
    真实 Rhino 9 上抓出并修复了 5 个模拟层掩盖的 API 错误（详见 `nff/HANDOFF.md` 第 4.6 节）。
-4. **`featureworks-v2/` — 几何特征识别**（2026-11-23 新增，第一版：识别 + 列出 + 高亮）
-   按外包技术规格全新实现。AAG 邻接图 + 三条判据（面类型 / 覆盖角 / G1 相切）识别圆角与 chamfer，
-   多核并行逐面计算；真机验证圆角盒、带孔板、chamfer 盒全部符合预期（孔不误判）。
+4. **`featureworks/` — RhinoFeatureWorks v1.3.2 特征取消**（**正式实现**）
+   SolidWorks FeatureWorks 风格：选中一个没有历史的 B-rep 实体 → 判断哪些面被改过（trim / 布尔 / 倒角）→
+   删除特征 → 几何恢复成可重新编辑的毛坯，省掉倒角/布尔后想再编辑时的手工备份。
+   **圆角与孔洞是两套算法**（孔洞走 `Brep.UntrimFace`，圆角走删整圈过渡面 + `CreateSolid` 重缝）。
+   `FWSelect` / `FWCancel` / `FWCancelPanel` 交互闭环、9/9 自测、yak 真安装。
+   方向纠偏的完整复盘见 `featureworks/HANDOFF.md`。
+5. **`featureworks-v2/` — 已降级的实验记录**（⚠️ 非发布物料）
+   一次方向走偏的实现：做的是「备份对象恢复」而非几何 untrim，未解决痛点。
+   保留仅供工程做法参考（Eto 布局、Undo 分组、处理三分支），**不要作为基线或分发**。
 
 > **适用版本**：Rhino 9 / .NET 8 / RhinoCommon。不保证 Rhino 8 可用（.rhi 老通道不支持 net8 插件）。
 
@@ -53,9 +62,11 @@ print("\n".join(l for l in buf.getvalue().splitlines() if "ERROR" in l or "COMPI
 
 ```
 skill/
-  SKILL.md                        流程与决策表
+  SKILL.md                        流程、决策表、实验台账纪律
   references/
     error-catalog.md              症状 → 原因 → 怎么办（先查这张）
+    experiment-log.md             实验台账：假设/实测数字/结论/回填位置
+    feature-recognition.md         B-rep 特征识别与取消（两套算法 + 聚焦显示）
     rhinocommon-pitfalls.md       API 行为/签名/赋值顺序坑
     display-modes.md               光照方案、灰阶判据、等参线
     verification-playbook.md       反射/像素/截图/安装
@@ -73,10 +84,15 @@ nff/
   csharp/                          Core + .rhp 四个源文件（真机编译通过）
   make_test_mesh.py                7 面测试网格（真机修正版）
   HANDOFF.md                       交接说明 + 第 4.6 节真机验证记录
-featureworks-v2/
-  src/                         FwCore（识别引擎）+ FwCommands + FwPlugin
-  FeatureWorks_v20.rhp         真机编译产物（15360 字节）
-  README.md                    判据、实测表、7 个 API 差异、下一版待做
+featureworks/                    ← 正式实现（v1.3.2）
+  src/                         16 个源文件：识别引擎/证据/聚焦显示/取消/面板
+  verification/                11 个 Probe 脚本 + Roslyn 编译 + 打包
+  README.md / 使用手册.md       命令与交互说明
+  HANDOFF.md                   方向纠偏复盘：什么是对的、什么是走偏的
+  RhinoFeatureWorks_v1.3.2.0.yak  真安装验证过的发行包
+featureworks-v2/                ← 已降级，实验记录，勿用
+  src/                         v2 识别引擎（备份对象恢复，非 untrim）
+  README.md / BETA_NOTICE.md   顶部已加降级声明
 docs/
   从零到一_基准面迭代与渲染复盘.md  四阶段迭代与观测显示调参复盘
 ```
@@ -90,6 +106,10 @@ docs/
 - 多重曲面上直接点选单一面：`GeometryFilter` 只给 `ObjectType.Surface`，加 `SubObjectSelect=true` + `DisablePreSelect()`；写成 `Surface|Brep` 就必须按 Ctrl+Shift。
 - 面板类功能不能在反射条件下验证——`Assembly.Load` 不算插件加载，`OnLoad` 不触发。
 - **mock 通过 ≠ 真机通过**：NFF 的 24 项模拟测试全过，因为 mock 层自己造了 `Vector3d.DotProduct`——而 RhinoCommon 9 根本没这个方法（点积用 `a * b`）。同样的坑还有 `Mesh.CreateBox`（正确是 `CreateFromBox(BoundingBox,1,1,1)`）、`PlugIn.EnglishName` 不可 override、`RhinoGet.GetReal` 不存在（用 `GetNumber`）。五个错误全是真机编译/运行才暴露的。
+- **圆角和孔洞必须用两套取消算法**：孔是宿主面 trim 多了内环 → `Brep.UntrimFace(host, tol)` 一步抹掉（7 面 → 6 面 240000）；圆角是过渡面，`UntrimOuterLoop` 一律返回 `null`（外环边全被邻面共享），只能删整圈过渡面 → 取 `UnderlyingSurface().ToBrep()` → `Brep.CreateSolid()` 重缝，且**必须整圈删**（只删 1 个得到变形体 74715.5，删 4 个才是 75000）。
+- **半透明不能靠叠透明层**：往不透明实体上叠 0.85 透明灰，底色不变，看起来没淡化。要用 `DisplayConduit.ObjectCulling` 把源对象从绘制里剔除，再画自己的子 Brep；需要浮在前面的高亮面必须画在 `DrawForeground`，放 `PostDrawObjects` 会被深度剔成线框。
+- **长命 conduit 必须做过期自愈**：缓存的子面按面索引抽取，源对象被替换/移动/删后索引失效会留"鬼影"。挂**静态**文档事件（`doc.ReplaceRhinoObject +=` 会 CS0176）+ 每次绘制前比对面数与包围盒中心漂移。`ReferenceEquals` 比几何不可行（`ObjRef.Brep()` 返回副本）。
+- **先验证需求，再验证代码**：FeatureWorks 曾有整个分支技术成功却解决了错误的问题（备份对象恢复 ≠ 几何 untrim）。详见 `featureworks/HANDOFF.md`。
 
 ## 许可
 

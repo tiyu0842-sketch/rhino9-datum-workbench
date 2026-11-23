@@ -28,6 +28,20 @@
 | 曲面覆盖角算成 360°，圆角被误判为孔 | Rhino 9 曲面参数域是**弧长**不是弧度；且柱面的 U 是轴向、V 才是周向 | 覆盖角 = 域跨度 / 半径；取 `min(degU,degV)` 作为周向（轴向跨度远大于周向） |
 | `BlendType` has no `RollingBallBlend` | 枚举值是 `Fillet`/`Chamfer`/`Blend`；滚球在 `RailType.RollingBall` | 按实际枚举名写 |
 | 加载 DLL 后文件被锁、重编译报 used by another process | 失败的 LoadPlugIn 仍把 DLL 加载进 AppDomain | 输出到新文件名（与基准面 `OUT_OVERRIDE` 同一招） |
+| `PlugIn.OnLoad(EventArgs)` no suitable method to override | Rhino 9 的 OnLoad 签名是 `LoadReturnCode OnLoad(ref string errorText)` | 改签名并返回 `LoadReturnCode.Success`（或 base 的返回） |
+| `Command` is ambiguous between Rhino.Commands and Eto.Forms | 两个命名空间都有 Command 类 | 用全名 `Rhino.Commands.Command` |
+| `BrepFaceList` does not contain `DeleteFaces` | Rhino 9 用 `RemoveAt(int)` 删面 | 从后往前删，避免索引偏移 |
+| `LayerTable.FindName` 返回值不能转 int | 返回 `Layer` 对象不是 int | 取 `.Index`；找不到为 null 用 -1 |
+| Eto `ListBox` 无法多选 | ListBox 没有 AllowMultipleSelection | 用 `GridView.AllowMultipleSelection = true` + `SelectedRows` |
+| 面板加载后 `LoadPlugIn` 超时 300s | 无界面 MCP 槽位无法完整呈现停靠面板 | 用反射 `Activator.CreateInstance(panelType)` 验证控件树和交互链路；最终显示交用户实机敲命令 |
+| `doc.ReplaceRhinoObject +=` 报 CS0176 | `ReplaceRhinoObject` / `DeleteRhinoObject` / `CloseDocument` 是**静态事件** | 写 `RhinoDoc.ReplaceRhinoObject += ...`，不能挂实例 |
+| `using Rhino.DocObjects;` 后 `Environment` 报 CS0104 二义 | 该命名空间含 `Rhino.DocObjects.Environment`，与 `System.Environment` 撞名 | 写全名 `System.Environment.NewLine` |
+| 反射调 `End(doc)` 报 Parameter count mismatch | 方法加了可选参数 `bool redraw = true` | 反射调用必须传全部实参，可选参数不会自动补 |
+| 改了代码重编译却还在跑旧逻辑 | 同名程序集被 AppDomain 复用（`Assembly.Load(byte[])` 多次） | 改 `ASSEMBLY_NAME`（如 `…C3/C4/C5/C6`）隔离各次验证 |
+| `RhinoGet.GetInteger(...)` 编译不过 | Rhino 9 签名含 `bool acceptNothing` 参数 | 补齐布尔实参 |
+| yak manifest 解析失败 | `description` 里出现 `v1.3: pick` 这种「冒号+空格」 | 改写描述，YAML 值里避免 `: ` |
+| `CheckBoxList` 取不到勾选项 | 用了 `ListBox`（无多选）或按 `Items[i]` 值匹配 | 用 `CheckBoxList.SelectedKeys`；`Items[i]` 是 `IListItem`，按 `.Key` 匹配 |
+| `ObjectEnumeratorSettings` 枚举结果是 0，以为对象被删 | 默认**不返回隐藏对象** | 设 `HiddenObjects = true` 再枚举，先排除误判 |
 
 ## 交互命令
 
@@ -52,6 +66,22 @@
 | 曲面糊成一片没明暗 | 用了 `AmbientOcclusion`，只有接触遮蔽没有方向光 | 换 `CustomLighting` + `FrontMaterial.Diffuse` |
 | 影子里出现大块深色椭圆 | CustomLighting 的方向光把地面阴影拉长 | 关 `ShadowsOn` / `CastShadows` / `CustomGroundPlaneOn` |
 | 点多重曲面面片必须按 Ctrl+Shift | `GeometryFilter` 含 `Brep`，顶层对象抢先被选 | 只给 `ObjectType.Surface` + `SubObjectSelect=true` + `DisablePreSelect()` |
+| 叠了 0.85 透明灰，实体看起来几乎没淡化 | 往**不透明实体**上叠透明层，底色不变 | 用 `DisplayConduit.ObjectCulling` → `e.CullObject = true` 剔除源对象，再画自己的半透明子 Brep |
+| 高亮面只剩线框 / 被实体挡住 | 在 `PostDrawObjects` 里画，被实体深度剔掉 | 特征面改画 `DrawForeground`（不参与深度剔除）；锁定面可留 `PostDrawObjects` |
+| 高亮/半透明蒙皮「鬼影」，移动删除后仍赖在界面上 | conduit 缓存按面索引抽的子面，源对象 Replace/删后索引失效 | ①挂静态 `RhinoDoc.ReplaceRhinoObject/DeleteRhinoObject/CloseDocument` ②每次绘制前 `Stale()` 比面数 + 包围盒中心漂移 >2% ③扫描所有同名程序集实例逐个 `End()` |
+| 多帧截图完全一致（相机微移无效） | 缓存帧只认朝向变化 | 必须 `SetCameraDirection` 换相机朝向，微移/Redraw 不够 |
+| `ReferenceEquals` 判几何过期永远为 true | `ObjRef.Brep()` 返回副本 | 用面数 + `GetBoundingBox` 中心漂移判定，别比引用 |
+
+## 几何特征识别与取消（FeatureWorks 类需求）
+
+| 症状 | 原因 | 怎么办 |
+|---|---|---|
+| `Brep.UntrimOuterLoop(face)` 对圆角返回 null | 实体圆角面的外环四边全被邻面共享，不是自由边 | 圆角不能 untrim：删整圈过渡面 → 剩余面 `UnderlyingSurface().ToBrep()` → `Brep.CreateSolid(pieces, tol)` 重缝 |
+| 只删 1 个圆角，缝出变形体（9 面 74715.5） | 圆角是**整圈**过渡面 | 必须整圈一起删，才得 6 面 75000 |
+| 取消一个孔，同面其它孔也没了 | `UntrimFace(host, tol)` 抹掉宿主面**全部**内环，Rhino API 边界 | 在命令输出里明说；「只取消部分」需另做孔体重放 |
+| 覆盖角算成 360°，圆角被误判为孔 | 参数域是**弧长**非弧度；柱面 U=轴向 V=周向 | 覆盖角 = 跨度/半径，取 `min(degU,degV)`；取 max 会把轴向长跨度截成 360° |
+| 倒角面按曲面类型识别失败 | Rhino 里倒角面是 `NurbsSurface` 不是圆柱面 | 用识别引擎给的特征面索引，别按类型猜 |
+| 带 trim 的面直接 `CreateSolid` 失败，孔口留洞 | trim 后的面不是完整解析面 | 必须先取回 `UnderlyingSurface().ToBrep()` 再缝 |
 
 ## 分发与安装
 

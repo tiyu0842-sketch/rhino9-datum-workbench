@@ -1,0 +1,9 @@
+---
+name: 特征识别工具
+version: 1.3.2.0
+authors:
+- FeatureWorks Tools
+description: Rhino 9 FeatureWorks-style feature cancellation v1.3.2 - pick a Brep, trim-evidence recognition, source object culled and redrawn as a see-through shell while feature faces stay solid orange, separate fillet channel (delete transition faces + native-surface re-sew) and hole channel (UntrimFace), restore to an editable blank. Overlay self-heals when the source object is replaced, moved or deleted. Plus AFAG onion-peel recognition and two Eto docked panels.
+url: https://www.rhino3d.com
+keywords: []
+platform: win
