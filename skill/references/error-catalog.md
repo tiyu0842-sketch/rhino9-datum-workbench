@@ -23,6 +23,11 @@
 | `Vector3d` has no attribute `DotProduct` | RhinoCommon 9 的 Vector3d 没有任何 `Dot*` 静态方法，只有 `Multiply` | 点积写 `a * b`（C# 与 Python 都是） |
 | `Mesh` has no attribute `CreateBox` | RhinoCommon 9 没有 `Mesh.CreateBox` | 用 `Mesh.CreateFromBox(BoundingBox, xCount, yCount, zCount)`，分段数必填，各 1 段得 6 面 |
 | 24 项模拟测试全过但真机一片错误 | mock 层自己造了不存在的方法（`Vector3d.DotProduct` 等） | mock 通过不能替代真机编译；每个 mock 的 API 都要用 `RhinoCommon.xml` 或反射核对 |
+| `BrepFace` does not contain `Edges` | RhinoCommon 9 的 BrepFace 没有 Edges 属性 | 用 `face.AdjacentEdges()` → int[]，再 `brep.Edges[idx]` |
+| `RhinoApp.WriteLine` takes N arguments 报错 | 没有格式参数重载 | 先 `string.Format(...)` 再传给 WriteLine |
+| 曲面覆盖角算成 360°，圆角被误判为孔 | Rhino 9 曲面参数域是**弧长**不是弧度；且柱面的 U 是轴向、V 才是周向 | 覆盖角 = 域跨度 / 半径；取 `min(degU,degV)` 作为周向（轴向跨度远大于周向） |
+| `BlendType` has no `RollingBallBlend` | 枚举值是 `Fillet`/`Chamfer`/`Blend`；滚球在 `RailType.RollingBall` | 按实际枚举名写 |
+| 加载 DLL 后文件被锁、重编译报 used by another process | 失败的 LoadPlugIn 仍把 DLL 加载进 AppDomain | 输出到新文件名（与基准面 `OUT_OVERRIDE` 同一招） |
 
 ## 交互命令
 

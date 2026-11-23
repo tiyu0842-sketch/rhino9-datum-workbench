@@ -1,6 +1,6 @@
-# Rhino 9 插件工作台 + 基准面工具 + NFF 法线筛面
+# Rhino 9 插件工作台 + 基准面工具 + NFF 法线筛面 + FeatureWorks v2
 
-三件东西放在一个仓库，彼此印证：
+四件东西放在一个仓库，彼此印证：
 
 1. **`skill/` — Rhino 9 插件开发工作台**（Agent Skill）
    一份可复用的工作流：怎么在没有 .NET SDK 的机器上编译、怎么才算"验证过"、显示模式怎么调出三度灰阶、常见错误按症状怎么查。
@@ -9,6 +9,9 @@
 3. **`nff/` — NormalFaceFilter 法线筛面**（2026-11-22 新增，已完成真机验证）
    按参考方向筛选 Mesh 面，为 AI 分面前处理。Python + C# 双实现，24 项模拟测试 + 真机验证全过；
    真实 Rhino 9 上抓出并修复了 5 个模拟层掩盖的 API 错误（详见 `nff/HANDOFF.md` 第 4.6 节）。
+4. **`featureworks-v2/` — 几何特征识别**（2026-11-23 新增，第一版：识别 + 列出 + 高亮）
+   按外包技术规格全新实现。AAG 邻接图 + 三条判据（面类型 / 覆盖角 / G1 相切）识别圆角与 chamfer，
+   多核并行逐面计算；真机验证圆角盒、带孔板、chamfer 盒全部符合预期（孔不误判）。
 
 > **适用版本**：Rhino 9 / .NET 8 / RhinoCommon。不保证 Rhino 8 可用（.rhi 老通道不支持 net8 插件）。
 
@@ -84,6 +87,10 @@ nff/
   csharp/                          Core + .rhp 四个源文件（真机编译通过）
   make_test_mesh.py                7 面测试网格（真机修正版）
   HANDOFF.md                       交接说明 + 第 4.6 节真机验证记录
+featureworks-v2/
+  src/                         FwCore（识别引擎）+ FwCommands + FwPlugin
+  FeatureWorks_v20.rhp         真机编译产物（15360 字节）
+  README.md                    判据、实测表、7 个 API 差异、下一版待做
 docs/
   从零到一_基准面迭代与渲染复盘.md  基准面四版迭代与 IdeaS 渲染 token 账
 ```
