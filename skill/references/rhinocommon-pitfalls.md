@@ -88,3 +88,24 @@
 ## 打包补充
 
 - Yak `manifest.yml` 的 `description` 是 YAML 值，出现 `v1.3: pick` 这种「冒号+空格」会解析失败；改写成不含 `: ` 的句子。
+
+## 相机、截图与 Box 创建（2026-11-23 实测）
+
+- `doc.Objects.AddBox(Box)` 创建的是 **`Extrusion`**，不是 `Brep`。按 `isinstance(geom, Brep)` 筛会得到 0 个；用 `type(geom).__name__` 或包围盒条件筛。
+- `RhinoView.CaptureToBitmap` **只有 `CaptureToBitmap(System.Drawing.Size)` 一个重载**，传 `bool` 会报 "bool cannot be converted to Size"。
+- `ChangeToPerspectiveProjection` 重载是 `(bool updateView, double lensLength)` 和 `(double lens, bool, double)`；**没有单 bool 版本**。
+- 视口没有 `SetCameraUp(...)` 方法；`CameraUp` 是**可写属性**：`vp.CameraUp = rg.Vector3d(0,0,1)`。`SetCameraLocation/Target/Direction` 都是 `(…, bool)` 两参（第二参数 updateView）。
+- 最稳的「摆好视角 + 截图」配方：
+  ```python
+  vp.ChangeToPerspectiveProjection(True, 50.0)
+  vp.CameraUp = rg.Vector3d(0,0,1)
+  vp.SetCameraDirection(rg.Vector3d(0,1,-0.35), False)   # 定朝向
+  vp.ZoomBoundingBox(bb)                                 # 按朝向自动退到合适距离
+  vv.Redraw(); Rhino.RhinoApp.Wait()
+  vv.CaptureToBitmap(sd.Size(1600,900)).Save(path, sd.Imaging.ImageFormat.Png)
+  ```
+  只调 `SetCameraLocation + SetCameraTarget` 再截图曾得到**空白帧**；加 `ZoomBoundingBox` 后才稳定。
+- **透视会掩盖尺寸关系**：沿物体排列方向（+X）看，近处小物体被放大，出现"实际递增、视觉递减"的假象。要展示尺寸梯度就把相机放在**垂直于排列方向**的一侧（如沿 +Y 看）。
+- 正视图/俯视图用 `vp.SetToPlanView(origin, xAxis, yAxis, false)` + `ChangeToParallelProjection(True)`，平行投影下尺寸关系才是真的；注意沿 Y 投影时不同 y 的物体会在 x-z 上重叠，选投影方向要避开干扰物。
+- `ObjectColor` + `ColorSource=ColorFromObject` 在默认 Shaded 下**未生效**（对象仍是统一蓝色），疑似 display mode 用 material color 覆盖；要稳定上色需同时设材质或改显示模式的着色来源（待验证）。
+- `doc.BeginUndoRecord("...")` / `EndUndoRecord(undo)` 包住整批创建，用户可一次 `Ctrl+Z` 撤销。

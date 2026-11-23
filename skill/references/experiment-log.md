@@ -115,8 +115,16 @@
 
 ---
 
+### E-013 · 2026-11-23 · 相机/截图/Box 创建的 API 实测
+- 假设：`CaptureToBitmap(False)` 可截图；`SetCameraUp(...)` 存在；`ChangeToPerspectiveProjection(True)` 够用；`AddBox` 返回 `Brep`。
+- 做法：在真实文档里 `AddBox` 建 10 个立方体，逐一试相机与截图调用，截图后用视觉核对。
+- 实测：`CaptureToBitmap` 只接受 `System.Drawing.Size`；`SetCameraUp` 不存在，`CameraUp` 是可写属性；`ChangeToPerspectiveProjection` 只有 `(bool,double)` / `(double,bool,double)`；`AddBox` 返回 **`Extrusion`**（按 Brep 筛得 0 个）；只调 `SetCameraLocation+SetCameraTarget` 会截出**空白帧**，加 `ZoomBoundingBox` 才稳定；沿排列方向看会造成"实际递增、视觉递减"的透视假象。
+- 结论：✅ 记录为固定配方（见 pitfalls「相机、截图与 Box 创建」）。
+- 回填：`rhinocommon-pitfalls.md`；`error-catalog.md` 已在显示段覆盖缓存帧。
+- 遗留：`ObjectColor + ColorSource=ColorFromObject` 在 Shaded 下未生效，疑似材质色覆盖，待验证。
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**12 条实验**，其中 **6 条推翻了初始假设**。高推翻率说明「先验证再相信」不是口号。
+- 截至 2026-11-23：**13 条实验**，其中 **6 条推翻了初始假设**。高推翻率说明「先验证再相信」不是口号。
 - 查坑顺序：`error-catalog.md`（按症状）→ 本台账（按实验编号，看结论演化）→ 专题文档（按领域）。
 - 新实验编号顺延；若结论修正旧条目，在本条写「修正 E-XXX」并在旧条补一行指向，不删改旧记录。
