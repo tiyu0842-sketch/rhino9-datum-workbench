@@ -10,7 +10,14 @@ public class DatumPlanePlugin : PlugIn
     protected override LoadReturnCode OnLoad(ref string errorMessage)
     {
         DatumPlaneCore.StartWatching();
+        // v2.9：Alias 式全视图联动。Rhino 原生是"一个视口一个显示模式"，
+        // 手动切换只影响当前视口；靠 DisplayPipeline.DisplayModeChanged 静态事件补齐。
+        AliasStyleLink.Start();
         return LoadReturnCode.Success;
     }
-    protected override void OnShutdown() { DatumPlaneCore.StopWatching(); }
+    protected override void OnShutdown()
+    {
+        AliasStyleLink.Stop();
+        DatumPlaneCore.StopWatching();
+    }
 }

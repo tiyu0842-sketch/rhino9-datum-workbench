@@ -38,6 +38,8 @@
 | 面板已加载但 `DockBarIdInUse=False` | 该 API 语义是"是否已停靠"，浮动/未停靠面板恒为 False | 用 `IsPanelVisible(g)` / `GetOpenPanelIds()` 判断，**别误判为注册失败**（E-020 推翻 E-014 的判据） |
 | 一个进程里堆了几十个同名程序集（v1.2/1.3/v2 全在） | 反复 `Assembly.Load(byte[])` 注入的历史实验程序集，无法卸载 | 这是测试污染，不是发布问题；重启即清空。真机验收**必须在干净重启后的进程**做，否则会拿旧程序集误判 |
 | `doc.ReplaceRhinoObject +=` 报 CS0176 | `ReplaceRhinoObject` / `DeleteRhinoObject` / `CloseDocument` 是**静态事件** | 写 `RhinoDoc.ReplaceRhinoObject += ...`，不能挂实例 |
+| `CS0433 The type 'Action' exists in both 'WeaverBird.Core' and 'System.Private.CoreLib'` | 装了 WeaverBird 后，它把 `Action` 塞进全局/System 命名空间；**写 `System.Action` 也救不了** | 不用委托：把 `TrySilent(() => {...})` 内联成 `try { ... } catch { }`。同类第三方（如老版 NGon）也可能污染 `Action`/`Color` 等常用名 |
+| `CS0120 An object reference is required for PersistentSettings.GetBool/SetBool` | `Rhino.PersistentSettings` 的读写是**实例方法**，没有全局静态入口 | 用插件自己的 `PlugIn.Settings`（就是 PersistentSettings 实例）：`Instance?.Settings?.GetBool(key, def)` / `SetBool(key, val)` |
 | `using Rhino.DocObjects;` 后 `Environment` 报 CS0104 二义 | 该命名空间含 `Rhino.DocObjects.Environment`，与 `System.Environment` 撞名 | 写全名 `System.Environment.NewLine` |
 | 反射调 `End(doc)` 报 Parameter count mismatch | 方法加了可选参数 `bool redraw = true` | 反射调用必须传全部实参，可选参数不会自动补 |
 | 改了代码重编译却还在跑旧逻辑 | 同名程序集被 AppDomain 复用（`Assembly.Load(byte[])` 多次） | 改 `ASSEMBLY_NAME`（如 `…C3/C4/C5/C6`）隔离各次验证 |
@@ -74,6 +76,8 @@
 | 高亮/半透明蒙皮「鬼影」，移动删除后仍赖在界面上 | conduit 缓存按面索引抽的子面，源对象 Replace/删后索引失效 | ①挂静态 `RhinoDoc.ReplaceRhinoObject/DeleteRhinoObject/CloseDocument` ②每次绘制前 `Stale()` 比面数 + 包围盒中心漂移 >2% ③扫描所有同名程序集实例逐个 `End()` |
 | 多帧截图完全一致（相机微移无效） | 缓存帧只认朝向变化 | 必须 `SetCameraDirection` 换相机朝向，微移/Redraw 不够 |
 | `ReferenceEquals` 判几何过期永远为 true | `ObjRef.Brep()` 返回副本 | 用面数 + `GetBoundingBox` 中心漂移判定，别比引用 |
+| 切显示模式只有当前视口变、其余没动 | Rhino 原生：一视口一个 DisplayMode；标题栏下拉 / 视图菜单 / `_SetDisplayMode` 都只作用当前视口 | 挂 `DisplayPipeline.DisplayModeChanged` 静态事件同步（E-021，`display-modes.md`「全视图联动」）。**先读回各视口真实模式**再判断是不是命令的锅 |
+| 做了联动后 `Restore` 还原失效（视口被拉回同一模式） | 程序化批量改模式时钩子仍在工作，后写的覆盖先写的 | `Apply` / `Restore` 全程 `Mute()`（引用计数），`finally` 里 `Unmute()` |
 
 ## 几何特征识别与取消（FeatureWorks 类需求）
 

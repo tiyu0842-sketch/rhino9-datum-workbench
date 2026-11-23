@@ -52,6 +52,35 @@ Rhino 9 管线下：
 - 这套在 AO 方案下能提供接地感；在 CustomLighting 下方向光会把影子拉长成大块深色椭圆，建议关掉。
 - 背景要比物体亮面**暗**，白模才不会和背景糊在一起。`Gradient2Color` + `SetFill(top, bottom)`，不用纯白/纯黑。
 
+## 全视图联动（Alias 式）
+
+Rhino 原生**每个视口各持一个 DisplayMode**：点视口标题栏下拉、菜单「视图 → 显示模式」、
+`_SetDisplayMode`，都只作用当前视口。要实现「切一次全画布跟随」，只能自己挂事件。
+
+先澄清一个常见误判：命令里 `foreach (RhinoView v in doc.Views) v.ActiveViewport.DisplayMode = m`
+**本来就是全视口生效**（真机读回 4 个视口可同时是 `Alias EyeCare`）。
+用户说"只改了一个"时，先读回各视口真实模式，别急着改代码 —— 多半是他手动在标题栏切了一个。
+
+**可用钩子（Rhino 9 实测 E-021）**：`Rhino.Display.DisplayPipeline.DisplayModeChanged`
+- **静态事件**：`clr.GetClrType(DisplayPipeline).GetEvent("DisplayModeChanged").GetAddMethod().IsStatic == True`
+- 通过 API 写 `viewport.DisplayMode` 会**同步**触发；`args.Viewport` / `OldDisplayModeId` / `ChangedDisplayModeId` 均正确
+- Python 里可直接 `DisplayPipeline.DisplayModeChanged += handler` / `-= handler`（记得最后退订）
+
+**同步算法三条纪律**：
+1. **防重入**：设其他视口会再次触发同一事件 → `Interlocked.Exchange` 闸门。
+   实测回调序列 `blocked, blocked, blocked, 3`：三次递归被挡，一次真正同步 3 个视口。
+2. **先比 Id**：`vp.DisplayMode.Id == target` 就跳过，天然收敛、无多余重绘。
+3. **程序化批量改模式必须静音**：`Restore` 要把各视口恢复成**各不相同**的原模式，
+   联动还在工作就会被同步回去（还原直接失效）→ Apply/Restore 全程 Mute。
+   Mute 用**引用计数**不要用 bool，嵌套调用会漏恢复。
+
+**边界**：`doc.Views` 只列顶级视口（实测 4 个：Perspective/Top/Front/Right）；
+布局页（Layout）里的 detail 视窗不在其中，暂不同步 —— 写进文档的"已知边界"，别说成 bug。
+
+**开关持久化**：`Rhino.PersistentSettings` 的 `GetBool/SetBool` 是**实例方法**（静态调用 CS0120），
+用插件自己的 `PlugIn.Settings` 实例，落到 `%AppData%\McNeel\Rhinoceros\9.0\Plug-ins\<guid>\`，
+跨文档、跨会话有效。
+
 ## 调参判据（不要只看图）
 
 - `clip(≥253)` 百分比 + `max`：画面不该出现成片纯白。过曝的标准是 clip 2%~10%、max=255。

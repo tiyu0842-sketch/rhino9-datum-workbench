@@ -47,7 +47,7 @@ internal static class JzMenu
     }
 
     // 固定代号表：字母 → 英文简写 → 中文说明（中文与英文并列保留在后面）。
-    // A..H = 基准面效果，I..M = Alias 护眼显示效果。
+    // A..H = 基准面效果，N = 关闭第5视图，I..M + O = Alias 观测显示效果。
     private static readonly Entry[] Entries =
     {
         new("A_3Point",       "三点定义新基准面 / Define plane by 3 points",                 true),
@@ -64,6 +64,7 @@ internal static class JzMenu
         new("K_Density",      "设置等参线密度看曲面走向 / Set isocurve density",              false),
         new("L_Status",       "查看当前显示状态 / Show current display status",              false),
         new("M_RestoreStyle", "还原为原显示模式 / Restore the previous display mode",        false),
+        new("O_Link",         "全视图联动 开/关（切一次全画布跟随）/ Toggle all-view display sync", false),
     };
 
     private static bool InScope(Entry e, JzScope scope) =>
@@ -166,6 +167,7 @@ internal static class JzMenu
             case 'K': return AliasStyleUi.SetDensity(doc);
             case 'L': AliasStyleUi.Report(doc); return Result.Success;
             case 'M': return AliasStyleUi.RestoreAndReport(doc);
+            case 'O': return AliasStyleLinkUi.ToggleAndReport(doc);
             default: return Result.Cancel;
         }
     }

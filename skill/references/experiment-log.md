@@ -338,11 +338,53 @@ RhinoIronPython.chm），`Content/XML/<lang>/` 是模板与材质资源，不是
 - 面板已打开但非停靠状态（`DockBarIdInUse=False` 与之自洽）
 - **面板内控件交互（勾选→取消→回毛坯）仍未实测**，需用户点一次
 
+## E-021 · 全视图联动：不是命令的锅，是 Rhino 的模型（2026-11-23）
+
+**假设**：`AliasStyleLight`（菜单 `I`）只把**活动视口**切成了 Alias EyeCare，其余视口没跟着变。
+
+**做法**：
+1. 真机读回 4 个视口的当前模式（`doc.Views` → `ActiveViewport.DisplayMode.EnglishName`）
+2. 反射确认 `DisplayPipeline.DisplayModeChanged` 是否静态事件
+3. Python 订阅该事件 + 手写与插件等价的同步逻辑：把 Top 切到 `Shaded`，看其余是否跟随
+4. 插件侧实现 `AliasStyleLink`（`Interlocked` 闸门 + Id 比对 + Mute 引用计数），
+   编译 → 打包 → `Yak.exe install` 真安装 → 反射 + 真机双验
+
+**实测数字**：
+- **改前四视口本来就全一致**：
+  `Perspective=Alias EyeCare | Top=Alias EyeCare | Front=Alias EyeCare | Right=Alias EyeCare`
+  → 命令没坏，`Apply` 本来就 `foreach (RhinoView v in doc.Views)`
+- `DisplayPipeline.DisplayModeChanged`：`GetAddMethod().IsStatic = **True**`（静态事件，可全局监听）；
+  同一脚本内改两次 `vp.DisplayMode` → 同步回调 **2** 次，`args.Viewport` 精确指向被改视口
+- 联动后：`Perspective=Shaded | Top=Shaded | Front=Shaded | Right=Shaded`
+- 回调序列 `['blocked','blocked','blocked', 3]`：三次递归被闸门挡住，一次真同步了 3 个视口
+- 还原后四视口全部回 `Alias EyeCare`
+- v2.9 rhp **55296 B / 0 error / 23 warning**；yak **55952 B**；sha256 rhp `7454e87d…`
+- 运行中实例仍是 2.8.0.0（`packages\9.0\基准面工具\2.8.0.0\`）；2.9.0.0 已落到隔壁目录
+
+**结论**：
+- ✅ 推翻假设：这不是命令 bug，是 **Rhino 一视口一 DisplayMode** 的原生模型；
+  标题栏下拉 / 视图菜单 / `_SetDisplayMode` 都只作用当前视口（Alias 才是"全画布一套"）
+- ✅ 联动可**纯事件驱动**，不需要轮询、不需要 UI 钩子
+- ✅ 三个必守点：防重入闸门、先比 Id 再设（天然收敛）、**程序化批量改模式必须 Mute**
+  （否则 `Restore` 要恢复的各不相同模式会被互相同步回去，还原直接失效）
+- ⚠️ 踩到环境坑：装了 WeaverBird 后 `Action` 在 `WeaverBird.Core` 与 CoreLib 双定义，
+  **连 `System.Action` 都 CS0433** → 把 `TrySilent(() => {})` 内联成 try/catch 解决
+- ⚠️ `PersistentSettings.GetBool/SetBool` 是**实例方法**，静态调用 CS0120 → 用 `PlugIn.Settings`
+
+**回填**：`display-modes.md` 新增「全视图联动（Alias 式）」；
+`error-catalog.md`「编译与加载」+2 行、「显示与视觉」+2 行；
+`rhinocommon-pitfalls.md` 记事件与 Settings 签名；`INDEX.md` §1 加入口；`MEMORY.md` 升 2.9。
+
+**遗留**：
+- 用户**用手点视口标题栏下拉**再验一次（脚本路径已通，UI 路径应同源，但未亲测）
+- 布局页（Layout）detail 视窗不在 `doc.Views`，不同步 —— 已知边界
+- 2.9 需重启 Rhino 才加载（当前进程是 2.8）
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**21 条实验**，其中 **10 条推翻了初始假设**（E-015 推翻 E-014 真因，
+- 截至 2026-11-23：**22 条实验**，其中 **11 条推翻了初始假设**（E-015 推翻 E-014 真因，
   E-016 再推翻 E-014 的判断方法与 E-015 附带结论，E-019 推翻「solved=true 即成功」，
-  **E-020 推翻 E-014 的"面板未注册"判据**）。
+  **E-020 推翻 E-014 的"面板未注册"判据**，**E-021 推翻"命令只改了一个视口"的猜想**）。
   E-017 / E-018 为概念与资料精化，不计推翻，同样保留判断演化。高推翻率说明「先验证再相信」不是口号。
 - 编号提示：台账历史上有两条 E-016（一条 `###` 一条 `##`），不作改动，新实验顺延编号。
 - 查坑顺序：`error-catalog.md`（按症状）→ 本台账（按实验编号，看结论演化）→ 专题文档（按领域）。

@@ -42,7 +42,11 @@ from Microsoft.CodeAnalysis.CSharp import (CSharpSyntaxTree, CSharpParseOptions,
                                            LanguageVersion, CSharpCompilation,
                                            CSharpCompilationOptions)
 
-FILES = globals().get("FILES") or ["AssemblyInfo.cs", "DatumPlanePlugin.cs"]
+FILES = globals().get("FILES") or [
+    "AssemblyInfo.cs", "DatumPlanePlugin.cs", "PlaneText.cs",
+    "DatumPlaneLayers.cs", "DatumPlaneCore.cs",
+    "DatumPlaneNormalView.cs", "AliasStyleDisplay.cs",
+    "AliasStyleLink.cs", "JzMenu.cs", "DatumPlaneCommand.cs"]
 
 refs, seen, skipped = [], set(), 0
 for a in AppDomain.CurrentDomain.GetAssemblies():

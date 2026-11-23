@@ -17,6 +17,8 @@
 - **已注册的显示模式无法原地更新参数**（返回 false 且不落盘）。要升级现有模式：先 `DeleteDisplayMode(oldId)` + `SaveDisplayModes()`，再 `CopyDisplayMode(basis.Id, name)` 重建。否则用户装了新版观感还是旧的。
 - `ObjectColor` 与 `UseCustomObjectColor` 有**赋值顺序坑**：先写颜色、最后写 `UseCustomObjectColor=true`；顺序反了开关被静默重置回 false。同样地 `SetSurfaceIsoColorUsage()` 会把 `SurfaceIsoColorsUsed` 重置为 false，总开关必须最后赋值。
 - `ModelAidSettings.UniversalConstructionPlaneMode` / `AutoAlignCPlane` 是**应用级全局设置**，插件只是在借用；退出时恢复基线快照，不要从旧文件回放偏好。
+- `Rhino.PersistentSettings.GetBool/SetBool/GetString/SetString` 全是**实例方法**，静态调用报 CS0120；没有全局静态入口。正确用法：`PlugIn.Settings`（本身就是 PersistentSettings 实例）→ `DatumPlanePlugin.Instance?.Settings?.GetBool(key, true)`。落到 `%AppData%\McNeel\Rhinoceros\9.0\Plug-ins\<guid>\`，跨文档跨会话。
+- 装了 WeaverBird 后，它把 `Action` 类型塞进全局/`System` 命名空间：任何 `Action` 引用都 **CS0433**（WeaverBird.Core vs System.Private.CoreLib），**写 `System.Action` 也救不了**。解法：不用委托，`try { ... } catch { }` 内联。
 
 ## 几何与对象
 
@@ -40,6 +42,10 @@
 - `doc.Views.FourViewLayout(true)` 有必填参数；`SplitViewportVertical` 可脚本驱动，`_4View` 在无界面实例会挂 300 秒。
 - `Rhino.RhinoApp.ToolbarFiles` 才是正确入口（不是 `Rhino.UI.ToolbarFiles`）。工具栏组可见性存在**用户配置的 `UI\default.rui`**，只对插件 RUI 调 `Save()` 不持久化；必须设 `Visible=True` → `Rhino.RhinoApp.RunScript('_Quit', False)` 正常退出 → 重开验证。
 - 工具栏消失 ≠ 文件坏，先查 `ToolbarGroup.Visible`。
+- **显示模式是「一个视口一份」**：`viewport.DisplayMode` 只管自己；标题栏下拉 / 视图菜单 / `_SetDisplayMode` 都只作用当前视口。`foreach (RhinoView v in doc.Views) v.ActiveViewport.DisplayMode = m` 才是全视口。
+- `Rhino.Display.DisplayPipeline.DisplayModeChanged` 是**静态事件**（`GetAddMethod().IsStatic = True`，since 6.18），参数 `DisplayModeChangedEventArgs{ Viewport, RhinoDoc, OldDisplayModeId, ChangedDisplayModeId }`。API 写 `DisplayMode` 会**同步**触发；Python 可直接 `+=` / `-=`。
+- 事件里再改其他视口会**递归触发**同一事件 → 必须闸门（`Interlocked.Exchange`）+ 先比 `DisplayMode.Id` 再设；程序化批量改模式（尤其还原各不相同的原模式）时必须整体静音，否则被自己同步覆盖。
+- `doc.Views` 只列**顶级视口**（实测 4 个）；布局页（Layout）里的 detail 视窗不在其中，需另走 page view API。
 
 ## 打包与安装
 
@@ -87,6 +93,20 @@
 - 带 trim 的面直接 `CreateSolid` 会因孔口/槽口留洞失败，必须先还原成完整解析面。
 - 证据信号：`face.UnderlyingSurface()`、`face.Loops.Count`、`face.Trims`、`TrimIndices()`、domain 跨度 vs trim 边界差（overhangZ）、面朝向反转（reversed）。倒角面是 `NurbsSurface`，别按曲面类型猜。
 - 曲面参数域是**弧长不是弧度**；柱面 U=轴向、V=周向。覆盖角 = 跨度/半径，取 `min(degU, degV)`。
+
+## 只读探活 / 插件状态判断（Rhino 9，E-016 实测）
+
+- `Rhino.UI.Panels.GetRegisteredPanelIds()` **不存在**（Python 反射报 `type object 'Panels' has no attribute ...`）。
+  查面板用 `Panels.DockBarIdInUse(Guid)`；别自己猜 `GetRegisteredPanelIds` / `IsPanelVisible` 之类名字。
+- `Rhino.Commands.Command.GetCommandNames()` **无 0 参数重载**（报 `No overload for method ... takes 0 arguments()`）。
+  别用 `Command.GetCommandNames()` 直接列命令。
+- **插件按需加载**：`AppDomain.CurrentDomain.GetAssemblies()` 里没有某插件程序集，
+  **不等于**没安装或没重启。判安装查磁盘 `…\packages\9.0\<名>\<版本>\`；
+  判面板注册查 `DockBarIdInUse`；这条修正了 E-014 的判断方法。
+- 显示模式枚举可用：`Rhino.Display.DisplayModeDescription.GetDisplayModes()` → `m.EnglishName`。
+- 官方 Untrim 命令族（命令层，非 API 层）：`Untrim` / `UntrimAll` / `UntrimBorder`（留内部孔）/
+  `UntrimHoles`（逐孔选边、框选、按最大边长筛选）。**API 层只有整面级 `Brep.UntrimFace`**，
+  需要 loop 级精度时要么在 Core 层按 inner loop 搭桥，要么 `RhinoApp.RunScript` 调命令。
 
 ## 打包补充
 

@@ -1,0 +1,9 @@
+---
+name: 基准面工具
+version: 2.9.0.0
+authors:
+- DatumPlane Tools
+description: Rhino 9 datum plane v2.9 - Alias-style all-view display sync (switch one viewport, the rest follow; AliasStyleLink to toggle), two Alias study modes distinguished by isocurve density (Light 0 = edges only, Dark 1 = one internal isocurve), click a planar face directly with no Ctrl+Shift, directional three-tone clay display, per-viewport CPlane restore, self-healing leaked CPlanes, 5th normal viewport, bilingual prompts
+url: https://www.rhino3d.com
+keywords: []
+platform: win

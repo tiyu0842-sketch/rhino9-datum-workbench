@@ -249,37 +249,47 @@ internal static class AliasStyle
         DisplayModeDescription? mode = EnsureMode(dark);
         if (mode == null) return 0;
 
-        RememberOriginal(doc);
-
-        // v2.8：两套主题用不同密度来区分 —— 浅色 0（只显示裸边，画面最干净），
-        // 深色 1（每条曲面多一条内部等参线，配深色底刚好能读曲面走向）。
-        // 这里必须**强制设置**，不能像旧版"只补低于 2 的"：否则从深色切回浅色时
-        // 对象上残留的 1 不会被降回 0，两套模式就区分不开了。
-        SetAllWireDensity(doc, dark ? 1 : 0);
-
-        int applied = 0;
-        foreach (RhinoView view in doc.Views)
+        // v2.9：本方法会主动改所有视口的模式，必须先静音联动钩子，
+        // 否则每个 vp.DisplayMode 赋值都会回调一次同步（4 视口 × N 次），纯属浪费。
+        AliasStyleLink.Mute();
+        try
         {
-            RhinoViewport? vp = view.ActiveViewport;
-            if (vp == null) continue;
-            try
-            {
-                vp.DisplayMode = mode;
-                // 构建平面网格在浅色/深色下都很抢视觉，Alias 工作区默认也没有网格。
-                // 关掉并把原状态记进还原串，Restore 时一并恢复。
-                vp.ConstructionGridVisible = false;
-                // 世界坐标轴（红绿蓝三根线）会横穿模型，是"影棚白模"观感的最大破坏物，
-                // 一并关掉；原状态同样记录，Restore 恢复。
-                try { vp.ConstructionAxesVisible = false; } catch { }
-                view.Redraw();
-                applied++;
-            }
-            catch { }
-        }
+            RememberOriginal(doc);
 
-        doc.Strings.SetString(ActiveKey, dark ? "Dark" : "Light");
-        doc.Views.Redraw();
-        return applied;
+            // v2.8：两套主题用不同密度来区分 —— 浅色 0（只显示裸边，画面最干净），
+            // 深色 1（每条曲面多一条内部等参线，配深色底刚好能读曲面走向）。
+            // 这里必须**强制设置**，不能像旧版"只补低于 2 的"：否则从深色切回浅色时
+            // 对象上残留的 1 不会被降回 0，两套模式就区分不开了。
+            SetAllWireDensity(doc, dark ? 1 : 0);
+
+            int applied = 0;
+            foreach (RhinoView view in doc.Views)
+            {
+                RhinoViewport? vp = view.ActiveViewport;
+                if (vp == null) continue;
+                try
+                {
+                    vp.DisplayMode = mode;
+                    // 构建平面网格在浅色/深色下都很抢视觉，Alias 工作区默认也没有网格。
+                    // 关掉并把原状态记进还原串，Restore 时一并恢复。
+                    vp.ConstructionGridVisible = false;
+                    // 世界坐标轴（红绿蓝三根线）会横穿模型，是"影棚白模"观感的最大破坏物，
+                    // 一并关掉；原状态同样记录，Restore 恢复。
+                    try { vp.ConstructionAxesVisible = false; } catch { }
+                    view.Redraw();
+                    applied++;
+                }
+                catch { }
+            }
+
+            doc.Strings.SetString(ActiveKey, dark ? "Dark" : "Light");
+            doc.Views.Redraw();
+            return applied;
+        }
+        finally
+        {
+            AliasStyleLink.Unmute();
+        }
     }
 
     /// <summary>
@@ -337,46 +347,56 @@ internal static class AliasStyle
         string? data = doc.Strings.GetValue(SaveKey);
         if (string.IsNullOrEmpty(data)) return 0;
 
-        var map = new Dictionary<Guid, (Guid Mode, bool Grid, bool Axes)>();
-        foreach (string part in data.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        // v2.9：还原是"把各视口恢复成各不相同的原模式"，若全视图联动还在工作，
+        // 每还原一个就会被同步回上一个 —— 必须整段静音。
+        AliasStyleLink.Mute();
+        try
         {
-            string[] seg = part.Split('=');
-            if (seg.Length < 2) continue;
-            if (!Guid.TryParseExact(seg[0], "N", out Guid viewId)) continue;
-            if (!Guid.TryParseExact(seg[1], "N", out Guid modeId)) continue;
-            bool grid = seg.Length >= 3 && seg[2] == "1";
-            bool axes = seg.Length < 4 || seg[3] == "1";
-            map[viewId] = (modeId, grid, axes);
-        }
-
-        int restored = 0;
-        foreach (RhinoView view in doc.Views)
-        {
-            RhinoViewport? vp = view.ActiveViewport;
-            if (vp == null) continue;
-            if (!map.TryGetValue(vp.Id, out var wanted)) continue;
-
-            DisplayModeDescription? target =
-                wanted.Mode == Guid.Empty ? null : DisplayModeDescription.GetDisplayMode(wanted.Mode);
-            if (target == null)
-                target = DisplayModeDescription.GetDisplayMode(DisplayModeDescription.ShadedId);
-            if (target == null) continue;
-
-            try
+            var map = new Dictionary<Guid, (Guid Mode, bool Grid, bool Axes)>();
+            foreach (string part in data.Split(';', StringSplitOptions.RemoveEmptyEntries))
             {
-                vp.DisplayMode = target;
-                vp.ConstructionGridVisible = wanted.Grid;
-                try { vp.ConstructionAxesVisible = wanted.Axes; } catch { }
-                view.Redraw();
-                restored++;
+                string[] seg = part.Split('=');
+                if (seg.Length < 2) continue;
+                if (!Guid.TryParseExact(seg[0], "N", out Guid viewId)) continue;
+                if (!Guid.TryParseExact(seg[1], "N", out Guid modeId)) continue;
+                bool grid = seg.Length >= 3 && seg[2] == "1";
+                bool axes = seg.Length < 4 || seg[3] == "1";
+                map[viewId] = (modeId, grid, axes);
             }
-            catch { }
-        }
 
-        doc.Strings.Delete(SaveKey);
-        doc.Strings.Delete(ActiveKey);
-        doc.Views.Redraw();
-        return restored;
+            int restored = 0;
+            foreach (RhinoView view in doc.Views)
+            {
+                RhinoViewport? vp = view.ActiveViewport;
+                if (vp == null) continue;
+                if (!map.TryGetValue(vp.Id, out var wanted)) continue;
+
+                DisplayModeDescription? target =
+                    wanted.Mode == Guid.Empty ? null : DisplayModeDescription.GetDisplayMode(wanted.Mode);
+                if (target == null)
+                    target = DisplayModeDescription.GetDisplayMode(DisplayModeDescription.ShadedId);
+                if (target == null) continue;
+
+                try
+                {
+                    vp.DisplayMode = target;
+                    vp.ConstructionGridVisible = wanted.Grid;
+                    try { vp.ConstructionAxesVisible = wanted.Axes; } catch { }
+                    view.Redraw();
+                    restored++;
+                }
+                catch { }
+            }
+
+            doc.Strings.Delete(SaveKey);
+            doc.Strings.Delete(ActiveKey);
+            doc.Views.Redraw();
+            return restored;
+        }
+        finally
+        {
+            AliasStyleLink.Unmute();
+        }
     }
 
     /// <summary>设置曲面等参线密度：有选中就只改选中的，否则改全部。</summary>
@@ -462,15 +482,21 @@ internal static class AliasStyleUi
         string label = flavour == "Dark" ? "深色 / Dark" : "浅色 / Light";
         RhinoApp.WriteLine($"当前：Alias 观测显示已启用（{label}）/ Alias study display is ON ({flavour}).");
 
-        TrySilent(() =>
+        // 这里原先是 TrySilent(() => {...})。本机装了 WeaverBird，它把 Action 塞进了
+        // System 命名空间，任何 Action 引用都会 CS0433（WeaverBird.Core vs CoreLib），
+        // 连 System.Action 也救不了 —— 直接内联 try/catch，不引入委托最省事。
+        try
         {
             DisplayModeDescription? m = AliasStyle.EnsureMode(flavour == "Dark");
-            if (m == null) return;
-            DisplayPipelineAttributes a = m.DisplayAttributes;
-            RhinoApp.WriteLine(
-                $"  照明={a.LightingScheme}  物体灰度={a.FrontMaterial.Diffuse}  环境光={a.AmbientLightingColor}" +
-                $"  等参线 IsoCurves={a.ShowIsoCurves}  颜色={a.SurfaceIsoUVColor}  背景={a.FillMode}");
-        });
+            if (m != null)
+            {
+                DisplayPipelineAttributes a = m.DisplayAttributes;
+                RhinoApp.WriteLine(
+                    $"  照明={a.LightingScheme}  物体灰度={a.FrontMaterial.Diffuse}  环境光={a.AmbientLightingColor}" +
+                    $"  等参线 IsoCurves={a.ShowIsoCurves}  颜色={a.SurfaceIsoUVColor}  背景={a.FillMode}");
+            }
+        }
+        catch { }
     }
 
     /// <summary>等参线密度交互（v1.8 由 JzMenu 的 K_Density 统一调用）。</summary>
@@ -495,10 +521,6 @@ internal static class AliasStyleUi
         return Result.Success;
     }
 
-    private static void TrySilent(Action action)
-    {
-        try { action(); } catch { }
-    }
 }
 
 [CommandStyle(Style.ScriptRunner)]
