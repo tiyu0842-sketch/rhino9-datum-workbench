@@ -17,7 +17,12 @@
 | `CS0266 double → int` | `FrontMaterial.ShineIntensity` 是 int，写了 `0.0` | 写 `0` |
 | 重编译报 "being used by another process" | `Assembly.LoadFrom` 锁住 rhp | `Assembly.Load(File.ReadAllBytes(...))`，或输出到 `_vXX.rhp` 新文件名 |
 | 反射调用时 `Plugin.Instance = null`，面板没注册 | 反射 `Assembly.Load` 不算插件加载，`OnLoad` 未触发 | 这是测试条件限制，不是 bug；用真实 `PlugIn.LoadPlugIn` 或用户敲命令验证 |
-| `rhino_crashed` / 刷新后脚本全失败 | MCP 自动拉起的 Rhino 有加载竞态 | 先 `print('alive')` 探活；仍失败则重新 spawn |
+| `rhino_crashed` / 刷新后脚本全失败 | MCP 自动拉起的 Rhino 有加载竞态 | 先 `print('alive')` 探活；仍失败则重新 spawn；用户自己开的 Rhino 通常稳定，优先复用 |
+| `PlugIn.EnglishName`: no suitable method found to override | Rhino 9 的 PlugIn 只有只读 `Name`，没有可 override 的 EnglishName（同 ProductName 坑） | 删掉 override，插件名交给程序集标题/构造函数 |
+| `RhinoGet` does not contain a definition for `GetReal` | RhinoCommon 9 没有 `GetReal` | 用 `RhinoGet.GetNumber(prompt, true, ref v, lower, upper)` |
+| `Vector3d` has no attribute `DotProduct` | RhinoCommon 9 的 Vector3d 没有任何 `Dot*` 静态方法，只有 `Multiply` | 点积写 `a * b`（C# 与 Python 都是） |
+| `Mesh` has no attribute `CreateBox` | RhinoCommon 9 没有 `Mesh.CreateBox` | 用 `Mesh.CreateFromBox(BoundingBox, xCount, yCount, zCount)`，分段数必填，各 1 段得 6 面 |
+| 24 项模拟测试全过但真机一片错误 | mock 层自己造了不存在的方法（`Vector3d.DotProduct` 等） | mock 通过不能替代真机编译；每个 mock 的 API 都要用 `RhinoCommon.xml` 或反射核对 |
 
 ## 交互命令
 
