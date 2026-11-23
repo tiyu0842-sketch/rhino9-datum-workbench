@@ -123,8 +123,16 @@
 - 回填：`rhinocommon-pitfalls.md`；`error-catalog.md` 已在显示段覆盖缓存帧。
 - 遗留：`ObjectColor + ColorSource=ColorFromObject` 在 Shaded 下未生效，疑似材质色覆盖，待验证。
 
+### E-014 · 2026-11-23 · 用户"没有交互界面"的真因：没重启，不是没做
+- 假设：用户敲 `FWCancelPanel` 没面板 = 面板没实现 / 注册代码有 bug。
+- 做法：只读体检——`AppDomain.GetAssemblies()` 查版本、`Panels.DockBarIdInUse(Guid)` 查注册、磁盘 packages 查安装版本、读源码确认命令与面板存在。
+- 实测：磁盘只装了 **1.3.2.0** 一个版本且 rhp 在位；但当前进程 AppDomain 里有 **40+ 个**历史程序集（v1.2 / 1.3.0 / 1.3.1 / v2 全套），**没有 1.3.2**；`FWCancelPanel` 的 `DockBarIdInUse=False`。源码里 `FeatureWorksPlugin.OnLoad()` 明确注册 `FwPanel` + `FwCancelPanel`，`FWSelect`/`FWCancel` 命令齐全。
+- 结论：✅ 界面**代码里有**，是本进程没重启导致新版 `OnLoad` 没跑。⚠️ 也说明此前"反射验证面板控件树 PASS"不等于"UI 真的出现"——两者是不同层级的验证。
+- 回填：`error-catalog.md` 新增两条（装新版没重启 / 测试程序集污染）。
+- 遗留：**待用户在干净重启的 Rhino 里敲 `FWSelect` + `FWCancelPanel` 实测**；这一步只有人能做（无界面槽位驱动不了停靠面板与交互拾取）。
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**13 条实验**，其中 **6 条推翻了初始假设**。高推翻率说明「先验证再相信」不是口号。
+- 截至 2026-11-23：**14 条实验**，其中 **6 条推翻了初始假设**。高推翻率说明「先验证再相信」不是口号。
 - 查坑顺序：`error-catalog.md`（按症状）→ 本台账（按实验编号，看结论演化）→ 专题文档（按领域）。
 - 新实验编号顺延；若结论修正旧条目，在本条写「修正 E-XXX」并在旧条补一行指向，不删改旧记录。
