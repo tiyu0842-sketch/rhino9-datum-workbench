@@ -38,7 +38,7 @@
 | # | 想法 | 形态 | 状态 | 文件 |
 |---|---|---|---|---|
 | 001 | 10 个立方体，半径逐个 ×2 | GH 定义 | 已验证 | [001-gradient-boxes.md](001-gradient-boxes.md) |
-| 002 | 把 B-rep 特征取消的原理讲成 44 秒科普短片（画面 + 音轨都由代码算出） | Python 逐帧渲染 + 确定性音轨 → MP4 + 可交互 HTML | 已验证 | [002-brep-untrim-explainer/](002-brep-untrim-explainer/) |
+| 002 | 把 B-rep 特征取消的原理讲成 44 秒科普短片（画面 + 音轨都由代码算出） | Python 逐帧渲染 + 确定性音轨 → MP4 + 可交互 HTML | 已验证；**2026-11-24 追加听感复盘**（画面冻结、配乐待优化）：[RETRO_audio_and_compute.md](002-brep-untrim-explainer/RETRO_audio_and_compute.md) | [002-brep-untrim-explainer/](002-brep-untrim-explainer/) |
 
 ## 与其它目录的关系
 
