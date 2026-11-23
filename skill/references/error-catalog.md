@@ -150,3 +150,14 @@
 | 预览页提示「点播放启用声音」但按钮显示「暂停」 | 初始 `playing=true` 与提示矛盾，且 `AudioContext` 需用户手势解锁 | 初始暂停 + 按钮「播放」，点击时 `resumeAudio()`。E-027 |
 | Git Bash 的 `/c/...` 传给原生 Windows Python 报 `FileNotFoundError` | 两个进程的路径映射不同（同 `/tmp` 坑） | 临时文件与脚本一律写工作目录内，用相对路径。E-026 / E-027 各踩一次 |
 | 「配个声音」被理解成自动生成人声旁白 | 离线 TTS 需 `Add-Type` 加载 `System.Speech`，被沙箱拦截；联网 TTS 违背三条禁令 | 文案 + 时间码给全，做成外部 wav 插槽（`narration.md` + `amix`）；**如实说明做不到，不假装能**。E-027 |
+
+## v1.6.1 / E-028 新增症状
+
+| 症状 | 原因 | 怎么办 |
+|---|---|---|
+| **「取消一条倒角边，结果所有东西全部消失了」** | `FwFocusConduit.ObjectCulling` 无条件剔除源对象，而显示代理（`FeatureVisuals` / `LockedBrep` / `FeatureBrep`）可能因 `DuplicateSubBrep` 失败或 `Stale()` 全为 null → 源对象被剔除、自己什么都没画 | `HasDrawableContent()` 护栏：剔除前确认有可绘制内容；`Begin` 里无内容则 `conduit.Enabled=false`，让原模型照常显示。E-028 |
+| 执行器失败后面板/视口一片空白 | `TryApply` 把 `FwFocusSession.End(doc)` 写在 `if (!outcome.Ok) return false` 之后 → 失败时 conduit 仍在 cull | 改成「内存算完 + 校验通过才动文档」，`End` 移到 `Replace` 之前；失败路径不写文档、不关聚焦；异常全部兜底 |
+| 重建出退化 / 巨大 / 零体积 Brep，`Replace` 后视口什么都看不见 | 写文档前没有结果有效性校验 | `ValidateResult`：`Faces.Count>0` + `IsSolid` + 体积 >0 且与源同量级（0.02~50×）+ 包围盒对角线 ≤ 源 5×；拒绝写入并原文报出 |
+| 视口橙色高亮与执行器删的面不是同一批 | `FWSelect` / 面板 `DoPick` 丢了 `FwApi.Recognize` 的 `clean`，用原始 brep 配 clean 的特征索引（`Build` 里 `MergeCoplanarFaces + Compact` 可重排） | 一律 `Brep focusBrep = clean ?? brep;` 再传给 `FwFocusSession.Begin`，保证几何与索引同源 |
+| **单条 Chamfer 倒角识别为 0 特征** | `IsCandidateFilletFace` 只认圆柱/NURBS 过渡面，认不出平面斜切面 | 如实告知用户这是识别边界；扩展判据（二面角 + 平面斜切）待做，别假装已支持 |
+| 「全消失」时先别急着重跑 | 可能只是显示层，几何还在文档里 | `list_objects(includeHidden=true)` + 反射 `FwFocusSession.HasActive` / `SourceBrep` / `FwMouseWatcher.IsActive` 先分层；`doc.Objects` 默认不枚举隐藏对象（E-010） |

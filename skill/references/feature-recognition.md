@@ -334,3 +334,40 @@ conduit 自绘的橙色特征面永远不是文档对象，`ObjectCulling` 又�
 gumball 的影响）尚未实机点过：本轮 Rhino 是 E-024 崩溃后自动重开的空文档实例，
 交互命令按纪律不从脚本同步驱动。需用户重开 Rhino（装完必须重开）后一并验收
 v1.5 面板、v2.10 Alias 当前视口独立、v1.6 常驻框选。
+
+## 13. v1.6.1：失败安全与「全消失」症状的定位（E-028，2026-11-23 深夜）
+
+**用户症状**：「我选择去取消一条倒角边，结果所有东西全部消失了。」
+
+**第一步先分层，别急着重跑**：`list_objects(includeHidden=true)` 显示文档仍有
+`1 Brep（6 面 / solid / vol 39637.966）+ 3 条隐藏曲线`，反射 `FwFocusSession.HasActive=False`、
+`FwMouseWatcher.IsActive=False`、`FwSelectionState.Count=0` → **几何没被删光**，是显示/替换层症状。
+（`doc.Objects` 默认不枚举隐藏对象，见 E-010。）
+
+**第二步排除算法本身**：在活文档里加临时 7 面单圆角边（`vol 63922.7433`），
+完整跑 `FWSelect → TryApply("Fillet")` → 读回 `6 面 / solid / vol 64000`、
+`hidden=False / visible=True`、聚焦正确关闭。**标准路径不消失**。
+全边圆角盒 `66 面 / 63089.90` → 12 个 Fillet 组 → `6 面 / 64000` 亦正常。
+
+**第三步找到 4 个确定缺陷**（详见 `error-catalog.md` v1.6.1 段 / `rhinocommon-pitfalls.md` v1.6.1 段）：
+A. `ObjectCulling` 无条件剔除源对象，显示代理全失效时 → 全空；
+B. `TryApply` 的 `End(doc)` 在失败 return 之后 → 失败时 conduit 仍 cull；
+C. `FWSelect`/`DoPick` 丢 `clean`，原始 brep 配 clean 的特征索引 → 可能错位；
+D. 写文档前无结果有效性校验 → 退化/异常放大 Brep 塞进文档 = 看不见。
+
+**v1.6.1 的四条修复**：`HasDrawableContent()` 护栏 + `Begin` 无内容时禁用 conduit；
+`TryApply` 改「内存算完 + `ValidateResult` 通过才动文档」，`End` 移到 `Replace` 之前，
+失败/异常不写文档不关聚焦；`FWSelect`/`DoPick` 用 `clean ?? brep` 保证同源。
+
+**验证数字**：编译 `105984 bytes / 0 error`；反射 `1.6.1.0`、护栏空→False/有→True、
+`ValidateResult` 正常→None / null→拒绝；纯几何 `7 面 / 63922.74 → 6 面 / 64000`；
+yak `74374 bytes` sha256 `80d1f454…`，rhp `e93a8a0a…`，真安装 `…\1.6.1.0\`。
+
+**新发现的识别边界**：单条 `BlendType.Chamfer` 倒角 `7 面 / 63820` →
+`Pass1_Fillets=0 / feats=0`，当前 `IsCandidateFilletFace` 只认圆柱/NURBS 过渡面，
+认不出平面斜切面。**如实告知用户，不假装已支持**；扩展判据（二面角 + 平面斜切）列为下一步。
+
+**通用教训**：B-rep 逆向取消里，「看不见」不等于「删掉了」。
+凡是 `ObjectCulling` 剔除源对象的显示方案，都必须满足
+**「剔除 ⟹ 同一帧必有替代内容」** 这个不变式；破坏它，用户看到的就是一片空白。
+这与 E-024「看得见 ≠ 选得中」是同一枚硬币的两面。

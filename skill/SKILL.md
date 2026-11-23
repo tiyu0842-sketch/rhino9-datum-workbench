@@ -67,6 +67,7 @@ agent_created: true
 | 特征面板「一堆 checkbox 不知对应哪块」/ 想点边选特征 | `feature-recognition.md` §10、E-023：稳定编号 + 视口标签 + 双向选择；空勾选不得执行删除 |
 | 「只能在小框里选 / 去布尔必须先去圆角 / 为什么补面」 | `feature-recognition.md` **§11（诊断）→ §12（v1.6 已落地）**、E-024 → **E-025**：`RemoveHoles(指定内环)` 解耦两模块（实测圆角盒 `11→10 面` 圆角完好）；常驻 `MouseCallback` 接管左键 + `WorldToClient` 屏幕投影命中 + 一份共享选中集；圆角不能 untrim 是几何事实 |
 | 两个模块要「同时相互交互」/ 不要总开关 | 一份 `HashSet<int>` 共享选中集，视口/面板/两模块共同读写；删互斥清空；每模块各自执行按钮，N=0 拒绝；跨模块混选在 runner 里拒绝（用户拍板「严格两模块」） |
+| **取消圆角/倒角后「所有东西全部消失」** | 先分层：几何可能还在（隐藏对象要 `includeHidden=true`）；`error-catalog.md`「v1.6.1 / E-028」+ `feature-recognition.md` **§13**。四个修法：`ObjectCulling` 剔除前 `HasDrawableContent()`、结果写文档前 `ValidateResult`、`FWSelect` 用 `clean ?? brep` 保证索引同源、失败路径不写文档不关聚焦 |
 | 编译 CS0104 `Point`/`Environment` 歧义 / `RemoveHoles` 静默收不到内环 | `error-catalog.md`「v1.6 / E-025 新增症状」：加 `using Point = System.Drawing.Point;`；判断模块归属**别用 `FeatureType` 默认值（恰好是 Fillet）**，用显式 `Channel`；`RemoveHoles` 返回 `Brep` 不是 bool |
 | 曲面糊成一片无明暗 | `AmbientOcclusion` 只有接触遮蔽；要三度灰阶用 `CustomLighting` + `FrontMaterial.Diffuse` |
 | 想把原理讲清楚 / 做科普短片 / 「用代码生成视频」 | 仓库 `design-lab/002-brep-untrim-explainer/`、**E-026**：**代码驱动确定性渲染**（`frame(t)` 纯函数 + Pillow 逐帧 + ffmpeg 只做封装），**不是 AI 文生视频**；三条禁令：不读时钟 / 不用无种子随机 / 不联网；等宽字体放中文要切雅黑 |

@@ -695,9 +695,73 @@ RhinoIronPython.chm），`Content/XML/<lang>/` 是模板与材质资源，不是
 （只做了 JS 语法 / 注入数据 / 离线 WAV / MP4 音频流的校验）；
 `theme` 参数在预览页未暴露，已在 README 如实标注。
 
+## E-028 · 2026-11-23 深夜 · 「取消一条倒角边后所有东西全部消失」：显示层剔除 + 失败路径（修正 v1.6 实现缺陷）
+
+**用户原话**：「我打开rhino了，尝试了一下，嗯，还是有问题，我选择去取消一条倒角边，结果所有东西全部消失了。」
+
+**假设（逐条验证）**：
+1. 几何被真的删光了 → 查活文档对象数；
+2. 模块 A 的 `RepairToBlank` 在倒角上产出了坏 Brep → 纯几何复现；
+3. 执行/显示链的失败路径留下「conduit 剔除源对象但自己什么都没画」的状态 → 查源码 + 反射。
+
+**做法**：按 `INDEX.md` 先查知识地图与错误目录 → 连活 Rhino 查 `get_context` / `list_objects` /
+反射 `FwFocusSession` 静态状态 → 纯几何复现（全边圆角盒、单圆角边、单 Chamfer 倒角）→
+在用户文档里加**临时对象**完整跑 `FWSelect → TryApply("Fillet")` → 改代码 → 进程内 Roslyn →
+反射 → yak → 真安装。临时对象实验完立即删除，主模型未改动。
+
+**实测数字**：
+- 现场：`objectCount=4`（1 Brep + 3 条隐藏曲线）；Brep `6 面 / solid / vol 39637.966`；
+  `HasActive=False`、`FwMouseWatcher.IsActive=False`、`FwSelectionState.Count=0`、`SourceBrep=None`。
+  → **几何没被删光**，「全消失」是显示/替换层症状，不是 `doc.Objects.Delete`。
+- 标准路径真机复现（临时 7 面单圆角边 `vol 63922.7433`）：`TryApply ok=True` → 文档对象
+  `6 面 / solid / vol 64000`、`hidden=False / visible=True`、`HasActive=False`。**没有复现消失**
+  → 排除「重建算法在倒角上必然出错」。
+- 全边圆角盒 `66 面 / vol 63089.90` → 识别 12 个 Fillet 组 → `CancelFilletModule` →
+  `6 面 / solid / vol 64000`；取消后 `Recognize` 得 `feats=0` → 不重开聚焦。
+- **单条 Chamfer 倒角 `7 面 / vol 63820` → `Pass1_Fillets=0 / feats=0`**：识别引擎
+  `IsCandidateFilletFace` 认不出平面斜切倒角（只认圆柱/NURBS 过渡面）。新发现的边界，如实告知用户。
+- `clean` 与 raw 在这些模型上面数一致（66/66、7/7）、`DuplicateSubBrep` 均成功 →
+  「FWSelect 丢 clean」暂未在标准模型上触发错位，但仍是确定缺陷。
+
+**根因（4 个确定缺陷，非单点）**：
+- **A（最直接）** `FwFocusConduit.ObjectCulling` 无条件 `e.CullObject = true`，但
+  `FeatureVisuals` / `LockedBrep` / `FeatureBrep` 可能因 `DuplicateSubBrep` 失败、索引越界、
+  `Stale()` 全部为 null → 「源对象被剔除 + 什么都没画」= 视口全空。
+- **B** `FwCancelRunner.TryApply` 把 `FwFocusSession.End(doc)` 写在
+  `if (!outcome.Ok) return false;` **之后**：任何失败/异常都不关聚焦，conduit 继续 cull。
+- **C** `FWSelect` / `FwCancelPanel.DoPick` 丢弃 `FwApi.Recognize` 返回的 `clean`，
+  用**原始 brep** 配 **clean 的特征面索引**（`Build` 里 `MergeCoplanarFaces + Compact` 可重排索引）
+  → 高亮与执行器删的面可能错位。
+- **D** 写文档前无结果有效性校验：退化 / 零体积 / 包围盒异常放大的 Brep 被 `Replace` 进文档，
+  视口里往往什么都看不见。
+
+**修复（v1.6.1.0）**：`HasDrawableContent()` 护栏（剔除前必须确认有可画内容；`Begin` 里无内容则
+`conduit.Enabled=false`，模型照常显示）；`TryApply` 重构为「内存算完 + `ValidateResult` 校验通过
+才动文档」，`End(doc)` 移到 `Replace` 之前，所有失败路径**不写文档、不关聚焦**，异常全部兜底；
+`FWSelect`/`DoPick` 改用 `clean ?? brep` 传给 `Begin`。
+
+**验证**：编译 **105984 bytes / 0 error / 65 warning**；反射 `1.6.1.0`、
+`HasDrawableContent` 空→False / 有 FeatureBrep→True、`ValidateResult` 正常→None / null→拒绝；
+纯几何回归 `7 面 / 63922.74 → 6 面 / 64000`；yak **74374 bytes** sha256 `80d1f454…`，
+rhp sha256 `e93a8a0a…`，真安装 `…\特征识别工具\1.6.1.0\`，哈希与本地一致。
+
+**结论**：⚠️ 部分成立 —— 「几何被删」被推翻；「重建算法必然出错」被推翻；
+「失败/显示路径导致全空」✅ 成立且有 4 处确定缺陷可修。
+**修正 E-025 的实现层**（不是推翻其几何结论）：v1.6 两模块解耦是对的，
+但执行器缺失败安全与显示护栏。**通用教训：DisplayConduit 只要 `ObjectCulling` 剔除源对象，
+就必须保证同一帧必定画得出替代内容，否则「看不见」会被用户读成「全删了」。**
+
+**回填**：`error-catalog.md` v1.6.1 段；`rhinocommon-pitfalls.md` v1.6.1 段；
+`feature-recognition.md` §13；`INDEX.md` / `SKILL.md` 入口；项目 README/手册/INTERACTION_SPEC；
+MEMORY 与今日日志；GitHub 副本本地提交。
+
+**遗留**：GUI 实机验收需**重开 Rhino**（当前进程仍是 1.6.0.0）；单条 Chamfer 倒角识别 0 特征
+待扩展判据；实验在用户 Undo 栈留下 2–3 条记录（临时对象已删、当前文档干净）；
+GitHub push 仍待代理关闭。
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**28 条实验**，其中 **14 条推翻了初始假设**（E-015 推翻 E-014 真因，
+- 截至 2026-11-23：**29 条实验**，其中 **14 条推翻了初始假设**（E-015 推翻 E-014 真因，
   E-016 再推翻 E-014 的判断方法与 E-015 附带结论，E-019 推翻「solved=true 即成功」，
   **E-020 推翻 E-014 的"面板未注册"判据**，**E-021 推翻"命令只改了一个视口"的猜想**，
   **E-022 推翻 E-021 的需求方向判断**，**E-023 推翻「文字列表足够」的界面假设**，

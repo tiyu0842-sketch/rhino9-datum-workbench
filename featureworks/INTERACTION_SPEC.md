@@ -289,3 +289,37 @@ v1.6 是否按「常驻双向联动 + 两个独立模块」这个方向落地？
 - `e.Cancel = true` 接管左键后是否影响其它视口操作（右键旋转、gumball）：未实测。
 - 「turn number」所指仍未确认。
 - 真实 GUI 上的 v1.5 面板点选、v2.10 Alias 当前视口独立，也仍待用户重开 Rhino 后一并验收。
+
+### 13. v1.6.1：失败安全与「全消失」症状（E-028，2026-11-23 深夜）
+
+**用户原话**：「我选择去取消一条倒角边，结果所有东西全部消失了。」
+
+**分层诊断（不重跑任务、先看现场）**：
+- `get_context` / `list_objects(includeHidden=true)` → 文档仍有 `1 Brep（6 面 / solid / vol 39637.966）`
+  + 3 条隐藏曲线；反射 `FwFocusSession.HasActive=False` / `FwMouseWatcher.IsActive=False` /
+  `FwSelectionState.Count=0` / `SourceBrep=None`。**几何没被删光**，是显示/替换层症状。
+- 活文档加临时 7 面单圆角边（`vol 63922.7433`）完整跑 `FWSelect → TryApply("Fillet")`：
+  `TryApply ok=True`，读回 `6 面 / solid / vol 64000` / `hidden=False` / `visible=True` /
+  `HasActive=False` → **标准路径不消失**，排除重建算法本身。
+- 全边圆角盒 `66 面 / 63089.90` → 12 个 Fillet 组 → `6 面 / 64000`；
+  单条 `BlendType.Chamfer` 倒角 `7 面 / 63820` → `Pass1_Fillets=0 / feats=0`（**新边界**：
+  平面斜切倒角不在当前判据里）。
+
+**四个确定缺陷 → 修复**：
+
+| # | 缺陷 | v1.6.1 修法 |
+|---|---|---|
+| A | `ObjectCulling` 无条件剔除源对象，显示代理全失效时视口全空 | `FwFocusConduit.HasDrawableContent()` 护栏；`Begin` 无内容则 `conduit.Enabled=false`，模型照常显示 |
+| B | `TryApply` 把 `End(doc)` 写在 `if (!outcome.Ok) return false` 之后，失败时 conduit 仍 cull | 改为「内存算完 + `ValidateResult` 通过才动文档」，`End` 移到 `Replace` 之前；失败/异常不写文档、不关聚焦 |
+| C | `FWSelect` / `DoPick` 丢 `clean`，原始 brep 配 clean 的特征索引（`MergeCoplanarFaces+Compact` 可重排） | 一律 `Brep focusBrep = clean ?? brep;` 传给 `Begin` |
+| D | 写文档前无结果有效性校验 | `ValidateResult`：面数>0 / `IsSolid` / 体积>0 且源 `0.02~50×` / 包围盒对角线 ≤ 源 `5×`；拒绝写入并原文报出 |
+
+**编译与验证**：进程内 Roslyn **105984 bytes / 0 error / 65 warning**；
+反射 `1.6.1.0`、`HasDrawableContent` 空→False / 塞入 10³ box→True、
+`ValidateResult` 正常→None / null→拒绝 / 源自身→None；
+纯几何回归 `7 面 / 63922.74 → 6 面 / 64000`；
+yak `74374 bytes` sha256 `80d1f454…`，rhp sha256 `e93a8a0a…`，
+真安装 `…\packages\9.0\特征识别工具\1.6.1.0\`（哈希与本地一致）。
+
+**仍待人工验收**：重开 Rhino 后按同一模型点一次模块 A（当前进程仍是 1.6.0.0）；
+单条 Chamfer 识别判据待扩展；实验在用户 Undo 栈留 2–3 条记录（临时对象已删）。

@@ -185,3 +185,30 @@
    BlendType, RailType, Double)` 可造圆角盒：实测 100×80×30 顶面 4 边 R3 →
   10 面 / solid / vol 239315.06（FwSelfTest 的用法，`BlendType.Fillet` + `RailType.RollingBall`）。
   比 `UntrimOuterLoop` 连调安全，做几何验证优先用它。
+
+## v1.6.1 新增：DisplayConduit 剔除护栏 / 执行器失败安全 / CleanBrep 同源（E-028）
+
+- **`DisplayConduit.ObjectCulling` 是一把双刃剑**：只要写了 `e.CullObject = true`，
+  同一帧就必须保证 conduit 自己**必定画得出替代内容**。`FeatureVisuals[i].Brep`（`DuplicateSubBrep`）、
+  `LockedBrep`、`FeatureBrep` 任一失效 + `Stale()` 又没拦住 → 视口全空，用户会读成「模型全被删了」。
+  实测护栏：`HasDrawableContent()`（三者任一 `Faces.Count>0`）为 false 时直接 return 不 cull；
+  `FwFocusSession.Begin` 里无内容则 `conduit.Enabled=false`，`HasActive` 仍为 true（面板还能用），
+  但源对象照常显示。**空 conduit 反射实测 False，塞入一个 10×10×10 box 后 True。**
+- **`FwApi.Recognize` 返回的 `CleanBrep` 与 `Features` 必须同源使用**：
+  `AttributedFaceAdjacencyGraph.Build` 里 `inputBrep.DuplicateBrep()` → `MergeCoplanarFaces(tol)` →
+  `Compact()`，`Features.FaceIndices` 是相对 `WorkingBrep`（= CleanBrep）的。
+  `FWSelect` / 面板 `DoPick` 若把 `clean` 丢掉、把**原始 brep** 传给 `FwFocusSession.Begin`，
+  一旦 Compact 重排面索引，高亮子面与执行器删的面就错位。修法：`Begin(doc, id, clean ?? brep, feats)`。
+  本次标准模型上 raw/clean 面数恰好相同（66/66、7/7）未触发，但缺陷是确定的。
+- **写文档前校验重建结果**（只用实测过的成员）：`candidate.Faces.Count == 0` / `!IsSolid` /
+  `VolumeMassProperties.Compute(...).Volume <= 0` / 体积超出源 `0.02~50×` /
+  `GetBoundingBox(true).Diagonal.Length` 超出源 `5×` → 拒绝 `doc.Objects.Replace` 并原文报出。
+  退化或异常放大的 Brep 塞进文档，视口往往「什么都看不见」。
+- **失败路径的顺序**：`if (!outcome.Ok) return false;` 之前不要出现 `FwFocusSession.End(doc)`
+  这类「关显示」的动作 —— 失败时源几何没变，conduit 子面仍有效，保持聚焦比留下半截状态安全；
+  真正要关显示的时机是**确认要写文档之后、`Replace` 之前**。
+- **`Brep.CreateFilletEdges(..., BlendType.Chamfer, RailType.RollingBall, tol)` 造单条倒角**
+  实测 `7 面 / solid / vol 63820`，但识别引擎 `Pass1_Fillets=0 / feats=0`：
+  平面斜切倒角不在当前 fillet 判据里。造圆角用 `BlendType.Fillet` 得 `7 面 / 63922.74`。
+- `Brep.CreateFilletEdges` 返回 **`Brep[]`**（不是单个 Brep），取 `[0]`；
+  该重载已标 `[Obsolete]`（CS0618，建议带 setbackFillets/angleTolerance 的新重载），当前编译警告可忽略。

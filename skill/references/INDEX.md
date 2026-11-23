@@ -23,6 +23,7 @@
 | 面板列表看不出对应模型哪一块 / 想点边选特征 | `feature-recognition.md` §10；`INTERACTION_SPEC.md` §10；E-023；编号双向映射 + `BrepFace.AdjacentEdges()` |
 | 去布尔是否必须先去圆角 / 为什么补面而不取消修剪 / 只能在小框里选 | `feature-recognition.md` **§11（诊断）→ §12（v1.6 已落地）**；`rhinocommon-pitfalls.md`「B-rep 特征取消」「v1.6 新增」；**E-024 → E-025**；`RemoveHoles(指定内环)` + 常驻双向联动 |
 | 编译刷 CS0104 `Point`/`Environment` 歧义 / `RemoveHoles` 报「没解析到内环」 | `error-catalog.md`「v1.6 / E-025 新增症状」；`rhinocommon-pitfalls.md`「v1.6 新增」；**别用 `FeatureType` 默认值判断模块归属，用 `Channel`** |
+| **取消圆角/倒角后「所有东西全部消失」** | `error-catalog.md`「v1.6.1 / E-028 新增症状」；`feature-recognition.md` **§13**；`rhinocommon-pitfalls.md`「v1.6.1 新增」：先分层（几何可能还在，隐藏对象要 `includeHidden=true`）、`ObjectCulling` 剔除前 `HasDrawableContent()`、结果写文档前 `ValidateResult`、`FWSelect` 用 `clean ?? brep` 同源 |
 | 想让视口直接框选 conduit 高亮面 / 一份共享选中集 | `feature-recognition.md` §12.1；项目 `FwSelection.cs`（`MouseCallback` 接管左键 + `WorldToClient` 屏幕投影命中，不建文档对象） |
 | 想把原理讲清楚 / 做科普短片 / 「用代码生成视频」 | 仓库 `design-lab/002-brep-untrim-explainer/`（README 六步 + style.md + storyboard/render/encode/preview）；**E-026**：代码驱动的确定性渲染（`frame(t)` 纯函数 + Pillow 逐帧 + ffmpeg 只做封装），**不是 AI 文生视频**；三条禁令：不读时钟 / 不用无种子随机 / 不联网 |
 | 视频转场/滤镜不生效、ffmpeg 报滤镜不存在 | **E-026**：本机 ffmpeg 是 KeyShot 自带的 `--disable-everything` 精简构建，只有 scale/palettegen/paletteuse；转场必须在帧内算 |
@@ -46,7 +47,7 @@
 | 查某个 GH 组件名 / 参数签名 | `grasshopper-component-index.md`；或运行时 `g1_search_components` / `g1_describe_component` |
 | 装了新插件后刷新 GH 组件清单 | `../scripts/Export_GH_Components.py` |
 | 要打包 yak、多版本并存、安装假失败 | `verification-playbook.md` →「五」；`rhinocommon-pitfalls.md` →「打包与安装」「打包补充」 |
-| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**28 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 / E-027 为跨域能力扩展，均不新增推翻计数） |
+| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**29 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 / E-027 为跨域能力扩展、E-028 为 v1.6 实现层的失败安全修正，均不新增推翻计数） |
 | 结论被推翻了怎么处理 | `experiment-log.md` →「统计与复用提示」：**不删旧条，加「修正 E-XXX」** |
 
 ---
@@ -55,7 +56,7 @@
 
 | 任务 | 阅读顺序（只读需要的章节） |
 |---|---|
-| **改 FeatureWorks 功能** | `feature-recognition.md` §6/§7 → **§11/§12（v1.6 两模块与常驻联动）** → `error-catalog.md`「几何特征识别」+「v1.6 / E-025 新增症状」→ `experiment-log.md` 相关 E 号 |
+| **改 FeatureWorks 功能** | `feature-recognition.md` §6/§7 → **§11/§12（v1.6 两模块与常驻联动）→ §13（v1.6.1 失败安全）** → `error-catalog.md`「几何特征识别」+「v1.6 / E-025」+「v1.6.1 / E-028 新增症状」→ `experiment-log.md` 相关 E 号 |
 | **调显示模式** | `display-modes.md` 全文（短）→ `rhinocommon-pitfalls.md`「视口与布局」→ 用户立场见 `SKILL.md` |
 | **搭 GH 定义** | `grasshopper-spatial-logic.md` §4 → `grasshopper-component-index.md` 对应族 → 搭完必走 §5 第 5 步验证 |
 | **诊断一个报错** | `error-catalog.md`（按症状）→ `experiment-log.md`（看结论演化）→ 对应专题 → 反射确认 API |
