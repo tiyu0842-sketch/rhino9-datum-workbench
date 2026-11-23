@@ -304,10 +304,45 @@ RhinoIronPython.chm），`Content/XML/<lang>/` 是模板与材质资源，不是
 - 未验证「拖滑块 → 结果实时变」，未找到 set_slider_value 一类接口
 - 001 条目的 6 项改进未做（X 从 0 起、累加间距、Bake、.gh 存档、GH2 版）
 
+## E-020 · 面板"未注册"是误判：`DockBarIdInUse` 不是注册判据（2026-11-23）
+
+**修正 E-014 / E-015**：那两条都用 `Panels.DockBarIdInUse(guid) == False` 判定"面板没注册"，**判据本身是错的**。
+
+**假设**：`DockBarIdInUse(g) == False` → 面板未注册
+
+**做法**：主动 `PlugIn.LoadPlugIn(guid)` → 查程序集 / 命令 / 面板；
+再用 `Panels.GetOpenPanelIds()` 与 `Panels.IsPanelVisible(g)` 复核
+
+**实测**：
+- 用户重开后：FW 程序集 `(none)`；118 个已加载插件里无 FeatureWorks；
+  注册表 `HKCU\…\Rhinoceros\9.0\Plug-ins\6d1f8a3c-…` = 「特征识别工具 / RhinoFeatureWorks」，`LoadMode=2`
+- `PlugIn.LoadPlugIn(Guid("6D1F8A3C-2E47-4B95-A0D6-9C3E7F1B2D48"))` → **True**
+- 加载后：`RhinoFeatureWorks v1.4.0.0`；**16 个 `FW*` 命令**全部注册
+  （FWSelect / FWCancel / FWCancelPanel / FWPanel / FWFocus / FWRecognize / FWRepair…）
+- `Panels.OpenPanel(g)` 无异常；`GetOpenPanelIds()` **包含**
+  `b4d8e21a-…`（FWCancelPanel）与 `7a4e1c93-…`（FwPanel）；`IsPanelVisible(g)` 两者均 **True**
+- 而 `DockBarIdInUse(g)` 全程 **False**
+
+**结论**：
+- ✅ 推翻判据：`DockBarIdInUse` ≈「是否已停靠为 dock bar」，**不能用作注册/可用判据**
+- ✅ 正确判据：`GetOpenPanelIds()` 含该 guid，或 `IsPanelVisible(g)` 为 True
+- ✅ **v1.4 面板是好的**。用户"没界面"的真因是**插件从未被加载**：
+  `LoadMode=2`（按需加载）+ 命令未注册 → 敲任何命令都触发不了加载 → **死锁**
+- ✅ 可编程解决：`PlugIn.LoadPlugIn(guid)` 主动加载，**无需重开 Rhino**
+
+**回填**：`error-catalog.md` 改写"没有交互界面"那条并新增"DockBarIdInUse=False"一条；
+`MEMORY.md` 硬约束第 2 条补主动加载与正确判据；`SKILL.md` 决策表加对应行。
+
+**遗留**：
+- 根治是把插件设为**启动加载**（`LoadMode=1`），需改注册表/插件设置后重启，未做
+- 面板已打开但非停靠状态（`DockBarIdInUse=False` 与之自洽）
+- **面板内控件交互（勾选→取消→回毛坯）仍未实测**，需用户点一次
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**20 条实验**，其中 **9 条推翻了初始假设**（E-015 推翻 E-014 真因，
-  E-016 再推翻 E-014 的判断方法与 E-015 附带结论，E-019 推翻「solved=true 即成功」）。
+- 截至 2026-11-23：**21 条实验**，其中 **10 条推翻了初始假设**（E-015 推翻 E-014 真因，
+  E-016 再推翻 E-014 的判断方法与 E-015 附带结论，E-019 推翻「solved=true 即成功」，
+  **E-020 推翻 E-014 的"面板未注册"判据**）。
   E-017 / E-018 为概念与资料精化，不计推翻，同样保留判断演化。高推翻率说明「先验证再相信」不是口号。
 - 编号提示：台账历史上有两条 E-016（一条 `###` 一条 `##`），不作改动，新实验顺延编号。
 - 查坑顺序：`error-catalog.md`（按症状）→ 本台账（按实验编号，看结论演化）→ 专题文档（按领域）。

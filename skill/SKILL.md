@@ -68,6 +68,7 @@ agent_created: true
 | 要"取消已做过的圆角/孔，恢复毛坯" | 先确认已有实现是否已做对；孔走 `UntrimFace`，圆角走删整圈+`CreateSolid` 重缝，**两套算法**；见 `feature-recognition.md` |
 | 实体上叠半透明层看不出淡化 | 不透明底色不变；用 `DisplayConduit.ObjectCulling` 剔除源对象再画自己的子 Brep |
 | 高亮面只剩线框 / 蒙皮鬼影 | 特征面画 `DrawForeground`；挂静态文档事件 + 包围盒指纹 `Stale()` 自愈 |
+| 面板"没注册"/命令不出现 | 插件可能从未加载（`LoadMode=2`）→ `PlugIn.LoadPlugIn(guid)` 主动加载；**别用 `DockBarIdInUse` 判注册**（那只表示是否停靠），用 `IsPanelVisible(g)` / `GetOpenPanelIds()` |
 | Eto 要勾选多项 | `CheckBoxList.SelectedKeys`，不是 `ListBox` |
 | 枚举不到对象、以为被删 | `ObjectEnumeratorSettings{ HiddenObjects=true }` 再判 |
 | 同名程序集重编后跑旧代码 | AppDomain 复用；改 `ASSEMBLY_NAME` 隔离各次验证 |

@@ -34,7 +34,8 @@
 | `LayerTable.FindName` 返回值不能转 int | 返回 `Layer` 对象不是 int | 取 `.Index`；找不到为 null 用 -1 |
 | Eto `ListBox` 无法多选 | ListBox 没有 AllowMultipleSelection | 用 `GridView.AllowMultipleSelection = true` + `SelectedRows` |
 | 面板加载后 `LoadPlugIn` 超时 300s | 无界面 MCP 槽位无法完整呈现停靠面板 | 用反射 `Activator.CreateInstance(panelType)` 验证控件树和交互链路；最终显示交用户实机敲命令 |
-| **装了新版本，用户说"没有交互界面 / 命令没出现"** | 装完没**重启 Rhino**，AppDomain 里还是旧程序集；新版本的面板 `OnLoad` 从未执行，`DockBarIdInUse` 为 false | ①先查 `AppDomain.GetAssemblies()` 里目标插件的 `Version`——若没有新版版本就是没重启；②查 `Panels.DockBarIdInUse(面板Guid)`；③**正常重启 Rhino**（不是重开文档）再验。别急着改代码 |
+| **装了新版本，用户说"没有交互界面 / 命令没出现"** | ①装完没重启，AppDomain 里是旧程序集；②**插件从未被加载**（注册表 `LoadMode=2` 按需加载，而命令未注册 → 敲什么都触发不了加载，死锁） | 判据**不要用 `DockBarIdInUse`**（它只表示"是否已停靠成 dock bar"）：查 `AppDomain` 版本 → 查 `Panels.GetOpenPanelIds()` 是否含该 guid / `IsPanelVisible(g)` → 主动 `PlugIn.LoadPlugIn(guid)`（实测返回 True 即完成加载+注册，无需重开 Rhino）→ 再确认 `FW*` 命令出现 |
+| 面板已加载但 `DockBarIdInUse=False` | 该 API 语义是"是否已停靠"，浮动/未停靠面板恒为 False | 用 `IsPanelVisible(g)` / `GetOpenPanelIds()` 判断，**别误判为注册失败**（E-020 推翻 E-014 的判据） |
 | 一个进程里堆了几十个同名程序集（v1.2/1.3/v2 全在） | 反复 `Assembly.Load(byte[])` 注入的历史实验程序集，无法卸载 | 这是测试污染，不是发布问题；重启即清空。真机验收**必须在干净重启后的进程**做，否则会拿旧程序集误判 |
 | `doc.ReplaceRhinoObject +=` 报 CS0176 | `ReplaceRhinoObject` / `DeleteRhinoObject` / `CloseDocument` 是**静态事件** | 写 `RhinoDoc.ReplaceRhinoObject += ...`，不能挂实例 |
 | `using Rhino.DocObjects;` 后 `Environment` 报 CS0104 二义 | 该命名空间含 `Rhino.DocObjects.Environment`，与 `System.Environment` 撞名 | 写全名 `System.Environment.NewLine` |
