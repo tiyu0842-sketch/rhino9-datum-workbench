@@ -472,12 +472,85 @@ RhinoIronPython.chm），`Content/XML/<lang>/` 是模板与材质资源，不是
 `error-catalog.md` 交互命令 +4 行；`INDEX.md` 症状表；`README.md` / `使用手册.md` v1.5 段落；
 `MEMORY.md` 特征工具版本升 1.5。
 
+## E-024 · 三个交互质疑的几何真相：去布尔不必先去圆角（2026-11-23 晚，v1.5 之后）
+
+**用户原话（三点）**：①「为什么选择那个框之后，只能在那个框里面去选择？我为什么不能在原有界面上，
+通过鼠标去框选那个物体上面已经标红的了？」②「可以把它分成两个模块，一个单独去除圆角，另一个去除布尔；
+去除布尔是不是必须先通过去完圆角才能去，或者说有没有办法可以去？」③「有些地方我可以取消修剪然后还原，
+你为什么不直接让那个面去取消修剪，而是直接去补那个面？」并定调「两边可以同时相互交互，而不是说去选择
+那一边」「整体交互逻辑不清晰」，要求参考主流 CAD 界面布局。
+
+**假设**：三个都是**实现选错 API / 交互架构**造成的，不是 Rhino 的限制。特别要验证
+「去布尔必须先去圆角」是否成立 —— 记忆与旧注释都把它当成几何事实。
+
+**做法**（Rhino 9.1.26314，纯内存 Brep，不动用户文档）：
+1. 反射 `Brep` / `BrepFace` 全部 Untrim / Hole / Loop 方法 + 读 RhinoCommon.xml 官方 summary；
+2. 官网抓 `trim.htm#UntrimHoles` 原文；抓 vcad `Selection` 的 Feature Tree Sync 定义；
+3. 四组纯几何实验（盒+2 孔、圆角盒+1 孔）；
+4. 反射常驻交互钩子可行性。
+
+**实测数字**：
+
+| 输入 | 操作 | 结果 |
+|---|---|---|
+| 盒+2 孔 8 面 / loops 12 / inner 4 / vol 228973.01 | `UntrimFace(host=4)` ← **当前实现** | **6 面 / inner 0 / vol 240000**：两个孔一起没了 |
+| 同上 | `RemoveHoles([loop 7], tol)` | **7 面 / inner 2 / vol 232365.93**：只删 1 个孔，另一孔+外环全留 |
+| 同上 | `RemoveHoles(tol)` | 6 面 / inner 0 / 240000 |
+| 同上 | `UntrimOuterLoop(host)` | **NULL** |
+| 圆角盒 R3 10 面 / 239315.06 | `CreateFilletEdges` 造 | solid=True |
+| 圆角盒 + 1 孔 11 面 / inner 2 / 235922.14 | `RemoveHoles(该孔 2 个内环)` | **10 面 / inner 0 / 239315.06 = 纯圆角盒，圆角完好** |
+| 同上 | `UntrimOuterLoop(圆角面)` | **NULL** |
+| 同上 | `UntrimFace(host)` | 10 面 / 239315.06（孔没了，圆角还在） |
+
+**官方原文（RhinoCommon.xml，权威）**：
+- `Brep.RemoveHoles(IEnumerable<ComponentIndex>, double)` since 6.8：
+  「Removes inner loops, or holes, in a Brep」，参数须为 `BrepLoop.LoopType == Inner` 的 loop 索引。
+- `Brep.RemoveHoles(double)` since 6.0：Remove all inner loops。
+- `Brep.UntrimFace(int,double)` since 9.0：「outer boundary is untrimmed **and all inner loops (holes) are removed**」。
+- `Brep.UntrimOuterLoop(int)` since 9.0：「only untrimmed when **all of its edges are naked**; otherwise the operation
+  fails to avoid corrupting adjacent faces」「Inner loops (holes) are left in place」。
+- 命令层 `UntrimHoles`：「Select hole edges individually. **Or use window selection**」，
+  支持 `All` / `MaximumEdgeLength` / `KeepTrimObjects`；`UntrimBorder`：「Interior trims (holes) will remain」。
+- SolidWorks FeatureWorks 交互模式：「Under *Selected entities*, **select geometry from the graphics area**」，
+  「You do not have to select every face of a feature」，有 `Chain fillet faces` / `Recognize similar`。
+- vcad `Selection`：*Feature Tree Sync* ——「Selection state is synchronized between the viewport and the feature
+  tree panel」「**Multi-selection works in both directions**」，另有 Hover Preview、Shift 加减选、点空白清空。
+
+**结论**：
+- ✅ **推翻「去布尔必须先去圆角」**：`RemoveHoles(指定内环)` 只删选中的孔，外环、圆角、其它孔全部保留
+  （11→10 面，235922.14→239315.06）。用户观察到的顺序依赖，其实是**当前实现用错 API**：
+  孔洞通道用 `UntrimFace`（把整个宿主面外环+全部内环一起抹），圆角通道用 `Defillet`
+  （把所有剩余面外扩成完整平面再 `CreateSolid`）→ **去圆角会连带把孔一起抹平**，方向正好相反。
+- ✅ **推翻 `rhinocommon-pitfalls.md` 旧结论「API 层只有整面级 Brep.UntrimFace」**（E-018 遗留）：
+  loop 级精度官方就有，就是 `RemoveHoles(IEnumerable<ComponentIndex>, tol)`，且 since 6.8。
+  这条是本次最大收获 —— 以后不用再「在 Core 层按 inner loop 搭桥」或 `RunScript` 调命令。
+- ✅ **为什么圆角要「补面」而孔可以「取消修剪」**：孔 = 底层曲面 + trim 内环，抹环即还原；
+  圆角 = 滚球扫出的**新增过渡曲面**，四边与邻面共享，没有「更大的底层曲面」可还原，
+  `UntrimOuterLoop` 因外环边非 naked 恒返回 null。所以圆角只能删整圈过渡面 + 让相邻面重新求交。
+  「补面」不是偷懒，但当前 `Defillet` 把**所有**非圆角面都换成完整平面，是把孔一起抹掉的元凶。
+- ✅ **「只能在框里选」的技术根因**：`FwFocusConduit.ObjectCulling` 把源对象从绘制里剔除，
+  视口里橙色面是 conduit 画的「影子」，不是文档对象 → Rhino 原生拾取/框选碰不到它；
+  且 `FWPickFeature` 是一次性 `Get()` 模态命令，选完即退出；面板还写死「同一时刻只允许一边有勾选」。
+- ✅ **常驻双向联动可行**（已反射确认存在）：`Rhino.UI.MouseCallback`
+  （`OnMouseDown` / `OnEndMouseDown` / `OnMouseMove` / `OnMouseHover` / `Enabled`）、
+  `RhinoDoc.SelectObjects` **静态事件**、`GetObject.GetMultiple(int,int)` + `SubObjectSelect` + `GroupSelect`。
+- ⚠️ **进程崩溃（如实记录）**：最后一组实验把 `DuplicateSubBrep(剩余面)` 与 `UntrimOuterLoop` 连调，
+  Rhino slot `armadillo` (pid 4396) 中途崩溃、槽被回收。**按纪律不盲目重试**，该路径列为待验证开放项；
+  前 4 组数字均在同一进程内干净取得，结论不受影响。
+- ⚠️ **未完成**：`UntrimBorder` 命令层「去外环保留内环」能否替代 `Defillet`（避免补面）尚未验证；
+  常驻 MouseCallback 选择尚未编码；v1.6 交互方案待用户拍板。
+
+**回填**：`feature-recognition.md` §11；`rhinocommon-pitfalls.md` 修正 + 新增 4 条；
+`rhino-command-reference.md` UntrimHoles 官方原文；`error-catalog.md` 交互/崩溃 2 组；
+`INDEX.md` 症状表与计数；`SKILL.md` 决策表；项目 `INTERACTION_SPEC.md` §11；今日日志与 MEMORY。
+
 ## 统计与复用提示
 
-- 截至 2026-11-23：**24 条实验**，其中 **13 条推翻了初始假设**（E-015 推翻 E-014 真因，
+- 截至 2026-11-23：**25 条实验**，其中 **14 条推翻了初始假设**（E-015 推翻 E-014 真因，
   E-016 再推翻 E-014 的判断方法与 E-015 附带结论，E-019 推翻「solved=true 即成功」，
   **E-020 推翻 E-014 的"面板未注册"判据**，**E-021 推翻"命令只改了一个视口"的猜想**，
-  **E-022 推翻 E-021 的需求方向判断**，**E-023 推翻「文字列表足够」的界面假设**）。
+  **E-022 推翻 E-021 的需求方向判断**，**E-023 推翻「文字列表足够」的界面假设**，
+  **E-024 推翻「去布尔必须先去圆角」与「API 层只有整面级 UntrimFace」**）。
   E-017 / E-018 为概念与资料精化，不计推翻，同样保留判断演化。高推翻率说明「先验证再相信」不是口号。
   注意：E-021→E-022 是"技术实现正确、需求理解错误"的典型样本 —— 推翻的层次比前几条更高。
 - 编号提示：台账历史上有两条 E-016（一条 `###` 一条 `##`），不作改动，新实验顺延编号。

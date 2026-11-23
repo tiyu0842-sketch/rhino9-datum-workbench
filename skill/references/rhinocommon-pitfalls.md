@@ -88,8 +88,18 @@
 
 ## B-rep 特征取消（Untrim）
 
-- `Brep.UntrimFace(int faceIndex, double tolerance)` 抹掉该面的**全部内环**，返回新 Brep；孔/槽壁随之自动清理。实测 7 面 → 6 面 240000；孔+槽 12 面 → 11 面 224000（槽保留）。
-- 副作用：同一宿主面有多个孔时，取消一个会把所有内环一起恢复。Rhino API 边界，须在命令输出里告知用户。
+- `Brep.UntrimFace(int faceIndex, double tolerance)` 抹掉该面的**外环 + 全部内环**（官方 since 9.0：
+  「outer boundary is untrimmed and all inner loops are removed」），孔/槽壁随之自动清理。
+  实测 盒+2孔 8 面 → 6 面 240000：**两个孔一起没了**。
+- ★ **loop 级精度官方就有（E-024 修正 E-018 的旧结论）**：
+  `Brep.RemoveHoles(IEnumerable<ComponentIndex>, double)`（since 6.8）只删**指定的** inner loop，
+  参数须为 `BrepLoop.LoopType == Inner` 的 loop 的 `ComponentIndex`。实测 盒+2孔 8 面 → 7 面
+  vol 232365.93，只删 1 个孔，另一孔与外环全留；圆角盒+1孔 11 面 → 10 面 239315.06，**圆角完好**。
+  `Brep.RemoveHoles(double)`（since 6.0）删全部内环。**别再用 UntrimFace 做「取消单个孔」**，
+  也别再「在 Core 层按 inner loop 搭桥」或 `RunScript` 调命令。
+- `Brep.UntrimOuterLoop(int faceIndex)` 官方 since 9.0：「only untrimmed when **all of its edges are naked**;
+  otherwise the operation fails to avoid corrupting adjacent faces」「Inner loops are left in place」。
+  对**实体圆角/倒角一律返回 null**（外环边被邻面共享）。圆角不能用 untrim。
 - `Brep.UntrimOuterLoop(int faceIndex)` 对**实体圆角/倒角一律返回 null**（外环边被邻面共享）。圆角不能用 untrim。
 - 圆角/倒角唯一可行路径：删掉整圈过渡面 → 剩余面 `UnderlyingSurface().ToBrep()` → `Brep.CreateSolid(IEnumerable<Brep>, tolerance)` 重缝。**必须整圈删**：10 面盒只删 1 个 → 9 面 74715.5 变形；删 4 个 → 6 面 75000。
 - 带 trim 的面直接 `CreateSolid` 会因孔口/槽口留洞失败，必须先还原成完整解析面。
@@ -106,9 +116,16 @@
   **不等于**没安装或没重启。判安装查磁盘 `…\packages\9.0\<名>\<版本>\`；
   判面板注册查 `DockBarIdInUse`；这条修正了 E-014 的判断方法。
 - 显示模式枚举可用：`Rhino.Display.DisplayModeDescription.GetDisplayModes()` → `m.EnglishName`。
-- 官方 Untrim 命令族（命令层，非 API 层）：`Untrim` / `UntrimAll` / `UntrimBorder`（留内部孔）/
-  `UntrimHoles`（逐孔选边、框选、按最大边长筛选）。**API 层只有整面级 `Brep.UntrimFace`**，
-  需要 loop 级精度时要么在 Core 层按 inner loop 搭桥，要么 `RhinoApp.RunScript` 调命令。
+- 官方 Untrim 命令族（命令层）：`Untrim` / `UntrimAll` / `UntrimBorder`（**留内部孔**）/
+  `UntrimHoles`（逐孔选边、**window selection 框选**、`All` / `MaximumEdgeLength` / `KeepTrimObjects`）。
+  **API 层对应表（E-024 修正）**：整面级 `UntrimFace` / 只删外环 `UntrimOuterLoop`（有 naked 限制）/
+  删指定内环 `RemoveHoles(IEnumerable<ComponentIndex>)` / 删全部内环 `RemoveHoles(double)`。
+  ~~API 层只有整面级~~ 是错的，别再沿用。
+- `DuplicateSubBrep(剩余面)` 与 `UntrimOuterLoop` 在同一进程内连调会**导致 Rhino 进程崩溃**
+  （E-024，slot armadillo pid 4396）。崩溃后按纪律不盲目重试，拆成独立脚本、单步验证。
+- `DisplayConduit.ObjectCulling` 剔除源对象后，conduit 自绘的面是**显示影子，不是文档对象**，
+  Rhino 原生点选/框选拾取不到。想让用户在原视口直接框选，必须保留源对象可拾取
+  （改用 `RhinoObject.SelectSubObject` + `RhinoDoc.SelectObjects` 静态事件），或挂 `MouseCallback` 自做命中。
 
 ## 打包补充
 

@@ -21,6 +21,7 @@
 | **切一个视口，四个视口一起变**（要的是独立） | `display-modes.md` →「视口作用范围」；E-022；搜自己的 `foreach (... doc.Views)`，别怪 Rhino |
 | 改了默认设置值却不生效 | `error-catalog.md`「显示与视觉」→ 换键名带 `.v2` 后缀 |
 | 面板列表看不出对应模型哪一块 / 想点边选特征 | `feature-recognition.md` §10；`INTERACTION_SPEC.md` §10；E-023；编号双向映射 + `BrepFace.AdjacentEdges()` |
+| 去布尔是否必须先去圆角 / 为什么补面而不取消修剪 / 只能在小框里选 | `feature-recognition.md` §11；`rhinocommon-pitfalls.md`「B-rep 特征取消」；E-024；`RemoveHoles(指定内环)` + 常驻双向联动 |
 | 截图空白 / 拿到缓存帧 | `rhinocommon-pitfalls.md` →「相机、截图与 Box 创建」；`verification-playbook.md` →「三」 |
 | 枚举不到对象、以为被删 | `rhinocommon-pitfalls.md` →「文档事件与对象枚举」（`HiddenObjects=true`） |
 | 半透明不生效、有鬼影、高亮只剩线框 | `rhinocommon-pitfalls.md` →「DisplayConduit 聚焦显示」；`feature-recognition.md` → §4 |
@@ -37,7 +38,7 @@
 | 查某个 GH 组件名 / 参数签名 | `grasshopper-component-index.md`；或运行时 `g1_search_components` / `g1_describe_component` |
 | 装了新插件后刷新 GH 组件清单 | `../scripts/Export_GH_Components.py` |
 | 要打包 yak、多版本并存、安装假失败 | `verification-playbook.md` →「五」；`rhinocommon-pitfalls.md` →「打包与安装」「打包补充」 |
-| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（24 条，含 13 条被推翻的假设） |
+| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（25 条，含 14 条被推翻的假设） |
 | 结论被推翻了怎么处理 | `experiment-log.md` →「统计与复用提示」：**不删旧条，加「修正 E-XXX」** |
 
 ---

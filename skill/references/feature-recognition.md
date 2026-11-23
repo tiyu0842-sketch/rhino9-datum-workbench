@@ -240,3 +240,48 @@ v1.2（识别/证据/修复基线，9/9 自测 PASS）→ v1.3.0（交互闭环�
    真安装到 `…\特征识别工具\1.5.0.0\`（rhp sha256 `a03c0624…` 一致）。
    **运行中实例仍 1.4.0.0**，`FWPickFeature` 需重开 Rhino 才能注册。
    `FWPickFeature` 是交互命令，无法脚本同步驱动 —— 双向选择仍需用户实机点验。
+
+
+## 11. 两个模块解耦 + 「取消修剪 vs 补面」的精确边界（2026-11-23 晚，E-024）
+
+用户看完 v1.5 后总结三点，全部指向同一件事：**交互逻辑不清晰，且两个通道被错误地绑成串行**。
+
+| 用户的话 | 真相（真机实测） | 正确做法 |
+|---|---|---|
+| 「去除布尔是不是必须先去完圆角才能去」 | **不成立**。`RemoveHoles(指定内环)` 只删选中的孔：圆角盒+1孔 11 面 / 235922.14 → 10 面 / 239315.06 = 纯圆角盒，**圆角完好** | 布尔模块走 `Brep.RemoveHoles(IEnumerable<ComponentIndex>, tol)`，与圆角模块**完全独立**、任意顺序 |
+| 「为什么不直接让那个面取消修剪，而是补那个面」 | **孔可以、圆角不可以**。孔 = 底层曲面 + trim 内环；圆角 = 滚球扫出的**新增过渡曲面**，四边与邻面共享，没有更大的底层曲面可还原 | 孔走 `RemoveHoles` 抹环；圆角只能删整圈过渡面 + 相邻面重新求交缝合（`Defillet`） |
+| 「为什么只能在那个框里选，不能在原界面框选标红的」 | `ObjectCulling` 剔除源对象 → 橙色面是 conduit 自绘的**影子**，不是文档对象，Rhino 拾取不到；`FWPickFeature` 又是一次性模态 `Get()` | 保留源对象可拾取，挂 `MouseCallback` / `RhinoDoc.SelectObjects` 静态事件做**常驻双向联动** |
+
+### 当前实现为什么会造成「顺序依赖」的错觉
+
+- **孔洞通道**用了 `UntrimFace(host, tol)` —— 官方 since 9.0 定义是「outer boundary is untrimmed
+  **and all inner loops (holes) are removed**」。它把**整个宿主面**外环 + 全部内环一起抹掉：
+  盒+2孔 8 面 → 6 面 240000，**两个孔一起没了**；圆角盒+1孔 → 10 面 239315.06（孔没了，圆角还在）。
+- **圆角通道**用了 `Defillet`（`FwReconstruct.cs`）：把**所有非圆角面**都外扩成完整解析平面，
+  再 `CreateSolid` 求交。这一步会把带 trim 的面（孔/槽）一并抹平 → **去圆角会连带把布尔结果也去掉**。
+  用户看到的现象其实是「去圆角顺手把孔也删了」，被读成了「去布尔必须先去圆角」。方向正好相反。
+- 结论：**两个模块在几何上本就独立，是共用 `RepairToBlank` 式整件重缝把它们绑死了**。
+  正解 = 两个执行器各自只改自己那一部分几何，不整件重建。
+
+### 官方交互范式（别自己发明）
+
+- `UntrimHoles` 官方步骤：「Select hole edges individually. **Or use window selection**」，
+  另支持 `All` / `MaximumEdgeLength` / `KeepTrimObjects`；`UntrimBorder` 明确「Interior trims (holes) will remain」。
+  → **在主视口框选要去掉的孔**才是 Rhino 原生语义，不是在小面板里勾 checkbox。
+- SolidWorks FeatureWorks 交互识别：「Under *Selected entities*, **select geometry from the graphics area**」、
+  「You do not have to select every face」、`Chain fillet faces` / `Recognize similar`。
+- Fusion 360 `Find Features`：框选 → 自动分组 → 浏览器/timeline 列表 → hover 高亮整组 → 直接改参数。
+- vcad `Selection` 的 *Feature Tree Sync*：「**Multi-selection works in both directions**」，
+  配 Hover Preview、Shift 加减选、点空白清空。
+  → 主流布局 = **图形区直接操作 + 常驻树状面板 + 一份共享选中集，双向同步、多选、可预览**。
+
+### 落地纪律（v1.6 待编码）
+
+1. **一份选中集**：`HashSet<int> SelectedGroups` 由视口与面板共同读写，取消「同一时刻只允许一边有勾选」。
+2. **不进模态命令**：`FWSelect` 后挂 `MouseCallback`（`OnMouseDown` / `OnMouseMove` / `OnMouseHover`），
+   悬停预览、点选、框选、Shift 加减选全在原视口完成；面板常驻。
+3. **两个独立执行器**：`CancelHoles(选中内环)` → `RemoveHoles`；`CancelFillets(选中过渡面)` → 删面重缝。
+   各自一个按钮、各自报告，互不连带；空选中不执行。
+4. **别再用 `UntrimFace` 做单个孔**，也别再整件 `RepairToBlank`；这是 E-024 修正 E-018 的核心。
+5. 开放项：`UntrimBorder` 命令层「去外环保留内环」能否进一步替代 `Defillet`，尚未验证
+   （`DuplicateSubBrep` + `UntrimOuterLoop` 连调导致 Rhino 进程崩溃，按纪律未盲目重试）。

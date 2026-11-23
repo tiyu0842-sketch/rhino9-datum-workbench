@@ -133,3 +133,34 @@ curl -L -A "Mozilla/5.0" \
 ```
 
 本次已抓取并核对正文的 34 页：`trim` `deletefaces` `splitface` `split` `extractsrf` `mergesrf` `rebuildedges` `refittrim` `shrinktrimmedsrf` `replaceedge` `booleandifference` `booleanunion` `filletedge` `chamferedge` `makehole` `createsolid` `cap` `blendsrf` `matchsrf` `offsetsrf` `shrinkwrap` `wirecut` `dupfaceborder` `dupborder` `dupedge` `explode` `join` `extractisocurve` `rebuild` `setobjectdisplaymode` `displayproperties` `synchronizecplanes` `toolbar` `history` + `sak_splittrim` `sak_boolean`。
+
+
+## 补录：`UntrimHoles` 官方原文（2026-11-23 抓取，E-024）
+
+来源 `docs.mcneel.com/rhino/9/help/en-us/commands/trim.htm#UntrimHoles`（官网 9 版 `new9` 标记）。
+
+> **UntrimHoles** — untrims selected holes (interior trims) that do not touch surface borders.
+> This command also untrims the holes in polysurfaces.
+> Steps: 1) Run the command. Or **preselect hole edges with Shift+Ctrl** before the command runs.
+> 2) **Select hole edges individually. Or use window selection.**
+> Options: `All` / `MaximumEdgeLength`（Type a maximum edge length number, or pick an existing hole edge
+> to set the length. Holes with edges equal to or smaller can be deleted individually or all at once）/
+> `KeepTrimObjects`。
+
+同页命令族对照（交互语义，别再混）：
+
+| 命令 | 作用 | 对内环（孔） |
+|---|---|---|
+| `Untrim` | 移除选中边界的 trim 曲线与相连曲面 | `AllSimilar=Yes` 时点一个即去掉所有孔；`=No` 只去相连的一段/单个孔 |
+| `UntrimAll` | 一次去掉内外全部 trim | 全去 |
+| `UntrimBorder` | 只去**外环** trim | **保留**（「Interior trims (holes) will remain」） |
+| `UntrimHoles` | 只去**内环** trim | 逐个 / 框选 / `All` / 按边长筛 |
+
+→ **命令 ↔ API ↔ 几何三层对照补一条**：
+`UntrimHoles` ↔ `Brep.RemoveHoles(IEnumerable<ComponentIndex>, double)` ↔ 只删指定 inner loop，外环与底层曲面不动。
+`UntrimBorder` ↔ `Brep.UntrimOuterLoop(int)`（但 API 多了「外环所有边必须 naked」的硬限制，实体上恒 null）↔ 只去外环。
+`UntrimAll` ↔ `Brep.UntrimFace(int,double)` ↔ 外环 + 全部内环一起抹。
+之前 E-018 记的「API 层只有整面级」是**错的**，已由 E-024 修正。
+
+**交互启示**：官方给孔的选择方式就是**在图形区点选/框选**，不是列表勾选；
+这是 v1.6 常驻双向联动面板的直接依据。

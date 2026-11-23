@@ -179,3 +179,57 @@
 - 点「视口拾取边/面」后点一条圆角边 → 对应行打勾；点主体平面 → 提示非特征；
 - 空勾选点「取消选中」→ 模型不变；点「保留全部」→ 模型不变；
 - 勾选一组点「取消选中」→ 只删该组（连带组数命令行如实报出）。
+
+
+## 11. v1.6 交互方案（2026-11-23 晚，E-024 之后 · **方案阶段，尚未编码**）
+
+用户第三轮总结：「整体交互逻辑不清晰」「两边可以同时相互交互，而不是说去选择那一边」
+「可以把它分成两个模块」「为什么不直接让那个面取消修剪，而是补那个面」。
+本轮**只做诊断与方案**，未改插件代码、未编译、未打包（Rhino 进程在最后一组几何实验中崩溃）。
+
+### 11.1 三个问题的几何 / 实现真相
+
+| # | 用户问题 | 真相 | 依据 |
+|---|---|---|---|
+| 1 | 为什么只能在那个框里选，不能在原界面框选标红的？ | `FwFocusConduit.ObjectCulling` 剔除源对象 → 橙色面是 conduit 自绘**影子**，不是文档对象，Rhino 拾取不到；`FWPickFeature` 是一次性模态 `Get()`；面板还写死「同一时刻只允许一边有勾选」 | 源码 `FwFocus.cs` / `FwCancelPanel.cs`；E-024 |
+| 2 | 分成两个模块；去除布尔必须先去圆角吗？ | **不必**。`RemoveHoles(指定内环)` 只删选中的孔，圆角完好：圆角盒+1孔 11 面 / 235922.14 → 10 面 / 239315.06。当前「去圆角会连带把孔抹平」来自 `Defillet` 把所有面外扩重缝，方向读反了 | E-024 真机实测 |
+| 3 | 为什么补那个面，不直接取消修剪？ | **孔可以、圆角不可以**。孔 = 底层曲面 + trim 内环；圆角 = 新增过渡曲面，四边与邻面共享，`UntrimOuterLoop` 因外环边非 naked 恒 null。但当前孔洞通道用 `UntrimFace`（抹整面外环+全部内环）也是错的 | RhinoCommon.xml 官方 summary；官网 `trim.htm#UntrimHoles`；E-024 |
+
+### 11.2 官方与主流界面给的范式（别自己发明）
+
+- `UntrimHoles`：「Select hole edges individually. **Or use window selection**」+ `All` /
+  `MaximumEdgeLength` / `KeepTrimObjects` —— 在**图形区框选**才是 Rhino 原生语义。
+- SolidWorks FeatureWorks 交互识别：「select geometry **from the graphics area**」、
+  `Chain fillet faces` / `Recognize similar`，选错可 `Select Other` / `Clear Selections`。
+- Fusion 360 `Find Features`：框选 → 自动分组 → 列表 hover 高亮整组 → 直接改参数。
+- vcad `Selection` 的 *Feature Tree Sync*：「**Multi-selection works in both directions**」，
+  配 Hover Preview、Shift 加减选、点空白清空；Cognite 树导航还有节点高亮 + 自动缩放。
+
+→ 共同结构 = **图形区直接操作 + 常驻树状面板 + 一份共享选中集，双向同步、可预览、可多选**。
+
+### 11.3 v1.6 落地清单（待用户拍板）
+
+1. **一份选中集** `HashSet<int>`：视口 / 树 / 面板共同读写，删掉「同一时刻只允许一边有勾选」。
+2. **不进模态命令**：`FWSelect` 后挂 `Rhino.UI.MouseCallback`（`OnMouseDown`/`OnMouseMove`/
+   `OnMouseHover`/`Enabled`）+ `RhinoDoc.SelectObjects` 静态事件；悬停预览、点选、框选、
+   Shift 加减选全在原视口完成。已反射确认这些钩子在 Rhino 9.1 存在。
+3. **保留源对象可拾取**：不再 `ObjectCulling` 整件剔除，改用子对象选择高亮
+   （`GetObject.GetMultiple(1,0)` + `SubObjectSelect` / `RhinoObject.SelectSubObject`），
+   否则「看得见选不中」仍在。
+4. **两个独立执行器**：
+   - 模块 B `取消布尔切割` → `Brep.RemoveHoles(选中内环对应的 ComponentIndex 列表, tol)`，
+     只删选中的孔，外环 / 圆角 / 其它孔全留，可与圆角任意顺序。
+   - 模块 A `去除圆角` → 删整圈过渡面 + 相邻面重新求交；**不再整件 `RepairToBlank`**，
+     避免把孔一并抹平（若缝合仍需要孔体重放，须在命令行如实报出）。
+5. **显式语义保留**：`保留全部` / `取消选中 N 项` / `全部取消`；N=0 拒绝执行；选中 ≠ 执行。
+6. **可视化**：模型上继续画 F1…/H1… 编号标签，两个通道用不同颜色；hover 时整组描边预览，
+   选中组青色、其余压暗；面板两个分区各自一个执行按钮，状态栏显示共享选中集。
+
+### 11.4 开放项（如实标注，不许假装已验证）
+
+- `UntrimBorder` 命令层「去外环保留内环」能否替代 `Defillet` 以彻底避免「补面」：未验证。
+  尝试 `DuplicateSubBrep(剩余面)` + `UntrimOuterLoop` 连调时 Rhino 进程崩溃（slot armadillo
+  pid 4396，槽被回收），按纪律未盲目重试。
+- 常驻 `MouseCallback` 的实际事件参数、框选命中与性能：尚未编码实测。
+- 用户提到的「turn number」未能在网上定位到确切软件/控件，本方案按主流 CAD 的
+  特征树 / PropertyManager / 时间轴范式理解，**需向用户确认所指**。

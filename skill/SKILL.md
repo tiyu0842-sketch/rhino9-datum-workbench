@@ -65,6 +65,7 @@ agent_created: true
 | 切显示模式只有当前视口变、要 Alias 式全屏联动 | Rhino 是**一视口一模式**（原生行为，不是 bug）；真要联动才挂 `DisplayPipeline.DisplayModeChanged` **静态事件**，闸门 + 比 Id + 还原时静音，见 E-021 与 `display-modes.md`「全视图联动（可选，默认关）」 |
 | **切一个视口，四个视口一起变**（用户要的是独立） | 先搜自己的 `foreach (... doc.Views)`，只写 `ActiveView.ActiveViewport`；还原要限定 Touched 名单，见 E-022 与 `display-modes.md`「视口作用范围」 |
 | 特征面板「一堆 checkbox 不知对应哪块」/ 想点边选特征 | `feature-recognition.md` §10、E-023：稳定编号 + 视口标签 + 双向选择；空勾选不得执行删除 |
+| 「只能在小框里选 / 去布尔必须先去圆角 / 为什么补面」 | `feature-recognition.md` §11、E-024：`RemoveHoles(指定内环)` 解耦两模块；常驻 `MouseCallback` + 一份共享选中集做双向联动；圆角不能 untrim 是几何事实 |
 | 曲面糊成一片无明暗 | `AmbientOcclusion` 只有接触遮蔽；要三度灰阶用 `CustomLighting` + `FrontMaterial.Diffuse` |
 | 截图看不出参数变化 | 大概率是缓存帧：置前窗口 + 相机轻微位移 + `ZoomBoundingBox` + `Redraw()` + `Wait()` + sleep |
 | 选多重曲面上的单一面 | `GeometryFilter = ObjectType.Surface`（不要 |Brep）+ `SubObjectSelect=true` + `DisablePreSelect()` |

@@ -59,6 +59,11 @@
 | 用户说「我想点模型的边来选特征」 | 面板只能从文字出发，违背 CAD 用户从几何出发的习惯 | `GetObject{SubObjectSelect=true}` → `ObjRef.GeometryComponentIndex`；边靠 `BrepFace.AdjacentEdges()` 反查面所属组 |
 | 「不勾就全删了」/ 用户不敢点按钮 | 隐式破坏性默认 | 显式 `保留全部 / 取消选中(N) / 全部取消`，N=0 拒绝执行；选中 ≠ 执行 |
 | 打包出来的 yak 里 README/manifest 永远是旧版本 | 打包脚本每次都重写这两个文件成 v1.0 模板 | 只在文件缺失时生成模板，把 README/manifest 当人工维护的交付文档 |
+| 用户「为什么只能在那个框里选，不能在原界面框选标红的」 | `DisplayConduit.ObjectCulling` 剔除源对象 → 橙色面是 conduit 自绘**影子**，不是文档对象，Rhino 拾取不到；`Get()` 又是一次性模态命令 | 保留源对象可拾取 + `RhinoDoc.SelectObjects` 静态事件 / `MouseCallback` 常驻监听；别把"看得见"当"选得中"（E-024） |
+| 用户「两边要能同时相互交互，而不是去选那一边」 | 面板写死「同一时刻只允许一边有勾选」，选中集被劈成两份 | 一份 `HashSet<int>` 共享选中集，视口/树/面板共同读写，双向多选同步（vcad Feature Tree Sync 范式，E-024） |
+| 用户「去除布尔是不是必须先去圆角」 | **假的**。当前实现孔洞用 `UntrimFace`（抹整面外环+全部内环）、圆角用 `Defillet`（所有面外扩重缝）→ 去圆角连带把孔抹平 | 孔改 `Brep.RemoveHoles(IEnumerable<ComponentIndex>, tol)` 只删指定内环，两模块独立、任意顺序（E-024，实测 11→10 面 / 235922.14→239315.06 圆角完好） |
+| 「取消一个孔，结果所有孔都没了」 | `UntrimFace` 官方定义「outer boundary is untrimmed **and all inner loops are removed**」 | 用 `RemoveHoles(指定内环)`；`UntrimFace` 只用于整面还原（E-024） |
+| `DuplicateSubBrep(剩余面)` 与 `UntrimOuterLoop` 连调，Rhino 进程崩溃 | 该 API 组合在本机 Rhino 9.1 触发崩溃（slot armadillo pid 4396，槽被回收） | 按纪律**不盲目重试**；拆成独立脚本单步验证，崩溃前后已取得的数字仍有效（E-024） |
 
 **卡住 vs 死掉**：脚本超时但 Rhino 进程还在、窗口还能点 → 是模态框或交互等待，**只有人能清**；让 Agent 停手，别重试。
 
