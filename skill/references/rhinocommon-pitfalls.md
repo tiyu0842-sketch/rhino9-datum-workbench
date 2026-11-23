@@ -18,6 +18,7 @@
 - `ObjectColor` 与 `UseCustomObjectColor` 有**赋值顺序坑**：先写颜色、最后写 `UseCustomObjectColor=true`；顺序反了开关被静默重置回 false。同样地 `SetSurfaceIsoColorUsage()` 会把 `SurfaceIsoColorsUsed` 重置为 false，总开关必须最后赋值。
 - `ModelAidSettings.UniversalConstructionPlaneMode` / `AutoAlignCPlane` 是**应用级全局设置**，插件只是在借用；退出时恢复基线快照，不要从旧文件回放偏好。
 - `Rhino.PersistentSettings.GetBool/SetBool/GetString/SetString` 全是**实例方法**，静态调用报 CS0120；没有全局静态入口。正确用法：`PlugIn.Settings`（本身就是 PersistentSettings 实例）→ `DatumPlanePlugin.Instance?.Settings?.GetBool(key, true)`。落到 `%AppData%\McNeel\Rhinoceros\9.0\Plug-ins\<guid>\`，跨文档跨会话。
+- **要改默认值，必须换键名**：旧版本已把 `true` 落盘，`GetBool(key, false)` 读到的是已存的 `true`，新默认值不会生效。加版本后缀（`...LinkAllViews.v2`）让旧键失效。
 - 装了 WeaverBird 后，它把 `Action` 类型塞进全局/`System` 命名空间：任何 `Action` 引用都 **CS0433**（WeaverBird.Core vs System.Private.CoreLib），**写 `System.Action` 也救不了**。解法：不用委托，`try { ... } catch { }` 内联。
 
 ## 几何与对象
@@ -42,7 +43,8 @@
 - `doc.Views.FourViewLayout(true)` 有必填参数；`SplitViewportVertical` 可脚本驱动，`_4View` 在无界面实例会挂 300 秒。
 - `Rhino.RhinoApp.ToolbarFiles` 才是正确入口（不是 `Rhino.UI.ToolbarFiles`）。工具栏组可见性存在**用户配置的 `UI\default.rui`**，只对插件 RUI 调 `Save()` 不持久化；必须设 `Visible=True` → `Rhino.RhinoApp.RunScript('_Quit', False)` 正常退出 → 重开验证。
 - 工具栏消失 ≠ 文件坏，先查 `ToolbarGroup.Visible`。
-- **显示模式是「一个视口一份」**：`viewport.DisplayMode` 只管自己；标题栏下拉 / 视图菜单 / `_SetDisplayMode` 都只作用当前视口。`foreach (RhinoView v in doc.Views) v.ActiveViewport.DisplayMode = m` 才是全视口。
+- **显示模式是「一个视口一份」**：`viewport.DisplayMode` 只管自己；标题栏下拉 / 视图菜单 / `_SetDisplayMode` 都只作用当前视口 —— **这是默认正确行为，也是多数用户要的**。`foreach (RhinoView v in doc.Views) v.ActiveViewport.DisplayMode = m` 才是全视口（顺手改一个视口的正确写法：`doc.Views.ActiveView.ActiveViewport.DisplayMode = m`）。
+- 只改部分视口后做"还原"时，**不要按全量回放**：用 `doc.Strings` 存一份改过的视口 Id 名单，只还原名单内的，否则会抹掉用户自己切过的视口。
 - `Rhino.Display.DisplayPipeline.DisplayModeChanged` 是**静态事件**（`GetAddMethod().IsStatic = True`，since 6.18），参数 `DisplayModeChangedEventArgs{ Viewport, RhinoDoc, OldDisplayModeId, ChangedDisplayModeId }`。API 写 `DisplayMode` 会**同步**触发；Python 可直接 `+=` / `-=`。
 - 事件里再改其他视口会**递归触发**同一事件 → 必须闸门（`Interlocked.Exchange`）+ 先比 `DisplayMode.Id` 再设；程序化批量改模式（尤其还原各不相同的原模式）时必须整体静音，否则被自己同步覆盖。
 - `doc.Views` 只列**顶级视口**（实测 4 个）；布局页（Layout）里的 detail 视窗不在其中，需另走 page view API。

@@ -59,12 +59,12 @@ internal static class JzMenu
         new("G_NormalView",   "第5视图：基准面法向 / 5th normal view (split Top)",          true),
         new("H_Restore",      "退出并还原最初工作平面与操作轴 / Restore initial CPlane",     true),
         new("N_Close5th",     "关闭第5视窗恢复4视图 / Close 5th viewport, restore 4 views",    true),
-        new("I_Light",        "浅色观测显示（三度灰阶 + 结构线0仅边界）/ Light three-tone, density 0",         false),
-        new("J_Dark",         "深色观测显示（三度灰阶 + 结构线1带内部线）/ Dark three-tone, density 1",       false),
+        new("I_Light",        "浅色观测显示，只改当前视口（三度灰阶 + 结构线0）/ Light three-tone, active viewport only", false),
+        new("J_Dark",         "深色观测显示，只改当前视口（三度灰阶 + 结构线1）/ Dark three-tone, active viewport only", false),
         new("K_Density",      "设置等参线密度看曲面走向 / Set isocurve density",              false),
         new("L_Status",       "查看当前显示状态 / Show current display status",              false),
-        new("M_RestoreStyle", "还原为原显示模式 / Restore the previous display mode",        false),
-        new("O_Link",         "全视图联动 开/关（切一次全画布跟随）/ Toggle all-view display sync", false),
+        new("M_RestoreStyle", "还原为原显示模式（只还原改过的视口）/ Restore the previous display mode", false),
+        new("O_Link",         "全视图联动 开/关（默认关，各视口独立）/ Toggle all-view sync (default OFF)", false),
     };
 
     private static bool InScope(Entry e, JzScope scope) =>

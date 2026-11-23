@@ -47,8 +47,11 @@ internal static class AliasStyle
     public const string LightName = "Alias EyeCare";
     public const string DarkName = "Alias EyeCare Dark";
 
-    /// 原显示模式记录（每个视口一行 "视口Id=模式Id;"），用于精确还原。
+    /// 原显示模式记录（每个视口一行 "视口Id=模式Id=网格=轴;"），用于精确还原。
     public const string SaveKey = "DatumPlane.AliasStyle.Original";
+    /// v2.10：被我们实际改过模式的视口 Id 列表（"id;id;"）。
+    /// Restore 只还原这些 —— 用户自己手动切过的其他视口不该被我们抹掉。
+    public const string TouchedKey = "DatumPlane.AliasStyle.Touched";
     /// 当前启用的是哪套：Light / Dark。
     public const string ActiveKey = "DatumPlane.AliasStyle.Active";
 
@@ -243,48 +246,52 @@ internal static class AliasStyle
         a.UseCustomObjectColor = true;
     }
 
-    /// <summary>把主题应用到所有视口，返回成功应用的视口数。</summary>
+    /// <summary>
+    /// v2.10：**只把主题应用到当前活动视口**，其他视口一律不动（用户明确要的）。
+    /// 返回改动的视口数（成功=1，无活动视口=0）。
+    /// 旧版（≤v2.9）遍历 `doc.Views` 全改 —— 「四个窗口一起变」的真正来源就是这里，
+    /// 不是 Rhino 的设计问题。
+    /// </summary>
     public static int Apply(RhinoDoc doc, bool dark)
     {
         DisplayModeDescription? mode = EnsureMode(dark);
         if (mode == null) return 0;
 
-        // v2.9：本方法会主动改所有视口的模式，必须先静音联动钩子，
-        // 否则每个 vp.DisplayMode 赋值都会回调一次同步（4 视口 × N 次），纯属浪费。
+        RhinoView? active = doc.Views.ActiveView;
+        RhinoViewport? vp = active?.ActiveViewport;
+        if (active == null || vp == null) return 0;
+
+        // 联动若被用户打开过，程序化写 DisplayMode 会立刻把其他视口牵走 —— 必须静音。
         AliasStyleLink.Mute();
         try
         {
+            // 记录所有视口的原始状态（只在第一次记录、有就不再覆盖），
+            // 这样先改 Top 再改 Front 也能各自还原回原本各自的模式。
             RememberOriginal(doc);
 
             // v2.8：两套主题用不同密度来区分 —— 浅色 0（只显示裸边，画面最干净），
             // 深色 1（每条曲面多一条内部等参线，配深色底刚好能读曲面走向）。
-            // 这里必须**强制设置**，不能像旧版"只补低于 2 的"：否则从深色切回浅色时
-            // 对象上残留的 1 不会被降回 0，两套模式就区分不开了。
+            // 必须**强制设置**，否则从深色切回浅色时残留的 1 不会被降回 0。
+            // 注意：WireDensity 是**对象级**属性，跨视口生效 —— 这是唯一压不住范围的一项，
+            // 但它是"密度"不是"显示模式"，其他视口的模式本身不会被改。
             SetAllWireDensity(doc, dark ? 1 : 0);
 
-            int applied = 0;
-            foreach (RhinoView view in doc.Views)
+            try
             {
-                RhinoViewport? vp = view.ActiveViewport;
-                if (vp == null) continue;
-                try
-                {
-                    vp.DisplayMode = mode;
-                    // 构建平面网格在浅色/深色下都很抢视觉，Alias 工作区默认也没有网格。
-                    // 关掉并把原状态记进还原串，Restore 时一并恢复。
-                    vp.ConstructionGridVisible = false;
-                    // 世界坐标轴（红绿蓝三根线）会横穿模型，是"影棚白模"观感的最大破坏物，
-                    // 一并关掉；原状态同样记录，Restore 恢复。
-                    try { vp.ConstructionAxesVisible = false; } catch { }
-                    view.Redraw();
-                    applied++;
-                }
-                catch { }
+                vp.DisplayMode = mode;
+                // 构建平面网格在浅色/深色下都很抢视觉，Alias 工作区默认也没有网格。
+                // 只动当前视口，并把原状态记进还原串，Restore 时一并恢复。
+                vp.ConstructionGridVisible = false;
+                // 世界坐标轴（红绿蓝三根线）会横穿模型，是"影棚白模"观感的最大破坏物。
+                try { vp.ConstructionAxesVisible = false; } catch { }
+                MarkTouched(doc, vp.Id);
+                active.Redraw();
             }
+            catch { return 0; }
 
             doc.Strings.SetString(ActiveKey, dark ? "Dark" : "Light");
             doc.Views.Redraw();
-            return applied;
+            return 1;
         }
         finally
         {
@@ -341,14 +348,27 @@ internal static class AliasStyle
         doc.Strings.SetString(SaveKey, sb.ToString());
     }
 
-    /// <summary>把每个视口还原到首次应用前的显示模式。</summary>
+    /// <summary>把某个视口记进"我们改过"的名单（去重），Restore 时只碰这些视口。</summary>
+    private static void MarkTouched(RhinoDoc doc, Guid viewportId)
+    {
+        string id = viewportId.ToString("N");
+        string current = doc.Strings.GetValue(TouchedKey) ?? string.Empty;
+        foreach (string part in current.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            if (string.Equals(part, id, StringComparison.OrdinalIgnoreCase)) return;
+
+        doc.Strings.SetString(TouchedKey, current + id + ";");
+    }
+
+    /// <summary>
+    /// v2.10：只还原**我们改过的**视口（TouchedKey 名单）。
+    /// 名单为空时（例如 v2.9 及更早留下的记录）退回旧行为：凡有原模式记录的视口都还原。
+    /// </summary>
     public static int Restore(RhinoDoc doc)
     {
         string? data = doc.Strings.GetValue(SaveKey);
         if (string.IsNullOrEmpty(data)) return 0;
 
-        // v2.9：还原是"把各视口恢复成各不相同的原模式"，若全视图联动还在工作，
-        // 每还原一个就会被同步回上一个 —— 必须整段静音。
+        // 若联动被打开过，还原"各不相同的原模式"会被立即同步回上一个 —— 整段静音。
         AliasStyleLink.Mute();
         try
         {
@@ -364,11 +384,17 @@ internal static class AliasStyle
                 map[viewId] = (modeId, grid, axes);
             }
 
+            var only = new HashSet<Guid>();
+            string touched = doc.Strings.GetValue(TouchedKey) ?? string.Empty;
+            foreach (string part in touched.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                if (Guid.TryParseExact(part, "N", out Guid id)) only.Add(id);
+
             int restored = 0;
             foreach (RhinoView view in doc.Views)
             {
                 RhinoViewport? vp = view.ActiveViewport;
                 if (vp == null) continue;
+                if (only.Count > 0 && !only.Contains(vp.Id)) continue;
                 if (!map.TryGetValue(vp.Id, out var wanted)) continue;
 
                 DisplayModeDescription? target =
@@ -389,6 +415,7 @@ internal static class AliasStyle
             }
 
             doc.Strings.Delete(SaveKey);
+            doc.Strings.Delete(TouchedKey);
             doc.Strings.Delete(ActiveKey);
             doc.Views.Redraw();
             return restored;
@@ -437,21 +464,33 @@ internal static class AliasStyleUi
 {
     public static Result ApplyAndReport(RhinoDoc doc, bool dark)
     {
+        // v2.10：先记住"要作用的视口名"，供回报里说清楚是哪一个。
+        string viewName = "当前视口";
+        try
+        {
+            RhinoView? v = doc.Views.ActiveView;
+            if (v != null) viewName = v.MainViewport.Name;
+        }
+        catch { }
+
         int count = AliasStyle.Apply(doc, dark);
         if (count == 0)
         {
-            RhinoApp.WriteLine("显示模式应用失败，请确认 Rhino 版本 ≥ 8 / Failed to apply display mode.");
+            RhinoApp.WriteLine("显示模式应用失败（或没有活动视口），请确认 Rhino 版本 ≥ 8 / Failed to apply display mode.");
             return Result.Failure;
         }
 
         string name = dark ? AliasStyle.DarkName : AliasStyle.LightName;
         RhinoApp.WriteLine(
-            $"已把「{name}」应用到 {count} 个视口：方向光三度灰阶 + 等参线（亮面/中间调/暗面，纯白 0.00%）/ " +
-            $"Applied '{name}' to {count} viewport(s): directional three-tone clay + isocurves (no 255 clipping).");
+            $"已把「{name}」应用到当前视口（{viewName}），其他视口保持不变 / " +
+            $"Applied '{name}' to the active viewport ({viewName}) only; other viewports untouched.");
         RhinoApp.WriteLine(
-            $"结构线密度已设为 { (dark ? 1 : 0) }（浅色 0=仅边界 / 深色 1=一条内部等参线），两套模式据此区分；" +
-            $"想更密可用 AliasStyle → Density（菜单 K）改 / " +
-            $"Wire density set to { (dark ? 1 : 0) } (Light 0 = edges only, Dark 1 = one internal isocurve); " +
+            $"方向光三度灰阶 + 等参线（亮面/中间调/暗面，纯白 0.00%）/ " +
+            $"directional three-tone clay + isocurves (no 255 clipping).");
+        RhinoApp.WriteLine(
+            $"结构线密度已设为 { (dark ? 1 : 0) }（浅色 0=仅边界 / 深色 1=一条内部等参线）；" +
+            $"密度是对象级属性、对所有视口生效，想更密可用 AliasStyle → Density（菜单 K）改 / " +
+            $"Wire density set to { (dark ? 1 : 0) } (object-level, applies to all viewports); " +
             $"use AliasStyle -> Density (menu K) to override.");
         return Result.Success;
     }

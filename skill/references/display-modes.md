@@ -52,14 +52,42 @@ Rhino 9 管线下：
 - 这套在 AO 方案下能提供接地感；在 CustomLighting 下方向光会把影子拉长成大块深色椭圆，建议关掉。
 - 背景要比物体亮面**暗**，白模才不会和背景糊在一起。`Gradient2Color` + `SetFill(top, bottom)`，不用纯白/纯黑。
 
-## 全视图联动（Alias 式）
+## 视口作用范围：默认「只改当前视口」
 
-Rhino 原生**每个视口各持一个 DisplayMode**：点视口标题栏下拉、菜单「视图 → 显示模式」、
-`_SetDisplayMode`，都只作用当前视口。要实现「切一次全画布跟随」，只能自己挂事件。
+**先问清楚：用户要的是全画布联动，还是各视口独立？** 这是个**方向性需求**，做反了整个功能白干。
 
-先澄清一个常见误判：命令里 `foreach (RhinoView v in doc.Views) v.ActiveViewport.DisplayMode = m`
-**本来就是全视口生效**（真机读回 4 个视口可同时是 `Alias EyeCare`）。
-用户说"只改了一个"时，先读回各视口真实模式，别急着改代码 —— 多半是他手动在标题栏切了一个。
+血泪教训（E-022）：用户说「我只改变我在编辑的那个窗口，而不是所有的窗口一起变成那个模式」，
+我读成"我要联动，但你没做"，于是做了事件驱动同步、还默认开启 —— 用户真正要的是**各视口独立**。
+判断口诀：句子主语是"**我操作的那个窗口**" → 独立；"**所有的窗口一起变**" → 联动。
+不确定就问一句，比返工便宜。
+
+Rhino 原生**每个视口各持一个 DisplayMode**：点标题栏下拉、菜单「视图 → 显示模式」、
+`_SetDisplayMode`，都只作用当前视口。**这是默认正确行为**，插件不要自作主张改它。
+
+**最常见的"四个视口一起变"根因是插件自己的代码**：
+```csharp
+foreach (RhinoView view in doc.Views)          // ← 就是这一行
+    view.ActiveViewport.DisplayMode = mode;    //   把每个视口都改了
+```
+改成只写活动视口：
+```csharp
+RhinoView? active = doc.Views.ActiveView;
+if (active?.ActiveViewport != null) active.ActiveViewport.DisplayMode = mode;
+```
+真机验证（E-022）：只写 `Perspective` 后读回
+`Perspective=Wireframe | Top=Alias EyeCare | Front=Alias EyeCare | Right=Alias EyeCare`，
+0.3s 后仍只变一个 —— 无事件钩子时**不存在连锁**。
+
+**配套：还原也要限定范围**。既然只改了部分视口，`Restore` 就不能全量还原，
+否则会抹掉用户自己手动切过的其他视口。用 `doc.Strings` 存一份"改过的视口 Id 名单"（Touched），
+还原时只碰名单内的；名单为空才退回全量（兼容旧文档）。
+
+**已知边界**：`WireDensity`（结构线密度）是**对象级**属性，一改所有视口一起变 ——
+想按视口分开做不到，文档里要主动说明，别让用户以为是 bug。
+
+## 全视图联动（**可选功能，默认关**）
+
+真要「切一次全画布跟随」（对照观察、截图统一），只能自己挂事件：
 
 **可用钩子（Rhino 9 实测 E-021）**：`Rhino.Display.DisplayPipeline.DisplayModeChanged`
 - **静态事件**：`clr.GetClrType(DisplayPipeline).GetEvent("DisplayModeChanged").GetAddMethod().IsStatic == True`
@@ -80,6 +108,10 @@ Rhino 原生**每个视口各持一个 DisplayMode**：点视口标题栏下拉�
 **开关持久化**：`Rhino.PersistentSettings` 的 `GetBool/SetBool` 是**实例方法**（静态调用 CS0120），
 用插件自己的 `PlugIn.Settings` 实例，落到 `%AppData%\McNeel\Rhinoceros\9.0\Plug-ins\<guid>\`，
 跨文档、跨会话有效。
+
+**改默认值必须换键名**：上一版默认 `true` 且已落盘，这一版把默认值改成 `false` **不会生效** ——
+`GetBool(key, false)` 读到的是已存的 `true`。把键改成 `...LinkAllViews.v2`（带版本后缀），
+旧键自然失效。这一步不做，用户升级后会说"你根本没改"（E-022 实际差点踩到）。
 
 ## 调参判据（不要只看图）
 

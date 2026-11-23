@@ -1,39 +1,31 @@
-# 基准面工具 v2.9（Rhino 9 / .NET 8）
+# 基准面工具 v2.10（Rhino 9 / .NET 8）
 
 在斜面上建立基准面并锁定工作坐标系：三点定面或拾取平面 → 生成半透明基准面 → CPlane 与操作轴对齐 → 像在顶视图一样建模。保存的基准面随 `.3dm` 保留，退出时精确还原最初的工作平面与操作轴。
 
-> **v2.9：全视图联动 —— 切一个视口，四个视口一起变**
+> **v2.10：Alias 观测显示「只改我正在操作的那个视口」**
 >
-> 你的反馈是「我只改变我在编辑的那个窗口，而不是所有的窗口一起变成那个模式」。先说事实，再说改法：
+> 你这次把话说明白了：**不想让视口跟着一起变，只改我操作的那个窗口**。v2.9 我理解反了
+> （把"全画布跟随"当需求做、还默认开启），这一版纠正回来：
 >
-> **① 命令本来没坏。** 真机读回四个视口：`Perspective / Top / Front / Right` 当前**全是** `Alias EyeCare`
-> —— `AliasStyleLight`（菜单 `I`）本来就是遍历 `doc.Views` 逐个设置，不存在"只改一个"。
+> **① 应用只作用于活动视口。** `AliasStyleLight`（菜单 `I`）/ `AliasStyleDark`（`J`）
+> 现在只改 `doc.Views.ActiveView` 这一个视口，其他视口一个都不动。真机验证：
+> 只对 `Perspective` 写模式 → `Perspective=Wireframe | Top/Front/Right=Alias EyeCare`，0.3s 后仍只变一个。
 >
-> **② 你看到的现象来自 Rhino 原生设计。** 每个视口各自持有一个 DisplayMode；点视口标题栏下拉、
-> 走「视图 → 显示模式」、执行 `_SetDisplayMode`，**都只作用当前视口**。Alias 是"全画布一套显示设置"，
-> Rhino 不是 —— 这是 McNeel 的模型，不是我们命令的 bug。
+> **② 四个窗口一起变的真正来源是我们自己的代码。** ≤v2.9 的 `Apply` 里写着
+> `foreach (RhinoView view in doc.Views) view.ActiveViewport.DisplayMode = mode` ——
+> 遍历全改。Rhino 原生的模型本来就是「一个视口一份 DisplayMode」（标题栏下拉 / 视图菜单 /
+> `_SetDisplayMode` 都只作用当前视口），是我们的实现破坏了它。
 >
-> **③ 只能挂事件补齐。** 实测 `DisplayPipeline.DisplayModeChanged` 是**静态事件**
-> （`GetAddMethod().IsStatic = True`），且通过 API 写 `viewport.DisplayMode` 会**同步**触发，
-> `args.Viewport` 精确指向被改的视口、`Old/ChangedDisplayModeId` 正确。于是：谁被切换 →
-> 把同一个模式 Id 推给其余视口。
+> **③ 还原也只碰我们改过的视口。** 新增 `DatumPlane.AliasStyle.Touched` 名单，
+> `AliasStyleRestore`（菜单 `M`）只还原名单里的视口 —— 你自己手动切过的其他视口不会被抹掉。
 >
-> 三条必须守住的纪律（都真机验过）：
-> - **防重入**：同步时改其他视口会再次触发同一事件 → 用闸门挡住。
->   实测回调序列 `blocked, blocked, blocked, 3`：三次递归被挡，一次真正同步了 3 个视口。
-> - **先比 Id 再设**：目标视口已是该模式就跳过，天然收敛、不产生多余重绘。
-> - **还原时必须静音**：`AliasStyleRestore`（菜单 `M`）要把各视口恢复成**各不相同**的原模式，
->   若联动还在工作就会被同步回去 —— 所以 `Apply` / `Restore` 全程 `Mute()`。
+> **④ 全视图联动降级为可选、默认关。** 如果你偶尔想四视口对照，可以 `AliasStyleLink`
+> （菜单 `O_Link`）临时打开，再执行一次关闭；开关存在插件 `PersistentSettings`
+> （键名带 `.v2` 后缀，保证从 2.9 升级上来时真的是关的）。
 >
-> **怎么用**：默认开启；切任意视口的显示模式，其余三个跟随，命令行会回报"同步了几个视口"。
-> 想单视口对比时：`AliasStyleLink`（或菜单 `O_Link`）关掉，再执行一次开启。
-> 开关存在插件自己的 `PersistentSettings` 里，跨文档、跨会话记住。
->
-> **实测**：Top 视口切 `Shaded` → `Perspective=Shaded | Top=Shaded | Front=Shaded | Right=Shaded`；
-> 关闭监听后还原，四个视口全部回到 `Alias EyeCare`。
->
-> 注意：布局页（Layout）里的 detail 视窗不在 `doc.Views` 遍历范围内，暂不同步 ——
-> 这是已知边界，不是遗漏（真机 `doc.Views` 只列出 4 个顶级视口）。
+> **已知边界**：结构线密度（`WireDensity`）是**对象级**属性，一改就是所有视口一起变 ——
+> 它是"密度"不是"显示模式"，这点无法按视口分开；不想动它就用菜单 `K` 单独调。
+> 布局页（Layout）里的 detail 视窗不在 `doc.Views` 内，本版不参与。
 
 > **v2.8：两套 Alias 观测显示用「结构线密度」区分开**
 >

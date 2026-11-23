@@ -76,7 +76,11 @@
 | 高亮/半透明蒙皮「鬼影」，移动删除后仍赖在界面上 | conduit 缓存按面索引抽的子面，源对象 Replace/删后索引失效 | ①挂静态 `RhinoDoc.ReplaceRhinoObject/DeleteRhinoObject/CloseDocument` ②每次绘制前 `Stale()` 比面数 + 包围盒中心漂移 >2% ③扫描所有同名程序集实例逐个 `End()` |
 | 多帧截图完全一致（相机微移无效） | 缓存帧只认朝向变化 | 必须 `SetCameraDirection` 换相机朝向，微移/Redraw 不够 |
 | `ReferenceEquals` 判几何过期永远为 true | `ObjRef.Brep()` 返回副本 | 用面数 + `GetBoundingBox` 中心漂移判定，别比引用 |
-| 切显示模式只有当前视口变、其余没动 | Rhino 原生：一视口一个 DisplayMode；标题栏下拉 / 视图菜单 / `_SetDisplayMode` 都只作用当前视口 | 挂 `DisplayPipeline.DisplayModeChanged` 静态事件同步（E-021，`display-modes.md`「全视图联动」）。**先读回各视口真实模式**再判断是不是命令的锅 |
+| 切显示模式只有当前视口变、其余没动 | Rhino 原生：一视口一个 DisplayMode；标题栏下拉 / 视图菜单 / `_SetDisplayMode` 都只作用当前视口 | 若用户就想要独立（默认诉求），**不用改代码**；要联动才挂 `DisplayPipeline.DisplayModeChanged` 静态事件（E-021，`display-modes.md`「全视图联动」）。**先读回各视口真实模式**再判断是不是命令的锅 |
+| **切一个视口，四个视口一起变**（用户抱怨） | 插件自己的 `Apply` 写了 `foreach (RhinoView v in doc.Views) v.ActiveViewport.DisplayMode = mode` | 只写 `doc.Views.ActiveView.ActiveViewport`（E-022）。**这是最常见的假 bug**：怪 Rhino 之前先搜自己的 `foreach (... doc.Views)` |
+| 只改了一个视口，`Restore` 却把别的视口也还原了 | 还原按"所有有原模式记录的视口"全量回放 | 用 `doc.Strings` 存改过的视口 Id 名单（Touched），只还原名单内的；空名单才退回全量 |
+| 改了设置默认值，升级后仍按旧默认值走 | `PersistentSettings.GetBool(key, false)` 读到的是**已落盘的 true** | 换键名（加版本后缀如 `.v2`），旧键自然失效。改默认值必须配这一步 |
+| 结构线密度想按视口分开 | `WireDensity` 是**对象级**属性，不随视口 | 做不到；文档里主动声明为边界，别当 bug 修 |
 | 做了联动后 `Restore` 还原失效（视口被拉回同一模式） | 程序化批量改模式时钩子仍在工作，后写的覆盖先写的 | `Apply` / `Restore` 全程 `Mute()`（引用计数），`finally` 里 `Unmute()` |
 
 ## 几何特征识别与取消（FeatureWorks 类需求）

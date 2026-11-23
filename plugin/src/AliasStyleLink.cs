@@ -7,38 +7,39 @@ using Rhino.Display;
 namespace DatumPlanePlugin;
 
 /// <summary>
-/// v2.9：全视图联动（Alias 式）。
+/// 全视图联动（**可选功能，默认关闭**）。
 ///
-/// 用户反馈的原话：「我只改变我在编辑的那个窗口，而不是所有的窗口一起变成那个模式」。
-/// Rhino 原生行为就是**每个视口各自持有 DisplayMode**，无论是点视口标题栏的下拉、
-/// 走「视图 → 显示模式」菜单，还是 `_SetDisplayMode` 命令，都只作用当前视口 ——
-/// 这是 McNeel 的设计，不是我们命令的 bug（实测 4 个视口同时被 `AliasStyleLight`
-/// 改成 Alias EyeCare，命令层本来就是遍历所有视口的）。
+/// v2.10 方向纠正（E-022）：用户原话是「我只改变我在编辑的那个窗口，而不是所有的窗口
+/// 一起变成那个模式」。也就是说 —— **各视口独立**才是用户要的，v2.9 把「全画布跟随」
+/// 当成需求做进来、还默认开启，正好做反了。现在：
+///   * 默认关：切、改显示模式只作用当前视口，与 Rhino 原生模型一致；
+///   * 需要对照观察时，`AliasStyleLink`（菜单 O）可临时打开联动，再执行一次关闭。
 ///
-/// 要实现 Alias 那种「切一次全画布跟着变」，只能自己挂事件：
-///   实测（Rhino 9 / E-021）：`DisplayPipeline.DisplayModeChanged` 是**静态事件**
-///   （`GetAddMethod().IsStatic = True`），且通过 API 写 `viewport.DisplayMode`
-///   会**同步**触发，`args.Viewport` 精确指向被改的视口，`Old/ChangedDisplayModeId` 正确。
-///   所以联动可以纯靠事件驱动，不需要轮询。
+/// Rhino 的模型本来就是「一个视口一份 DisplayMode」：点视口标题栏下拉、走
+/// 「视图 → 显示模式」、执行 `_SetDisplayMode`，都只作用当前视口。v2.9 之前真正让
+/// 四个视口一起变的是 `AliasStyle.Apply` 自己遍历了 `doc.Views`（v2.10 已改成只改
+/// 活动视口），不是 Rhino 干的。
 ///
-/// 三条必须守住的纪律：
-///  1. **防重入**：同步时改其他视口会再次触发本事件 → `_busy` 闸门挡住，
-///     否则 4 个视口互相触发会打成一团（实测同一 setter 立刻回调）。
-///  2. **同步前先比 Id**：目标视口已经是该模式就跳过，天然收敛，也避免多余重绘。
-///  3. **程序化改模式时必须静音**：`AliasStyle.Restore` 要把各视口还原成**不同的**
-///     原模式，若联动还在工作，还原会被"同步"回去 —— 所以 Apply/Restore 全程 Mute()。
+/// 真要做联动只能自己挂事件（实测 Rhino 9 / E-021）：
+///   `DisplayPipeline.DisplayModeChanged` 是**静态事件**（`GetAddMethod().IsStatic = True`），
+///   通过 API 写 `viewport.DisplayMode` 会**同步**触发，`args.Viewport` 精确指向被改的视口。
+/// 三条纪律（只在开了联动时才走）：
+///  1. **防重入**：同步时改其他视口会再次触发本事件 → `_busy` 闸门挡住。
+///  2. **同步前先比 Id**：已经是该模式就跳过，天然收敛。
+///  3. **程序化改模式必须静音**：`AliasStyle.Apply/Restore` 全程 Mute()，否则改一个视口
+///     会被联动牵走，还原也还原不回去。
 ///
-/// 开关持久化在 PersistentSettings（跨文档、跨会话），命令 `AliasStyleLink` / 菜单 O 切换。
-/// 默认**开启**：用户明确要的是 Alias 式联动；想单视口对比时再关掉即可。
+/// 开关持久化在 PersistentSettings（跨文档、跨会话）。设置键带 `.v2` 后缀：
+/// v2.9 已把旧键写成 true，换键才能保证升级后真的是关的。
 /// </summary>
 internal static class AliasStyleLink
 {
-    private const string SettingKey = "DatumPlane.AliasStyle.LinkAllViews";
+    private const string SettingKey = "DatumPlane.AliasStyle.LinkAllViews.v2";
 
     private static int _hooked;
     private static int _busy;
     private static int _mute;
-    private static bool _enabled = true;
+    private static bool _enabled;
 
     public static bool Enabled => _enabled;
 
@@ -48,8 +49,9 @@ internal static class AliasStyleLink
         // 注意：Rhino.PersistentSettings 的 GetBool/SetBool 是**实例方法**（CS0120 实测），
         // 全局静态入口并不存在。插件自己的 Settings 就是 PersistentSettings 实例，写在这里
         // 会落到 %AppData%\McNeel\Rhinoceros\9.0\Plug-ins\<guid>\settings 下，跨文档跨会话有效。
-        try { _enabled = DatumPlanePlugin.Instance?.Settings?.GetBool(SettingKey, true) ?? true; }
-        catch { _enabled = true; }
+        // 默认 false = 各视口独立（用户要的行为）。
+        try { _enabled = DatumPlanePlugin.Instance?.Settings?.GetBool(SettingKey, false) ?? false; }
+        catch { _enabled = false; }
 
         if (Interlocked.Exchange(ref _hooked, 1) == 1) return;
         try
@@ -176,11 +178,14 @@ internal static class AliasStyleLinkUi
             RhinoApp.WriteLine(
                 "之后你在任意视口标题栏切显示模式，其余视口都会跟随；再执行 AliasStyleLink 可关闭 / " +
                 "Switch a viewport's display mode and the others will follow; run AliasStyleLink again to turn off.");
+            RhinoApp.WriteLine(
+                "注意：这是可选功能，默认关闭 —— 平时各视口独立 / Note: optional, OFF by default; viewports are independent.");
         }
         else
         {
             RhinoApp.WriteLine(
-                "全视图联动：已关闭，各视口可独立设置显示模式 / All-view display sync OFF: each viewport is independent.");
+                "全视图联动：已关闭（默认状态），各视口独立设置显示模式，改哪个只影响哪个 / " +
+                "All-view display sync OFF (default): each viewport keeps its own display mode.");
         }
         return Result.Success;
     }

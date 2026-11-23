@@ -2,7 +2,7 @@
 
 Rhino 9 / .NET 8，插件 GUID `8B7C4E52-6F3A-4C1D-9A2E-5D8F0B3C7E14` 全程不变。
 每个版本都经过进程内 Roslyn 编译 + 真机/反射验证 + `Yak.exe install` 真安装（除 v2.3 未单独出包）。
-当前安装：**2.9.0.0**。
+当前安装：**2.10.0.0**。
 
 | 版本 | 主题 | 交付内容 | 关键实证 |
 |---|---|---|---|
@@ -23,6 +23,7 @@ Rhino 9 / .NET 8，插件 GUID `8B7C4E52-6F3A-4C1D-9A2E-5D8F0B3C7E14` 全程不�
 | v2.7 | 直接点面 | B 选项去 Ctrl+Shift：Surface-only filter + DisablePreSelect + 点击点兜底 | 6 面盒子六面法线全对；圆柱侧面→提示改点平面 |
 | v2.8 | 双模式区分 | 浅色 WireDensity=0、深色=1，强制设置保证切换不残留 | 0→1→0→1 四次切换全对 |
 | v2.9 | 全视图联动 | `DisplayPipeline.DisplayModeChanged` 静态事件驱动；切一个视口其余跟随；`AliasStyleLink` / 菜单 `O` 可关；Apply/Restore 静音避免与还原打架 | 回调序列 `blocked,blocked,blocked,3`；Top→Shaded 后四视口全 Shaded；还原四视口回 Alias EyeCare；rhp 55296B/0 error，sha256 `7454e87d…` |
+| v2.10 | 视口独立（方向纠正） | `Apply` 只写活动视口（不再遍历 `doc.Views`）；新增 `Touched` 名单使 `Restore` 只还原改过的视口；联动降级为可选、默认关（设置键 `.v2` 后缀） | 只写 Perspective → `Perspective=Wireframe / 其余=Alias EyeCare`，0.3s 后仍只变一个；rhp 56320B/0 error，sha256 `a4e6a168…` |
 
 ## 分发事实
 
@@ -33,4 +34,4 @@ Rhino 9 / .NET 8，插件 GUID `8B7C4E52-6F3A-4C1D-9A2E-5D8F0B3C7E14` 全程不�
 
 ## 保留的旧产物
 
-`DatumPlane_v1_2.yak` … `DatumPlane_v2_9.yak` 全部保留在包目录，便于回滚；`DatumPlanePlugin_v24/v24b/v24c/v25/v26/v27/v28/v29.rhp` 是各轮规避文件锁的编译输出，md5 与对应 yak 内 rhp 一致。
+`DatumPlane_v1_2.yak` … `DatumPlane_v2_10.yak` 全部保留在包目录，便于回滚；`DatumPlanePlugin_v24/v24b/v24c/v25/v26/v27/v28/v29/v210.rhp` 是各轮规避文件锁的编译输出，md5 与对应 yak 内 rhp 一致。

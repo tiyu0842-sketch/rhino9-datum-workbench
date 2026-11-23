@@ -62,7 +62,8 @@ agent_created: true
 | 插件覆盖安装被文件锁 | 先输出到新文件名，或 `Assembly.Load(File.ReadAllBytes(...))` 而非 LoadFrom |
 | 要验证交互命令 | 不要从脚本同步驱动 `Get()`（会挂 300s）；反射调用拆出来的 Core |
 | 显示"过曝一片白" | 先算 `clip(≥253)` 百分比；`DefaultLighting` + 白物体必削平，见显示模式参考 |
-| 切显示模式只有当前视口变、要 Alias 式全屏联动 | Rhino 是**一视口一模式**（原生行为，不是 bug）；挂 `DisplayPipeline.DisplayModeChanged` **静态事件**同步，闸门 + 比 Id + 还原时静音，见 E-021 与 `display-modes.md`「全视图联动」 |
+| 切显示模式只有当前视口变、要 Alias 式全屏联动 | Rhino 是**一视口一模式**（原生行为，不是 bug）；真要联动才挂 `DisplayPipeline.DisplayModeChanged` **静态事件**，闸门 + 比 Id + 还原时静音，见 E-021 与 `display-modes.md`「全视图联动（可选，默认关）」 |
+| **切一个视口，四个视口一起变**（用户要的是独立） | 先搜自己的 `foreach (... doc.Views)`，只写 `ActiveView.ActiveViewport`；还原要限定 Touched 名单，见 E-022 与 `display-modes.md`「视口作用范围」 |
 | 曲面糊成一片无明暗 | `AmbientOcclusion` 只有接触遮蔽；要三度灰阶用 `CustomLighting` + `FrontMaterial.Diffuse` |
 | 截图看不出参数变化 | 大概率是缓存帧：置前窗口 + 相机轻微位移 + `ZoomBoundingBox` + `Redraw()` + `Wait()` + sleep |
 | 选多重曲面上的单一面 | `GeometryFilter = ObjectType.Surface`（不要 |Brep）+ `SubObjectSelect=true` + `DisablePreSelect()` |
