@@ -48,7 +48,8 @@
 | 查某个 GH 组件名 / 参数签名 | `grasshopper-component-index.md`；或运行时 `g1_search_components` / `g1_describe_component` |
 | 装了新插件后刷新 GH 组件清单 | `../scripts/Export_GH_Components.py` |
 | 要打包 yak、多版本并存、安装假失败 | `verification-playbook.md` →「五」；`rhinocommon-pitfalls.md` →「打包与安装」「打包补充」 |
-| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**30 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 / E-027 为跨域能力扩展、E-028 为 v1.6 实现层的失败安全修正、E-029 为验收维度缺失而非假设推翻，均不新增推翻计数） |
+| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**31 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 / E-027 为跨域能力扩展、E-028 为 v1.6 实现层的失败安全修正、E-029 为验收维度缺失、E-030 为跨域能力扩展 + 需求验证正向样本，均不新增推翻计数） |
+| 「把资料做成每日答题闯关 / 艾宾浩斯 / 错题科普 / 能不能做小程序 / 要不要备案 / 微信分享」 | `design-lab/003-industrial-design-history-quiz/README.md`（六步字段 + **§8 小程序/H5/备案对照表**）；**E-030**：真排行榜必须后端；小程序**必须备案、无例外**（12381 短信核验 24 h 内做完），答题类按「**工具**」类目提审避开教育资质坑；扫描版 PDF（无 ToUnicode）连百度网盘服务端解析也读不出，别反复试；题目 evidence 必须命中原文，**宁可少不可编** |
 | 结论被推翻了怎么处理 | `experiment-log.md` →「统计与复用提示」：**不删旧条，加「修正 E-XXX」** |
 
 ---
