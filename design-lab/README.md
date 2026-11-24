@@ -51,3 +51,4 @@
 ## 写新条目的方式
 
 复制 `001-gradient-boxes.md` 的骨架，编号顺延。**不要省略第 5 步证据**——没有数字和截图的条目，一个月后自己都不敢信。
+| 003 | 工业设计史每日闯关：从本机 DOC 抽可追溯题卡，做成单文件 HTML | Python 标准库提 DOC + 原文校验 + 单文件注入 | 题库 11 题（受限资料可读性），机制可玩 | [003-industrial-design-history-quiz/](003-industrial-design-history-quiz/) |

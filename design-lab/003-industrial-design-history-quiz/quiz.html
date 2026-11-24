@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工业设计史 · 每日闯关</title>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1c1f25; --ink:#e8e9ec; --muted:#9aa0aa;
+    --line:#2c313a; --accent:#ff8a28; --good:#8bd17c; --bad:#ff6b5e; --q:#5cc8e8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Microsoft YaHei","微软雅黑",sans-serif;line-height:1.6}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 18px 60px}
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  h1{font-size:22px;font-weight:600;margin:0}
+  .sub{font-size:13px;color:var(--muted)}
+  .streak{font-size:13px;color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+        padding:20px;margin-top:18px}
+  .topic{font-size:12px;color:var(--q);letter-spacing:.05em}
+  .q{font-size:18px;font-weight:600;margin:8px 0 16px}
+  .opt{display:block;width:100%;text-align:left;background:transparent;color:var(--ink);
+       border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0;
+       font-size:15px;cursor:pointer;transition:.15s;font-family:inherit}
+  .opt:hover:not(:disabled){border-color:var(--q)}
+  .opt:disabled{cursor:default}
+  .opt.right{border-color:var(--good);background:rgba(139,209,124,.12)}
+  .opt.wrong{border-color:var(--bad);background:rgba(255,107,94,.12)}
+  .evidence{margin-top:14px;padding:12px 14px;border-left:3px solid var(--q);
+            background:rgba(92,200,232,.07);font-size:13px;color:var(--muted);display:none}
+  .evidence b{color:var(--ink)}
+  .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:18px}
+  .bar>i{display:block;height:100%;background:var(--accent);width:0;transition:.3s}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+  button.act{background:var(--accent);color:#1a1206;border:0;border-radius:9px;
+             padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);
+             padding:10px 16px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:14px}
+  .stat{display:flex;gap:20px;font-size:13px;color:var(--muted);margin-top:14px;flex-wrap:wrap}
+  .stat b{color:var(--ink);font-size:16px}
+  .list{font-size:14px}
+  .list li{margin:8px 0}
+  .tag{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--line);color:var(--muted)}
+  .done{text-align:center;padding:40px 20px}
+  .done h2{font-size:26px;margin:0 0 10px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>工业设计史 · 每日闯关</h1>
+      <div class="sub">题源：何人可《工业设计史》重点总结要点（考研必考）· 每题可核对原文</div>
+    </div>
+    <div class="streak" id="streak">连续 0 天</div>
+  </header>
+
+  <div class="card" id="stage">
+    <div class="topic" id="topic">加载中…</div>
+    <div class="q" id="q"></div>
+    <div id="opts"></div>
+    <div class="evidence" id="ev"></div>
+    <div class="bar"><i id="prog"></i></div>
+    <div class="row">
+      <button class="act" id="next" disabled>下一题 →</button>
+      <button class="ghost" id="skip">跳过</button>
+    </div>
+  </div>
+
+  <div class="card done hidden" id="finish">
+    <h2>今日闯关完成</h2>
+    <div class="sub" id="finishStat"></div>
+    <div class="row" style="justify-content:center">
+      <button class="act" id="again">再练一次（含错题）</button>
+      <button class="ghost" id="viewWrong">只看错题</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="topic">错题本</div>
+    <div class="stat">
+      <span>累计答对 <b id="cntRight">0</b></span>
+      <span>累计答错 <b id="cntWrong">0</b></span>
+      <span>题库 <b id="cntTotal">0</b> 题</span>
+    </div>
+    <ul class="list" id="wrongList"></ul>
+    <div class="row">
+      <button class="ghost" id="clear">清空错题本</button>
+    </div>
+  </div>
+
+  <div class="card" style="font-size:12px;color:var(--muted)">
+    <b>数据纪律</b>：本页题库来自本机 DOC 原文，每题 evidence 都在源文件中核对过；
+    答错会显示原文片段便于复习。题目数量受限于可读的原始资料（扫描版 PDF 未能提取），
+    后续补题须通过原文校验，不会混入编造内容。进度与错题保存在浏览器本地。
+  </div>
+</div>
+
+<script id="quiz" type="application/json">{"title":"工业设计史 · 每日闯关题库","count":11,"source_file":"D:/学习进步资料/工业设计史/【工业设计史】 重点总结要点.doc","verified":"每题 evidence 前 12 字均在本机 DOC 原文中命中","questions":[{"id":1,"topic":"早期","q":"欧洲中世纪设计风格的主要特点是什么？","options":["追求古典的简洁与节制","纤细精致的不对称装饰","豪华浮夸与矫揉造作","结构的规律性、经济性和创建性"],"answer":3,"evidence":"中世纪。设计风格为简朴、好用甚至简陋，带有北方蛮族的粗野形态。主要特点在于结构的规律性、经济性和创建性。","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":2,"topic":"早期","q":"文艺复兴设计思潮的中心思想是什么？","options":["反对一切装饰，主张机器生产","以法国为中心，强调不对称","人文主义，以意大利为中心","以德国为中心，强调标准化"],"answer":2,"evidence":"十五世纪以后形成，中心思想是“人文主 义，以意大利为中心主见文学艺术表现人的思想感情","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":3,"topic":"早期","q":"巴洛克风格追求的外表效果是什么？","options":["简朴、好用甚至简陋","豪华、浮夸和矫揉做作","简洁、高雅、节制","纤细、精致、不对称"],"answer":1,"evidence":"反对文艺复兴时代 艺术的庄重、含蓄、均衡而追求豪华、浮夸和矫揉做作的外 表效果","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":4,"topic":"早期","q":"洛可可风格在构图上刻意强调什么？","options":["不对称","几何重复","中心线均衡","严格对称"],"answer":0,"evidence":"在构图上有意强调不对称。颜色娇艳，恶俗。严峻受中国清 式设计风格侵染","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":5,"topic":"早期","q":"十八世纪六十年代出现的思潮追求什么？","options":["粗野的蛮族形态","纤细繁琐的曲线","豪华浮夸的动感","古典风格和简洁、高雅、节制的品质"],"answer":3,"evidence":"盛行于十八世纪六十年头，指资本主义初期最 先出如今文化上的一种思潮，追求古典风格和简洁、高雅、节制的品质","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":6,"topic":"工业革命","q":"美国制造体系的突出特点是什么？","options":["以装饰性为核心","手工定制，单件生产","标准化大批量生产，零件可互换","仅用于家具制造"],"answer":2,"evidence":"特点是标准化大批量生产，产 品零件具有可互换性，在一系列简化了的机械操作中好用大 功率机械装置","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":7,"topic":"工业革命","q":"汽车工业的真正革命始于什么？","options":["本茨 1885 年的三轮车","亨利·福特的 T 型车和流水装配线","哥特式复兴运动","内燃机的发明"],"answer":1,"evidence":"汽车工业的真正革命是从亨利 福特的T型车 和流水装配线作业起先的","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":8,"topic":"工业革命","q":"1851 年伦敦海德公园举办的是什么？","options":["第一次国际工业博览会（水晶宫）","工艺美术运动首展","包豪斯成立展","第一届世界工业设计大会"],"answer":0,"evidence":"1851 英国在伦敦海德公园 实行了第一次国际 工业博览会——“水晶宫","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":9,"topic":"工业革命","q":"水晶宫设计方案采用了哪些材料？","options":["纯木材","钢、塑料、玻璃","砖、石、混凝土","铁、木、玻璃"],"answer":3,"evidence":"设计方案——帕克斯特。 只用了铁、木、玻璃，不到九 个月装配完毕","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":10,"topic":"工艺美术","q":"工艺美术运动发生在哪个国家？","options":["德国","法国","英国","美国"],"answer":2,"evidence":"在莫里斯的影响下，英 国产生了一个轰轰烈烈的设计运动——工艺美术运动","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":11,"topic":"工艺美术","q":"谁被称为拉斯金思想最直接的传人？","options":["格罗皮乌斯","莫里斯","密斯","帕克斯特"],"answer":1,"evidence":"主动的社会主义者，主见社会同等和反对压迫 的思想，拉斯金思想最干脆的传人，在莫里斯的影响下","source":"【工业设计史】重点总结要点.doc（考研必考）"}]}</script>
+<script>
+(function(){
+  "use strict";
+  const DATA = JSON.parse(document.getElementById('quiz').textContent);
+  const ALL = DATA.questions || [];
+  const KEY = 'idh_quiz_v1';
+  let store = {right:0, wrong:0, wrongIds:[], lastDay:'', streak:0, doneIds:[]};
+  try{ const s=localStorage.getItem(KEY); if(s) store=Object.assign(store,JSON.parse(s)); }catch(e){}
+  const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify(store)); }catch(e){} };
+
+  const $=id=>document.getElementById(id);
+  const today=new Date().toISOString().slice(0,10);
+  if(store.lastDay!==today){
+    store.doneIds=[];
+    const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
+    store.streak = store.lastDay===y ? store.streak+1 : 1;
+    store.lastDay=today; save();
+  }
+  $('streak').textContent='连续 '+store.streak+' 天';
+  $('cntTotal').textContent=ALL.length;
+
+  // 每日一关：从题库取 5 题（固定步长按日期偏移，不用随机 → 可复现）
+  const PER=5;
+  const dayOffset=(new Date(today).getDate()*7)%Math.max(1,ALL.length);
+  let queue=[];
+  function buildQueue(onlyWrong){
+    let pool = onlyWrong ? ALL.filter(q=>store.wrongIds.includes(q.id)) : ALL;
+    if(!pool.length) pool=ALL;
+    queue=[];
+    for(let i=0;i<PER;i++) queue.push(pool[(dayOffset+i*3)%pool.length]);
+    // 去重
+    const seen=new Set(); queue=queue.filter(q=>!seen.has(q.id)&&seen.add(q.id));
+    idx=0; answered=false;
+  }
+  let idx=0, answered=false;
+
+  function render(){
+    const stage=$('stage'), finish=$('finish');
+    if(idx>=queue.length){
+      stage.classList.add('hidden'); finish.classList.remove('hidden');
+      $('finishStat').textContent='本关 '+queue.length+' 题 · 答对 '+queue.filter(q=>store.doneIds.includes(q.id)).length;
+      return;
+    }
+    stage.classList.remove('hidden'); finish.classList.add('hidden');
+    const q=queue[idx];
+    $('topic').textContent=(idx+1)+' / '+queue.length+'  ·  '+q.topic;
+    $('q').textContent=q.q;
+    const box=$('opts'); box.innerHTML='';
+    q.options.forEach((o,i)=>{
+      const b=document.createElement('button');
+      b.className='opt'; b.textContent=String.fromCharCode(65+i)+'. '+o;
+      b.onclick=()=>answer(q,i,b);
+      box.appendChild(b);
+    });
+    $('ev').style.display='none'; $('ev').innerHTML='';
+    $('next').disabled=true; $('prog').style.width=(idx/queue.length*100)+'%';
+    answered=false;
+  }
+
+  function answer(q,i,btn){
+    if(answered) return; answered=true;
+    const ok=i===q.answer;
+    [...$('opts').children].forEach((b,j)=>{
+      b.disabled=true;
+      if(j===q.answer) b.classList.add('right');
+      else if(j===i) b.classList.add('wrong');
+    });
+    if(ok){
+      store.right++;
+      if(!store.doneIds.includes(q.id)) store.doneIds.push(q.id);
+      const k=store.wrongIds.indexOf(q.id);
+      if(k>=0) store.wrongIds.splice(k,1);
+    }else{
+      store.wrong++;
+      if(!store.wrongIds.includes(q.id)) store.wrongIds.push(q.id);
+    }
+    save(); updateStats();
+    const ev=$('ev');
+    ev.innerHTML='<b>'+(ok?'答对了':'正确答案：'+String.fromCharCode(65+q.answer))+'</b><br>原文：'+q.evidence
+                +'<br><span style="color:#6f7681">来源：'+q.source+'</span>';
+    ev.style.display='block';
+    $('next').disabled=false;
+  }
+
+  function updateStats(){
+    $('cntRight').textContent=store.right;
+    $('cntWrong').textContent=store.wrong;
+    const ul=$('wrongList'); ul.innerHTML='';
+    if(!store.wrongIds.length){ ul.innerHTML='<li class="sub">暂无错题</li>'; return; }
+    ALL.filter(q=>store.wrongIds.includes(q.id)).forEach(q=>{
+      const li=document.createElement('li');
+      li.innerHTML='<span class="tag">'+q.topic+'</span> '+q.q;
+      ul.appendChild(li);
+    });
+  }
+
+  $('next').onclick=()=>{ idx++; render(); };
+  $('skip').onclick=()=>{ idx++; render(); };
+  $('again').onclick=()=>{ buildQueue(false); render(); };
+  $('viewWrong').onclick=()=>{ buildQueue(true); render(); };
+  $('clear').onclick=()=>{ store.wrongIds=[]; save(); updateStats(); };
+
+  buildQueue(false); updateStats(); render();
+})();
+</script>
+</body>
+</html>
