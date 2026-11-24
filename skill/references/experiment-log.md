@@ -809,6 +809,23 @@ GitHub push 仍待代理关闭。
 **不新增推翻计数**：这不是「假设被推翻」，是**验收维度缺失** —— 技术指标全过、审美指标从未被测量。
 **遗留**：未做实机听感验收；配乐优化留到明天讨论，6 个待决问题已列在复盘 §7。
 
+**2026-11-24 下午追加 · 拍板开始 + GitHub 通道陷阱**：
+用户纠正「QQ 打错了，是 github」，并指明参考是 GitHub 上 Codex 驱动视频工具链
+（`vincentsch/explainroo`，MIT）生成的配乐好听。查证其机制：内置配乐按 look 分
+`warm/upbeat/calm/tech/playful` 五种风格、`music.volume` 可调、旁白时自动 ducking
+（`verify` 实测打印「music: about 12 dB under the voice」）；同作者的 Soundroo
+让 agent **写谱**再本地渲染 WAV。我们只借鉴「谱与音色分离 + 可测量混音指标」两条原理。
+用户拍板两项：① 挂法 = **1 份决策清单逐项回复**；② 路线 = **纯 Python 自研、守三条禁令**，
+不引入 Soundroo / Node / 外部模型 / 音频素材。产物仓库根 `DECISIONS_002_AUDIO.md`
+（D1–D6 各带现状/证据/A-B-C 推荐 + 三步验收闸门），本地 commit `c19a66e`。
+
+**GitHub 通道能力分清（别混）**：`mcp__github__get_me` **可用**（读通道正常，`tiyu0842-sketch`）；
+`mcp__github__issue_write` 建 issue → **403 Resource not accessible by integration**
+= 连接器**缺 issue 写权限，不是认证过期** → 不 reconnect、不重试等价调用，改用仓库内文档 +
+本机 git。本机 `gh` CLI 没装；`env -u 代理 git push origin main` **180 s 超时 / SIGTERM**，
+按纪律不再重试。教训：**读可用 ≠ 写可用；连接器写权限被拒 ≠ reauthorize 能解决**；
+本机 git 是另一条凭据通道，但代理未全关时 push 仍不可靠。
+
 ## 统计与复用提示
 
 - 截至 2026-11-24：**30 条实验**，其中 **14 条推翻了初始假设**（E-015 推翻 E-014 真因，
