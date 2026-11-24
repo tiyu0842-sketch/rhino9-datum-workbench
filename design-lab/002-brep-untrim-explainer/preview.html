@@ -78,16 +78,15 @@
   </div>
   <div class="row" id="audioRow">
     <div class="knob"><label>音量</label><input type="range" id="vol" min="0" max="100" value="82"><b id="volV">82%</b></div>
-    <div class="sw"><input type="checkbox" id="sfx" checked><label for="sfx">音效 cue / tick</label></div>
-    <div class="sw"><input type="checkbox" id="pad" checked><label for="pad">氛围底层</label></div>
-    <div class="knob"><label>节拍密度</label><input type="range" id="density" min="0" max="200" value="100"><b id="densityV">1.0×</b></div>
-    <span class="legend" id="audioHint">点「播放」启用声音 · 浏览器需一次手势解锁</span>
+    <div class="sw"><input type="checkbox" id="sound" checked><label for="sound">声音</label></div>
+    <button id="try10" style="padding:5px 10px;cursor:pointer">试听 10 s（啊哈段）</button>
+    <span class="legend" id="audioHint">点「播放」启用声音 · 需一次手势</span>
   </div>
   <div class="legend">结构线密度下限为 2 —— 只降密度，不做全隐藏（等参线是读曲面的依据）；
-    声音与 MP4 音轨同源：同一份 storyboard 的镜头边界 + 同一张事件表，逐采样/逐事件由代码算出</div>
+    声音 = audio.py 生成的 soundtrack.wav，与 MP4 音轨同一文件（单端定义，不再漂移）</div>
 </div>
 
-<script id="sb" type="application/json">{"beats":[{"id":0,"scene":"title","dur":3.2,"title":"同一个立方体，两种「多出来的形状」","sub":"为什么一个孔能一键消失，一个圆角不能？","note":"B-rep 的两层结构 · Rhino 9 / FeatureWorks 实证","metrics":[]},{"id":1,"scene":"two_layers","dur":5.4,"title":"B-rep 有两层，不是一整块","sub":"钻孔只动了第二层","lines":["① 底层曲面 UnderlyingSurface —— 一整张没被破坏的平面","② 裁剪环 trim loops —— 只是画在它上面的边界"],"metrics":[]},{"id":2,"scene":"hole_untrim","dur":6.0,"title":"孔 = 加了一个 inner loop","sub":"底层曲面一点没坏，所以「取消」就是删掉那个环","lines":["RemoveHoles(指定内环, tol)  →  孔闭合","整面级 UntrimFace 会连外环一起抹掉 —— 那是错的粒度"],"metrics":[["面数 / faces",8,7,0],["体积 / volume",233214.16,236607.08,2]]},{"id":3,"scene":"selective_holes","dur":6.6,"title":"两个孔，只勾一个（E-024）","sub":"loop 级精度官方就有，不必先去圆角","lines":["H1 的两个内环 [7, 8] 被删，H2 纹丝不动","旧实现 UntrimFace → 两个孔一起没；新实现只删选中的"],"metrics":[["inner loops",4,2,0],["体积 / volume",233214.16,236607.08,2]]},{"id":4,"scene":"fillet","dur":7.2,"title":"圆角不是裁剪，是新增了一整圈曲面","sub":"滚球扫出的过渡面，四边都与邻面共享边","lines":["没有更大的底层曲面可以还原  →  UntrimOuterLoop 恒为 null","只能：删整圈过渡面 → 相邻面重新求交 → CreateSolid 缝合"],"metrics":[]},{"id":5,"scene":"independence","dur":7.0,"title":"打破伪约束：去布尔不需要先去圆角","sub":"圆角盒 + 1 孔 → 只删孔的内环 → 得到纯圆角盒","lines":["删 [11, 12] 两个内环，4 组圆角面全部完好","两个模块因此完全独立、任意顺序"],"metrics":[["面数 / faces",11,10,0],["体积 / volume",235922.14,239315.06,2]]},{"id":6,"scene":"conclusion","dur":5.2,"title":"孔是可抹的边界，圆角是须重缝的实体","sub":"机器给候选 · 人裁决 · 明确报出，不偷偷改","lines":["模块 B 去除布尔切割   ↔   RemoveHoles(指定内环)","模块 A 去除圆角       ↔   删整圈 + 重缝","两者互不依赖，没有总开关"],"metrics":[]},{"id":7,"scene":"outro","dur":4.0,"title":"每一帧都由代码算出","sub":"frame(t) 纯函数 · 不读时钟 · 不用随机 · 不联网","lines":["改一句字幕 = 一次 diff + 重渲染，不是重新抽卡","design-lab/002 · 参数与分镜在同一份 storyboard.py"],"metrics":[]}],"config":{"fps":24,"width":1600,"height":900,"iso_yaw":0.62,"fillet_radius":3.0,"isoline_density":6,"show_labels":true,"playback_speed":1.0,"theme":"manim-dark","seed":20261123},"palette":{"ground":"#12141A","grid":"#24262C","vignette":"#0B0C10","text":"#ECEDEF","muted":"#9A9EA8","line":"#8E929C","surface":"#5CC8E8","feature":"#FF8A28","accent":"#FFD25A","good":"#8BD17C","bad":"#FF6B5E","glow":"#3A6EA5"},"audio":{"sample_rate":48000,"master":0.82,"pad_level":0.16,"cue_level":0.3,"pad_root":55.0,"pad_steps":[0,3,5,7,10,12,7,0],"pad_glide":0.9,"fade_in":0.7,"fade_out":1.4,"scale":[220.0,261.63,293.66,329.63,392.0,440.0,523.25,587.33]},"audio_events":[[0.06,"cue",220.0,1.0],[3.26,"cue",261.63,1.0],[8.66,"cue",293.66,1.0],[10.76,"tick",587.32,0.7],[11.72,"tick",587.32,0.7],[14.66,"cue",329.63,1.0],[16.976,"tick",659.26,0.7],[18.032,"tick",659.26,0.7],[21.26,"cue",392.0,1.0],[25.232,"thud",98.0,1.0],[28.46,"cue",440.0,1.0],[30.92,"tick",880.0,0.7],[32.04,"tick",880.0,0.7],[33.58,"lift",660.0,0.9],[35.46,"cue",523.25,1.0],[40.66,"cue",587.33,1.0],[43.72,"chord",587.33,0.85]],"audio_kinds":{"cue":{"dur":1.1,"atk":0.006,"dec":0.34,"h":[[1.0,1.0],[2.0,0.34],[3.0,0.1]],"base":1.0},"tick":{"dur":0.16,"atk":0.002,"dec":0.035,"h":[[4.0,0.85],[5.4,0.45]],"base":0.52},"thud":{"dur":1.3,"atk":0.01,"dec":0.48,"h":[[1.0,1.0],[0.5,0.6]],"base":0.95},"lift":{"dur":0.85,"atk":0.008,"dec":0.36,"h":[[1.0,1.0],[2.0,0.22]],"base":0.8},"chord":{"dur":2.6,"atk":0.03,"dec":1.05,"h":[[1.0,1.0],[1.25,0.62],[1.5,0.42],[2.0,0.16]],"base":0.72}}}</script>
+<script id="sb" type="application/json">{"beats":[{"id":0,"scene":"title","dur":3.2,"title":"同一个立方体，两种「多出来的形状」","sub":"为什么一个孔能一键消失，一个圆角不能？","note":"B-rep 的两层结构 · Rhino 9 / FeatureWorks 实证","metrics":[]},{"id":1,"scene":"two_layers","dur":5.4,"title":"B-rep 有两层，不是一整块","sub":"钻孔只动了第二层","lines":["① 底层曲面 UnderlyingSurface —— 一整张没被破坏的平面","② 裁剪环 trim loops —— 只是画在它上面的边界"],"metrics":[]},{"id":2,"scene":"hole_untrim","dur":6.0,"title":"孔 = 加了一个 inner loop","sub":"底层曲面一点没坏，所以「取消」就是删掉那个环","lines":["RemoveHoles(指定内环, tol)  →  孔闭合","整面级 UntrimFace 会连外环一起抹掉 —— 那是错的粒度"],"metrics":[["面数 / faces",8,7,0],["体积 / volume",233214.16,236607.08,2]]},{"id":3,"scene":"selective_holes","dur":6.6,"title":"两个孔，只勾一个（E-024）","sub":"loop 级精度官方就有，不必先去圆角","lines":["H1 的两个内环 [7, 8] 被删，H2 纹丝不动","旧实现 UntrimFace → 两个孔一起没；新实现只删选中的"],"metrics":[["inner loops",4,2,0],["体积 / volume",233214.16,236607.08,2]]},{"id":4,"scene":"fillet","dur":7.2,"title":"圆角不是裁剪，是新增了一整圈曲面","sub":"滚球扫出的过渡面，四边都与邻面共享边","lines":["没有更大的底层曲面可以还原  →  UntrimOuterLoop 恒为 null","只能：删整圈过渡面 → 相邻面重新求交 → CreateSolid 缝合"],"metrics":[]},{"id":5,"scene":"independence","dur":7.0,"title":"打破伪约束：去布尔不需要先去圆角","sub":"圆角盒 + 1 孔 → 只删孔的内环 → 得到纯圆角盒","lines":["删 [11, 12] 两个内环，4 组圆角面全部完好","两个模块因此完全独立、任意顺序"],"metrics":[["面数 / faces",11,10,0],["体积 / volume",235922.14,239315.06,2]]},{"id":6,"scene":"conclusion","dur":5.2,"title":"孔是可抹的边界，圆角是须重缝的实体","sub":"机器给候选 · 人裁决 · 明确报出，不偷偷改","lines":["模块 B 去除布尔切割   ↔   RemoveHoles(指定内环)","模块 A 去除圆角       ↔   删整圈 + 重缝","两者互不依赖，没有总开关"],"metrics":[]},{"id":7,"scene":"outro","dur":4.0,"title":"每一帧都由代码算出","sub":"frame(t) 纯函数 · 不读时钟 · 不用随机 · 不联网","lines":["改一句字幕 = 一次 diff + 重渲染，不是重新抽卡","design-lab/002 · 参数与分镜在同一份 storyboard.py"],"metrics":[]}],"config":{"fps":24,"width":1600,"height":900,"iso_yaw":0.62,"fillet_radius":3.0,"isoline_density":6,"show_labels":true,"playback_speed":1.0,"theme":"manim-dark","seed":20261123},"palette":{"ground":"#12141A","grid":"#24262C","vignette":"#0B0C10","text":"#ECEDEF","muted":"#9A9EA8","line":"#8E929C","surface":"#5CC8E8","feature":"#FF8A28","accent":"#FFD25A","good":"#8BD17C","bad":"#FF6B5E","glow":"#3A6EA5"},"audio":{"sample_rate":48000,"channels":2,"master":0.82,"progression":[{"name":"Dmaj9","notes":[50,57,62,64,66,69]},{"name":"Bm9","notes":[47,54,62,61,66,69]},{"name":"Gmaj7s11","notes":[43,50,59,61,66,71]},{"name":"Asus2","notes":[45,52,59,61,64,69]}],"chord_sec":8.0,"arpeggio_bpm":60.0,"arc":[{"name":"setup","t0":0.0,"t1":8.6,"energy":0.3},{"name":"build","t0":8.6,"t1":28.4,"energy":0.65},{"name":"aha","t0":28.4,"t1":35.4,"energy":1.0},{"name":"resolve","t0":35.4,"t1":44.6,"energy":0.7}],"aha_hit":32.0,"pad_level":0.06,"pad_highpass_hz":80.0,"pad_detune_hz":0.12,"pad_lfo_hz":0.07,"pad_lfo_depth":0.2,"fade_in":2.5,"fade_out":3.5,"room_taps":{"L":[[83,0.28],[191,0.18],[370,0.1]],"R":[[97,0.28],[211,0.18],[389,0.1]]},"events":[{"t":0.06,"kind":"cue","midi":69,"gain":0.75},{"t":8.66,"kind":"cue","midi":74,"gain":0.8},{"t":14.66,"kind":"cue","midi":69,"gain":0.8},{"t":21.26,"kind":"thud","midi":50,"gain":0.7},{"t":28.46,"kind":"cue","midi":78,"gain":0.85},{"t":32.0,"kind":"chord","midi":62,"gain":1.0},{"t":40.66,"kind":"cue","midi":69,"gain":0.7}]},"audio_events":[[0.06,"cue",440.0,0.75],[8.66,"cue",587.3295358348151,0.8],[14.66,"cue",440.0,0.8],[21.26,"thud",146.8323839587038,0.7],[28.46,"cue",739.9888454232688,0.85],[32.0,"chord",293.6647679174076,1.0],[40.66,"cue",440.0,0.7]],"audio_kinds":{"cue":{"dur":1.6,"atk":0.02,"dec":0.42,"h":[[1.0,1.0],[2.0,0.3],[3.0,0.1]],"base":0.5},"thud":{"dur":1.8,"atk":0.025,"dec":0.55,"h":[[1.0,1.0],[0.5,0.55]],"base":0.7},"chord":{"dur":4.5,"atk":0.03,"dec":1.6,"h":[[1.0,1.0],[1.25,0.45],[1.5,0.3],[2.0,0.12]],"base":0.62}}}</script>
 <script>
 (function(){
   const SB = JSON.parse(document.getElementById('sb').textContent);
@@ -411,82 +410,39 @@
     document.getElementById('clock').textContent = t.toFixed(1)+' s';
   }
 
-  // ---- 声音层：与 soundtrack.wav 同源（同一份事件表 / 同一套音色参数）----
-  // 浏览器不加载 MP4，而是用 Web Audio 把同一张表实时合成出来：
-  // 拖进度、改速度、改密度都能立刻听到，且不需要任何外部音频文件。
-  const AU = SB.audio, EV = SB.audio_events, KIND = SB.audio_kinds;
-  const smooth = u => { u=Math.max(0,Math.min(1,u)); return u*u*(3-2*u); };
-  let actx=null, master=null, padOsc=null, padOsc2=null, padGain=null;
-  let sfxOn=true, padOn=true, vol=AU.master, density=1.0;
+  // ---- 声音层 v3：直接播放 audio.py 生成的 soundtrack.wav ----
+  // E-029 省算力第 6 条「单端定义」：浏览器不再复现一套 Web Audio 合成器，
+  // 否则 pad_step / 音色参数一改就漂移（v2 就踩过：preview 用旧字段，静默变 NaN）。
+  // 现在离线 WAV 与预览听感天然一致，且少维护一套代码。
+  const AU = SB.audio;
+  let sfxOn=true, padOn=true, vol=AU.master;
+  let player=null, audioReady=false;
+  const audioHint=document.getElementById('audioHint');
 
   function initAudio(){
-    if(actx) return;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC){ document.getElementById('audioHint').textContent='此浏览器不支持 Web Audio（画面仍可用）'; return; }
-    actx = new AC();
-    master = actx.createGain(); master.gain.value = vol; master.connect(actx.destination);
-    padGain = actx.createGain(); padGain.gain.value = 0; padGain.connect(master);
-    padOsc = actx.createOscillator();  padOsc.type='sine';  padOsc.frequency.value=AU.pad_root;
-    padOsc2= actx.createOscillator();  padOsc2.type='sine';  padOsc2.frequency.value=AU.pad_root*1.5;
-    const g2=actx.createGain(); g2.gain.value=0.35;
-    padOsc2.connect(g2); g2.connect(padGain); padOsc.connect(padGain);
-    padOsc.start(); padOsc2.start();
-    document.getElementById('audioHint').textContent='声音已启用 · 与 MP4 音轨同源';
+    if(player) return;
+    player = new Audio('soundtrack.wav');
+    player.preload='auto';
+    player.volume = vol;
+    player.addEventListener('error', ()=>{
+      audioHint.textContent='未找到 soundtrack.wav（先跑 python audio.py）；画面仍可用';
+    });
+    audioReady=true;
+    audioHint.textContent='声音：播放 soundtrack.wav（与 MP4 音轨同源）';
   }
   function resumeAudio(){
     initAudio();
-    if(actx && actx.state==='suspended') actx.resume();
+    if(player && player.paused) player.play().catch(()=>{});
   }
-
-  // 一个事件 = 若干谐波 Osc + 一个 Gain 包络；包络从 0 起、回 0 收（防爆音）
-  function fireEvent(e, delay){
-    if(!actx || !sfxOn) return;
-    const kind=e[1], freq=e[2], strength=e[3], K=KIND[kind];
-    if(!K) return;
-    const now=actx.currentTime+(delay||0);
-    K.h.forEach(h=>{
-      const mult=h[0], w=h[1];
-      const o=actx.createOscillator(), g=actx.createGain();
-      o.type='sine'; o.frequency.setValueAtTime(freq*mult, now);
-      if(kind==='thud') o.frequency.linearRampToValueAtTime(freq*mult*0.78, now+K.dur);
-      if(kind==='lift') o.frequency.linearRampToValueAtTime(freq*mult*1.55, now+K.dur);
-      const peak=Math.max(0.0002, strength*K.base*AU.cue_level*w*0.55);
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.linearRampToValueAtTime(peak, now+K.atk);
-      g.gain.exponentialRampToValueAtTime(0.0001, now+K.dur);
-      o.connect(g); g.connect(master);
-      o.start(now); o.stop(now+K.dur+0.03);
-    });
-  }
-
-  // 只播落在 [from,to) 时间窗里的事件；跳转/重播时 to<=from，直接跳过，不会连响一串
-  function pumpAudio(from, to){
-    if(!actx || !sfxOn || to<=from) return;
-    EV.forEach((e,i)=>{
-      if(e[0]<from || e[0]>=to) return;
-      if(e[1]==='tick'){
-        if(density<0.02) return;   // 0.0× = 关掉节拍点，别让它悄悄还响着
-        if(density<0.999 && (i % Math.max(1,Math.round(1/Math.max(0.25,density))))!==0) return;
-        fireEvent(e,0);
-        if(density>1.001) fireEvent([e[0]+0.18,'tick',e[2]*1.12,e[3]*0.6*(density-1)],0);
-      } else fireEvent(e,0);
-    });
-  }
-
-  // 氛围层：频率按当前镜头平滑滑移（对应 audio.py 的 pad_glide），呼吸 LFO 按 t 直接算
-  function updatePad(t){
-    if(!actx) return;
-    const st=beatAt(t), bid=st.b.id, steps=AU.pad_steps;
-    const prev=steps[(bid-1+steps.length)%steps.length], cur=steps[bid%steps.length];
-    const k=smooth((t-st.t0)/AU.pad_glide);
-    const f0=AU.pad_root*Math.pow(2,(prev+(cur-prev)*k)/12);
-    padOsc.frequency.setTargetAtTime(f0, actx.currentTime, 0.08);
-    padOsc2.frequency.setTargetAtTime(f0*1.5, actx.currentTime, 0.08);
-    const breath=0.62+0.38*Math.sin(2*Math.PI*0.11*t);
-    const fade=smooth(t/AU.fade_in)*smooth((DUR-t)/AU.fade_out);
-    padGain.gain.setTargetAtTime(padOn ? AU.pad_level*0.55*breath*fade : 0,
-                                 actx.currentTime, 0.05);
-    master.gain.setTargetAtTime(vol, actx.currentTime, 0.05);
+  function fireEvent(){ /* 兼容旧调用：事件已固化在 WAV 里，不再实时合成 */ }
+  function pumpAudio(){ /* 兼容旧调用 */ }
+  function updatePad(){
+    if(!player) return;
+    player.volume = sfxOn && padOn ? vol : 0;
+    // 拖动进度条时把音频拉到同一时间点；阈值 0.12 s 避免每帧重置造成卡顿
+    if(Math.abs(player.currentTime - t) > 0.12){
+      try{ player.currentTime = Math.max(0, Math.min(t, player.duration||DUR)); }catch(e){}
+    }
   }
 
   // ---- 播放控制 ----
@@ -501,13 +457,14 @@
     else if(playing) t=Number(seek.value)/1000;
     seek.value=String(Math.round(t*1000));
     render(t);
-    if(actx){ pumpAudio(prevT,t); updatePad(t); }
+    updatePad();                   // 同步 WAV 播放进度与音量（不再实时合成事件）
     requestAnimationFrame(loop);
   }
   playBtn.onclick=()=>{
-    resumeAudio();                       // 浏览器要求用户手势才能解锁 AudioContext
+    resumeAudio();
     if(!playing && t>=DUR-1e-3) t=0;
     playing=!playing; playBtn.textContent=playing?'暂停':'播放';
+    if(player){ if(playing) player.play().catch(()=>{}); else player.pause(); }
   };
   seek.oninput=()=>{ resumeAudio(); scrubbing=true; t=Number(seek.value)/1000; };
   seek.onchange=()=>{ scrubbing=false; };
@@ -523,24 +480,21 @@
   bind('iso','isoV',v=>String(v), v=>K.iso=v);
   document.getElementById('labels').onchange=e=>K.labels=e.target.checked;
   bind('vol','volV',v=>v+'%', v=>vol=v/100);
-  bind('density','densityV',v=>(v/100).toFixed(1)+'×', v=>density=v/100);
-  document.getElementById('sfx').onchange=e=>sfxOn=e.target.checked;
-  document.getElementById('pad').onchange=e=>padOn=e.target.checked;
+  document.getElementById('sound').onchange=e=>{ sfxOn=e.target.checked; padOn=e.target.checked; };
+  document.getElementById('try10').onclick=()=>{ initAudio(); if(player){ player.currentTime=28.0; player.play().catch(()=>{}); } };
 
   document.getElementById('reset').onclick=()=>{
     K.yaw=CFG.iso_yaw; K.R=CFG.fillet_radius; K.iso=CFG.isoline_density;
     K.labels=true; K.speed=1;
-    vol=AU.master; density=1.0; sfxOn=true; padOn=true;
+    vol=AU.master; sfxOn=true; padOn=true;
     document.getElementById('yaw').value=String(Math.round(K.yaw*100));
     document.getElementById('rad').value=String(Math.round(K.R*10));
     document.getElementById('iso').value=String(K.iso);
     document.getElementById('speed').value='100';
     document.getElementById('labels').checked=true;
     document.getElementById('vol').value=String(Math.round(vol*100));
-    document.getElementById('density').value='100';
-    document.getElementById('sfx').checked=true;
-    document.getElementById('pad').checked=true;
-    ['yaw','rad','iso','speed','vol','density'].forEach(id=>document.getElementById(id).dispatchEvent(new Event('input')));
+    document.getElementById('sound').checked=true;
+    ['yaw','rad','iso','speed','vol'].forEach(id=>document.getElementById(id).dispatchEvent(new Event('input')));
   };
   document.getElementById('shot').onclick=()=>{
     const a=document.createElement('a');

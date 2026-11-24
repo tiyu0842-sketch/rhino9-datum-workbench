@@ -819,6 +819,27 @@ GitHub push 仍待代理关闭。
 不引入 Soundroo / Node / 外部模型 / 音频素材。产物仓库根 `DECISIONS_002_AUDIO.md`
 （D1–D6 各带现状/证据/A-B-C 推荐 + 三步验收闸门），本地 commit `c19a66e`。
 
+**2026-11-24 13:4x · 配乐 v3 落地（D1–D6 全按推荐 A，用户拍板）**：
+只改 `storyboard.py` 的 `AUDIO` 段 + 重写 `audio.py` + `preview.html` 声音层；**BEATS/PALETTE/render.py 未动**（画面冻结）。
+- D1 纯标准库；D2 48 kHz **stereo** + 左右不同三抽头回声（83/191/370 ms 与 97/211/389 ms）；
+  D3 固定 D major 四和弦 `Dmaj9–Bm9–Gmaj7♯11–Asus2` 8 s/和弦，**按绝对秒走、与 BEATS 解耦**；
+  D4 事件 **17 → 7**、`atk 2 ms → 20/25/30 ms`、删掉 5.4 非整数倍频；
+  D5 四段弧 setup 0–8.6 / build 8.6–28.4 / **aha 28.4–35.4（t=32 主和弦落点）** / resolve 35.4–44.6；
+  D6 pad 0.16→**0.06** + 80 Hz 高通 + 固定 detune ±0.12 Hz + LFO 0.07 Hz ±20%。
+- **6 指标自检（`audio.py --info` 2.8 s，不用出片）**：事件 7、密度 0.157/s（原 0.38）、
+  最小间隔 3.54 s、atk 20–30 ms、和弦音命中 **6/7**、换调 5 次（原 8 次）。
+  指标在分析阶段抓到「协和命中仅 2/7」→ 查出是判据用了频率比绝对容差、跨八度和弦音被误判，
+  改成 MIDI 音级归属判定后 6/7。**这正是把听感前移成可计算指标的价值**。
+- 分段 RMS 实测（证明情绪弧是真的能量曲线，不是参数摆设）：
+  **setup 0.0079 → build 0.0344 → aha 0.1057 → resolve 0.0218**，峰值落在 **t=32.34 s**（啊哈点）。
+- WAV 44.60 s / 8.17 MB / stereo，两次 sha256 一致 `1adfa21b…`；
+  MP4 重封装 2.93 MB，**AAC LC 48000 Hz stereo 163 kb/s**、1070 帧、verify exit=0。
+  `preview_10s.wav`（28–38 s，含啊哈落点）1.83 MB 供真人试听。
+- **双端漂移根治**：`preview.html` 声音层从 Web Audio 实时合成改成 `<audio src="soundtrack.wav">`
+  直接播离线文件（省算力清单第 6 条「单端定义」），删掉失效的 density/sfx/pad 控件 →
+  控件从 9 收敛到 6；注入后 JS `node --check` 通过、旧字段残留 0。教训：**离线与预览不要各写一套合成器**。
+- **未做**：真人听感验收（等用户听 10 s 片段）；GitHub push（代理问题未解决）。
+
 **GitHub 通道能力分清（别混）**：`mcp__github__get_me` **可用**（读通道正常，`tiyu0842-sketch`）；
 `mcp__github__issue_write` 建 issue → **403 Resource not accessible by integration**
 = 连接器**缺 issue 写权限，不是认证过期** → 不 reconnect、不重试等价调用，改用仓库内文档 +
