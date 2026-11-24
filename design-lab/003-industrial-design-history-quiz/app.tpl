@@ -74,6 +74,31 @@ nav button.on b{color:var(--accent)}
 .art .a{fill:var(--glaze);fill-opacity:.42}
 .art .b{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .art .c{fill:none;stroke:currentColor;stroke-width:1;opacity:.42}
+
+/* 实物图 / 小幽默 */
+.viewswitch{display:flex;gap:7px;margin:4px 0 10px}
+.vbtn{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 13px;
+  font-size:11.5px;color:var(--muted);cursor:pointer}
+.vbtn.on{background:var(--accent);border-color:var(--accent);color:#fff8f2}
+html[data-theme="dark"] .vbtn.on,html[data-theme="kitty"] .vbtn.on{color:#20140d}
+.mart{position:relative}
+.realimg{max-width:100%;max-height:190px;display:block;margin:0 auto;border-radius:12px;object-fit:contain}
+.photoempty{text-align:center;font-size:12.5px;color:var(--muted);padding:26px 10px;line-height:1.9}
+.photoempty a{color:var(--accent2)}
+.photonote{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.7}
+.photonote a{color:var(--accent2)}
+.pbadge{position:absolute;right:6px;top:6px;background:var(--accent2);color:#fff;border-radius:7px;
+  font-size:9px;padding:1px 5px;letter-spacing:.04em}
+.wk{position:relative}
+.joke{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);
+  border-radius:13px;padding:11px 14px;margin-top:10px}
+.joke .lb{font-size:10px;padding:1px 8px;border-radius:999px;background:rgba(163,130,44,.16);color:var(--gold)}
+.joke .lb.real{background:rgba(92,138,118,.16);color:var(--accent2)}
+.joke h4{margin:6px 0 0;font-size:13px}
+.joke p{margin:4px 0 0;font-size:12.5px;line-height:1.75}
+.joke .punch{font-size:12px;margin-top:6px}
+.cardphoto{max-width:100%;max-height:88px;border-radius:9px;margin-top:8px;display:block}
+.note .mono{border-color:var(--gold);color:var(--gold);font-size:66px;width:120px;height:120px}
 /* ---------- 通用 ---------- */
 .view{display:none;padding-top:18px}
 .view.on{display:block}
@@ -584,7 +609,7 @@ function renderTimeline(){
         <div class="blk"><div class="k">代表作品 · 点开看图与要点</div>
           <div class="works">${st.works.map((w,i)=>`
             <div class="wk" data-work="${st.id}-w${i}">
-              <div class="artbox" style="--glaze:${w.tint||'#b98d5e'}">${w.svg}</div>
+              <div class="artbox" style="--glaze:${w.tint||'#b98d5e'}">${w.svg}${w.photo?'<span class="pbadge">照</span>':''}</div>
               <div class="nm">${esc(w.name)}</div>
               <div class="mt">${esc(w.year)}${w.author?' · '+esc(w.author):''}</div>
             </div>`).join('')}</div></div>
@@ -597,6 +622,9 @@ function renderTimeline(){
           <div class="punch">${esc(st.story.punch)}</div></div>
         <div class="fun"><span class="lb">趣味事件</span>
           <h4>${esc(st.fun.title)}</h4><p>${esc(st.fun.text)}</p></div>
+        ${(st.jokes||[]).length?`<div class="blk"><div class="k">笑一下 · 记忆钩子</div>
+          ${st.jokes.map(j=>`<div class="joke"><span class="lb ${j.kind==='有据'?'real':''}">${esc(j.kind)}</span>
+            <h4>${esc(j.title)}</h4><p>${esc(j.text)}</p><div class="punch">${esc(j.punch)}</div></div>`).join('')}</div>`:''}
         <div class="blk"><div class="k">它留下了什么 · 承上启下</div><p>${esc(st.shift)}</p></div>
         <div class="stacts">
           <button class="btn" data-quiz-stage="${st.id}">做本节测验（${QS.filter(q=>q.stage===st.id).length} 题）</button>
@@ -655,22 +683,50 @@ function closeModal(){ $('mask').classList.remove('on'); }
 $('mask').addEventListener('click', e=>{ if(e.target===$('mask')) closeModal(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
+let CUR_WORK=null, photoMode='line';
+function renderPhoto(){
+  const it=CUR_WORK; if(!it) return;
+  const el=$('photoStage'); if(!el) return;
+  if(photoMode==='photo' && it.photo){
+    el.innerHTML=`<img class="realimg" src="${it.photo}" alt="${esc(it.name)}">`;
+  }else if(photoMode==='photo'){
+    el.innerHTML=`<div class="photoempty">本机还没有抓到这张作品的授权实物图。<br>
+      <a href="${esc(it.photoSearch||'https://commons.wikimedia.org/')}" target="_blank" rel="noopener">维基共享资源（授权清晰）↗</a> ·
+      <a href="https://image.baidu.com/search/index?tn=baiduimage&word=${encodeURIComponent(it.name)}" target="_blank" rel="noopener">百度图片（更全，注意版权）↗</a><br>
+      线描图可以先认形体，实物图留着联网时再看。</div>`;
+  }else{
+    el.innerHTML=`<div class="artbig" style="--glaze:${it.tint||'#b98d5e'}">${it.svg}</div>`;
+  }
+  document.querySelectorAll('[data-pview]').forEach(b=>b.classList.toggle('on', b.dataset.pview===photoMode));
+}
+window.__showPhoto = m => { photoMode=m; renderPhoto(); };
 function openWork(key){
   const w = ALL_WORKS.find(x=>x.key===key); if(!w) return;
   const st = w.st, it = w.w;
-  const related = QS.filter(q=>q.stage===st.id).slice(0,3);
+  CUR_WORK=it; photoMode=it.photo?'photo':'line';
+  const pm=it.photoMeta||{};
+  const credit=it.photo
+    ? `<div class="photonote">实物图：Wikimedia Commons · ${esc(pm.license||'授权见图源')} · ${esc(pm.author||'作者未标注')}
+         ${pm.page?`<a href="${esc(pm.page)}" target="_blank" rel="noopener">原图页 ↗</a>`:''}</div>`
+    : `<div class="photonote">图示为手绘线描「形体记号」，不是文物复原图。</div>`;
   openModal(`
     <div class="mhead"><h3>${esc(it.name)}</h3><button class="x" onclick="__close()">×</button></div>
-    <div class="mart" style="--glaze:${it.tint||'#b98d5e'}">${it.svg}</div>
-    <div class="kv">
+    <div class="viewswitch">
+      <button class="vbtn" data-pview="photo" onclick="__showPhoto('photo')">实物照片</button>
+      <button class="vbtn" data-pview="line" onclick="__showPhoto('line')">线描示意</button>
+    </div>
+    <div class="mart" id="photoStage"></div>
+    ${credit}
+    <div class="kv" style="margin-top:12px">
       <b>年代</b><span>${esc(it.year)}</span>
       <b>作者 / 产地</b><span>${esc(it.author||'—')}</span>
       <b>材料</b><span>${esc(it.mat||'—')}</span>
       <b>所属</b><span>${esc(st.era)} · ${esc(st.year)}</span>
     </div>
     <div class="blk" style="margin-top:14px"><div class="k">为什么重要</div><p>${esc(it.why)}</p></div>
-    ${related.length?`<div class="qacts" style="margin-top:16px"><button class="btn" onclick="__quizStage('${st.id}')">做本节的 ${QS.filter(q=>q.stage===st.id).length} 题</button></div>`:''}
+    <div class="qacts" style="margin-top:16px"><button class="btn" onclick="__quizStage('${st.id}')">做本节的 ${QS.filter(q=>q.stage===st.id).length} 题</button></div>
   `);
+  renderPhoto();
 }
 function openPerson(key){
   const st = STATIONS.find(s=> key.indexOf(s.id+'-p')===0);
@@ -737,10 +793,11 @@ function renderCard(){
   if(!c){ return; }
   $('dots').innerHTML = group.ids.map((_,i)=>
     `<div class="dot ${i<group.i?'done':''} ${i===group.i?'now':''}"></div>`).join('');
-  $('cardIdx').textContent = `${group.i+1} / ${group.ids.length} · ${c.type==='work'?'作品':'人物'} · ${c.stationTitle}`;
+  const kindLabel = c.type==='work'?'作品':(c.type==='person'?'人物':(c.noteKind||'卡片'));
+  $('cardIdx').textContent = `${group.i+1} / ${group.ids.length} · ${kindLabel} · ${c.stationTitle}`;
   const art = c.type==='work'
-    ? `<div class="artbig" style="--glaze:${c.tint||'#b98d5e'}">${c.svg}</div>`
-    : `<div class="artbig"><div class="mono">${esc(c.initial)}</div></div>`;
+    ? `<div class="artbig" style="--glaze:${c.tint||'#b98d5e'}">${c.svg}${c.photo?`<img class="cardphoto" src="${c.photo}" alt="">`:''}</div>`
+    : `<div class="artbig ${c.type==='note'?'note':''}"><div class="mono">${esc(c.initial)}</div></div>`;
   $('faceFront').innerHTML = `
     <div class="top"><span>${c.track==='china'?'中国线':'世界线'}</span><span>${esc(c.year||'')}</span></div>
     ${art}
@@ -749,11 +806,13 @@ function renderCard(){
     <div class="hintf">点卡片翻面 →</div>`;
   const kvs = (c.meta||[]).map(([k,v])=>`<b>${esc(k)}</b><span>${esc(v)}</span>`).join('');
   $('faceBack').innerHTML = `
-    <div class="top"><span>${c.type==='work'?'代表作品':'设计师 / 人物'}</span><span>${esc(c.stationTitle)}</span></div>
+    <div class="top"><span>${kindLabel}</span><span>${esc(c.stationTitle)}</span></div>
     <h3 style="text-align:left;margin-top:8px;font-size:18px">${esc(c.title)}</h3>
     <div class="kvs">${kvs}</div>
     <div class="why">${esc(c.why)}</div>
+    ${c.punch?`<div class="quote">${esc(c.punch)}</div>`:''}
     ${c.quote?`<div class="quote">“${esc(c.quote)}”</div>`:''}
+    ${c.type==='work'&&c.photo?`<img class="cardphoto" src="${c.photo}" alt="${esc(c.title)}">`:''}
     <div class="hintf" style="margin-top:auto">记住关键点，就够了 —— 细节交给时间线。</div>`;
   $('flip').classList.toggle('back', !!group.flipped);
   updatePoolInfo();
