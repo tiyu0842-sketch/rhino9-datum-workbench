@@ -14,6 +14,29 @@
 
 ---
 
+## ✅ 已拍板 / 已实现（2026-11-24 晚回填）
+
+> **本清单已闭环，不需要再回复编号。** 下面 D1–D6 各项均选推荐 **A** 并落进代码，
+> `audio.py`（v3）与 `storyboard.py:AUDIO` 已重写，重新出片
+> `brep_untrim_with_audio.mp4`（44.58 s / H.264 + AAC 48 kHz stereo）。
+> 完整对照与验收数字：[`RETRO_audio_and_compute.md` §9](design-lab/002-brep-untrim-explainer/RETRO_audio_and_compute.md)。
+
+| 项 | 决定 | 落地证据 |
+|---|---|---|
+| D1 三条禁令 | **A 不开口子** | 纯标准库 `wave/array/math`，无外部素材、无联网、无随机、无系统时钟 |
+| D2 stereo + 房间回声 | **A 做** | `sample_rate 48000 / channels 2`；`room_taps` L 83/191/370、R 97/211/389 ms；`ffprobe` 实测 AAC 2 ch |
+| D3 和弦进行 | **A 固定 D major** | `progression = Dmaj9 – Bm9 – Gmaj7♯11 – Asus2`，`chord_sec=8.0`，32 s 一轮；按绝对秒走，与 BEATS 解耦 |
+| D4 事件密度 | **A 降到 7** | `events` 7 个 / `min_gap 3.54 s` / `atk ≥20 ms` / 全整数倍谐波；`chord_tone_hits 6/7` |
+| D5 情绪弧 | **A 四段式** | `arc` 提出 0–8.6 / 积累 8.6–28.4 / **啊哈 28.4–35.4** / 收束 35.4–44.6，`aha_hit=32.0` |
+| D6 55 Hz 低频 | **A** | 删单根音；pad 取和弦最低 3 音、`pad_level 0.06`、`pad_highpass_hz 80`、`pad_detune_hz 0.12`、`pad_lfo_hz 0.07`、淡入 2.5 / 淡出 3.5 s |
+| 验收闸门 | **A 三步** | `python audio.py --info` 一次打印 6 项代理指标；`--preview` 出 10 s 试听；确认后才全片渲染 |
+
+**实测输出**：`events 7 / density 0.157 / min_gap 3.54 / atk_ms [20,25,30] / chord_tone_hits 6/7 / key_changes 5 / chord_loop 32.0 s`。
+**诚实边界**：代理指标通过 ≠ 真人听感通过；发布前仍需听一遍 `preview_10s.wav` 与整片。
+下方 D1–D6 正文保留为**当时的决策依据**，不删改。
+
+---
+
 ## 已定（2026-11-24 对话拍板，留档确认）
 
 | 项 | 决定 |
@@ -110,10 +133,15 @@ B 直接出全片，你听完整版再提意见。
 
 ---
 
-## 交付预期（D2–D6 定了之后）
+## 交付预期（**已交付**，原计划留档）
 
 - 只改 `design-lab/002-brep-untrim-explainer/storyboard.py` 的 `AUDIO` 段 +
   `audio.py` + `build_html.py` / `preview.html`；**不动 BEATS / PALETTE / render.py**。
 - 新增 `audio_metrics()`（省算力清单第 4 条），`--info` 直接打印 6 指标。
 - 确定性回归：连续两次 WAV 的 sha256 必须一致；无削波；AAC 流存在。
 - 回填 E-029 的「已拍板」段 + 更新 `style.md §8`（撤掉「v2 听感未验收」警告）。
+
+**实际完成情况**：`storyboard.py` 的 `AUDIO`、`audio.py`、`build_html.py` / `preview.html`
+均已改；`audio.py --info` 已实现 6 指标；`preview_10s.wav` 已出；`style.md §8` 与
+`README.md` 已更新为 v3。唯一按计划**没做**的是「只改 AUDIO 段、完全不动 `storyboard.py` 的 BEATS」——
+BEATS / PALETTE / `render.py` 确实一行未动，符合画面冻结的约定。

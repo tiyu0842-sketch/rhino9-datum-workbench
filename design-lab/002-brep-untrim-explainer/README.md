@@ -30,10 +30,12 @@
 也是为什么它比文生视频更适合讲几何原理：数字和标签必须精确，不能被模型「猜」。
 
 **声音同理**：`audio.py` 把采样点写成 `t = i / sample_rate` 的纯函数，
-时间轴的唯一来源还是 `storyboard.BEATS`。改一镜 `dur`，音轨自动跟着变；
 同一份代码两次跑出的 WAV 逐字节相同（sha256 已验证）。
-氛围层、转场「叮」、数字节拍点、语义重音全部由正弦叠加 + 指数包络合成，
-不加载任何音频文件、不依赖 ffmpeg 滤镜。人声旁白是**可选外部插槽**，见 `narration.md`。
+v3 起时间轴来源从 `BEATS` 换成 `AUDIO` 的**绝对秒**——配乐与分镜解耦，
+改一句字幕不会牵动整条配乐（`RETRO_audio_and_compute.md` 省算力清单第 9 条）。
+固定 D major 四和弦循环、四段情绪弧、7 个同调事件、stereo 三抽头房间回声
+全部由正弦叠加 + 指数包络合成，不加载任何音频文件、不依赖 ffmpeg 滤镜。
+人声旁白是**可选外部插槽**，见 `narration.md`。
 
 主流引擎有三类：Remotion（React 帧级渲染）、Manim（Python 数学动画）、
 HTML Canvas + 无头浏览器逐帧截图。本项目选的是**第四种、依赖最少的**：
@@ -48,7 +50,7 @@ storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG + AUDIO（音�
       ├── render.py      frame(t) 纯函数 → frames/00000.png … 01069.png
       │                        └── encode.py → brep_untrim.mp4（无声）
       │                                    └→ brep_untrim_with_audio.mp4（带音轨）
-      ├── audio.py       sample(t) 纯函数 → soundtrack.wav（17 个事件全由 BEATS 派生）
+      ├── audio.py       sample(t) 纯函数 → soundtrack.wav（v3：7 事件，按 AUDIO 绝对秒，与 BEATS 解耦）
       │
       └── build_html.py  → preview.html（Canvas 按 BEATS 重画 + Web Audio 复现同一张事件表）
 ```
@@ -74,11 +76,15 @@ storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG + AUDIO（音�
 - **圆角**：沿 4 条顶边画参数化弧带，整圈同时淡出/剥离，表达「新增曲面」。
 - **叠化转场**：编码器精简构建无 fade/overlay 滤镜，所以在帧内调两次纯函数渲染做混合。
 
-音频实现要点（不用任何音频库）：
-- **氛围层**：55 Hz 基底 + 1.5×/2× 谐波 + 0.3% 失谐拍频 + 0.11 Hz 呼吸 LFO；
-  每镜按 `pad_steps` 换半音，在 `pad_glide=0.9 s` 内平滑滑过去（频率硬切 = click）。
-- **事件层**：`events()` 从 BEATS 派生，8 声 cue + 6 个 tick + thud / lift / chord；
-  每个事件包络 `(1−e^(−t/atk))·e^(−t/dec)` 从 0 起、回 0 收。
+音频实现要点（v3，不用任何音频库）：
+- **调性底座**：固定 D major，`Dmaj9 – Bm9 – Gmaj7♯11 – Asus2` 每和弦 8 s、32 s 一轮，
+  按绝对秒取当前和弦；pad 取最低 3 音 × 固定 ±0.12 Hz detune × 80 Hz 高通 × 0.07 Hz 呼吸，
+  音量降到 0.06。v2 的 55 Hz 持续嗡鸣已移除。
+- **情绪弧**：提出 0–8.6 / 积累 8.6–28.4 / **啊哈 28.4–35.4** / 收束 35.4–44.6；
+  `t=32.0` 落主和弦长尾，对应 `independence` 镜「伪约束被打破」。
+- **事件层**：7 个事件（cue×5 / thud×1 / chord×1），最小间隔 3.54 s，起音 ≥20 ms，
+  频率全由 MIDI 换算并与当前和弦同调；包络 `(1−e^(−t/atk))·e^(−t/dec)` 从 0 起、回 0 收。
+- **空间**：16-bit 48 kHz stereo，左右不同三抽头房间回声在采样点算，不用 ffmpeg 滤镜。
 - **叠加策略**：离散事件只在自己的时间窗内写样本，复杂度与窗口总长成正比，
   不是「采样数 × 事件数」。
 
@@ -92,11 +98,16 @@ storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG + AUDIO（音�
 | `encode.py` | 帧序列 + 音轨 → MP4；按能力挑 ffmpeg；可选叠人声旁白 |
 | `build_html.py` | 把 BEATS / AUDIO / 事件表 / 音色表注入 `preview.html` |
 | `preview.html` | 单文件可交互预览：画面 5 控件 + 声音 4 控件，拖着实时生效 |
-| `soundtrack.wav` | 44.60 s 程序化音轨（48 kHz / 16-bit / mono） |
+| `soundtrack.wav` | 44.60 s 程序化音轨（**48 kHz / 16-bit / stereo**，v3 配乐） |
+| `preview_10s.wav` | 28–38 s 试听片段（含「啊哈」落点） |
 | `brep_untrim.mp4` | 无声成片（保留作对照） |
-| `brep_untrim_with_audio.mp4` | **带音轨成片** |
+| `brep_untrim_with_audio.mp4` | **带音轨成片（投稿主文件）** |
 | `contact_sheet.png` | 八镜关键帧对照图 |
-| `style.md` / `narration.md` | 项目级风格规格（含 §8 音频）/ 旁白稿与混入方法 |
+| `style.md` / `narration.md` | 项目级风格规格（§8 音频已更新为 v3）/ 旁白稿与混入方法 |
+| `RETRO_audio_and_compute.md` | 省算力清单 + v2 诊断原文 + **§9 v3 已落地实现与验收** |
+| `PUBLISH_bilibili.md` / `cover_bilibili.png` | B 站投稿文案包 / 封面图 |
+| `make_cover.py` / `make_srt.py` | 封面与 CC 字幕的生成脚本（确定性，无外部素材） |
+| `TUTORIAL_全过程讲解.md` | 从想法到发布的完整复现教程 |
 
 **预览页 9 个控件**（画面 4 滑块 + 1 开关，声音 2 滑块 + 2 开关）：
 播放速度、轴测角度 `iso_yaw`、圆角半径 `fillet_radius`、结构线密度 `isoline_density`、
@@ -113,12 +124,15 @@ storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG + AUDIO（音�
 
 - 时长 44.6 s，1070 帧 @ 24 fps，1600×900，H.264 / yuv420p；无声版 2.05 MB，带音轨版 2.90 MB。
 - 单帧渲染约 0.18 s，全片约 3 分钟；转场在帧内完成，可乱序并行渲染。
-- 音轨：2,140,800 采样 / 44.60 s / 17 事件，生成耗时 **2.8 s**，
-  `peak=0.5241 → gain=1.439 → 最终≈0.75`、`rms=0.1403`，不削波。
-- **确定性实测**：连续两次 `audio.py` 的 WAV sha256 一致（`32d811a6…`）；
-  把 `KIND` 从 tuple 重构成 dict 便于 JSON 注入后哈希仍不变。
-- 成片解码校验 `exit=0`、`frame=1070`，并确认
-  `Audio: aac (LC), 48000 Hz, mono, 157 kb/s` 流存在。
+- 音轨 v3：2,140,800 采样 / 44.60 s / **7 事件 / stereo**，生成耗时秒级；
+  `python audio.py --info` 实测 `density 0.157/s`、`min_gap 3.54 s`、
+  `atk_ms [20,25,30]`、`chord_tone_hits 6/7`、`chord_loop 32.0 s`，不削波。
+- **确定性实测**：连续两次 `audio.py` 的 WAV sha256 一致；当前
+  `soundtrack.wav` = `1adfa21b…`、`preview_10s.wav` = `8275b772…`、
+  `brep_untrim_with_audio.mp4` = `204ab6e8…`。
+  `KIND` 从 tuple 重构成 dict 便于 JSON 注入后哈希不变（v2 回归项，v3 沿用）。
+- 成片 `ffprobe` 实测：H.264 1600×900 24 fps + **AAC 48000 Hz 2 ch**，
+  44.583333 s / 3,077,540 B；无声版 `587df20e…`。
 - 上屏数字全部可追到 E-024 / E-025 的实测记录（`experiment-log.md`），无编造。
 - 编码器实测：本机两个 ffmpeg 能力不同，详见 `style.md` §8；
   `find_ffmpeg(need_audio=True)` 实测 `-encoders` 后自动选完整构建。
@@ -173,8 +187,13 @@ storyboard.py   唯一数据源：8 个 BEATS + PALETTE + CONFIG + AUDIO（音�
   公式一致但未来可能漂移；若要长期维护，应抽出一份几何与音色定义做双端生成。
 - 未做浏览器内 Web Audio 的实机听感验收（只做了 JS 语法、注入数据与离线 WAV 的校验）；
   带音轨 MP4 的音频流已用 ffmpeg 整片解码确认存在。
-- **用户真机听感反馈（2026-11-24）：「声音有点怪怪的、不舒服」，想要 Claude 系「恍然大悟」的配乐感；
-  画面「整体还挺不错」→ 冻结**。这一条推翻了「技术指标合格 = 可交付」的默认假设：
-  `peak / rms / 哈希 / AAC 流` 全过，但音乐性从未被测量。
-  完整诊断（7 条可追溯根因 + Claude 配方对照）、**10 条省算力清单**与明天议程见
-  [`RETRO_audio_and_compute.md`](RETRO_audio_and_compute.md)（E-029）。
+- **配乐 v3 已落地（2026-11-24）**：用户反馈「声音怪、不舒服」→ 7 条根因诊断 →
+  D1–D6 决策 → `audio.py` / `storyboard.py` 重写 → 重新出片，画面保持冻结。
+  这一条推翻了「技术指标合格 = 可交付」的默认假设：`peak / rms / 哈希 / AAC 流` 全过，
+  但音乐性从未被测量。现在 `audio.py --info` 会先打印可计算的听感代理指标。
+  v2 诊断原文（7 条根因 + Claude 配方对照 + 10 条省算力清单）保留在
+  [`RETRO_audio_and_compute.md`](RETRO_audio_and_compute.md) §5，**§9 是 v3 的实现与验收**（E-029 / E-032 相关方法）。
+- **真人听感仍未闭环**：代理指标是「先验」，不等于「好听」。发布前请听一遍
+  `preview_10s.wav` 与整片；若仍不满意，改 `AUDIO` 数值即可，无需重画画面。
+- 投稿物料与复现教程：[`PUBLISH_bilibili.md`](PUBLISH_bilibili.md)、
+  [`TUTORIAL_全过程讲解.md`](TUTORIAL_全过程讲解.md)。

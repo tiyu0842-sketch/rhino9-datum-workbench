@@ -38,7 +38,8 @@
 | # | 想法 | 形态 | 状态 | 文件 |
 |---|---|---|---|---|
 | 001 | 10 个立方体，半径逐个 ×2 | GH 定义 | 已验证 | [001-gradient-boxes.md](001-gradient-boxes.md) |
-| 002 | 把 B-rep 特征取消的原理讲成 44 秒科普短片（画面 + 音轨都由代码算出） | Python 逐帧渲染 + 确定性音轨 → MP4 + 可交互 HTML | 已验证；**2026-11-24 追加听感复盘**（画面冻结、配乐待优化）：[RETRO_audio_and_compute.md](002-brep-untrim-explainer/RETRO_audio_and_compute.md) | [002-brep-untrim-explainer/](002-brep-untrim-explainer/) |
+| 002 | 把 B-rep 特征取消的原理讲成 44 秒科普短片（画面 + 音轨都由代码算出） | Python 逐帧渲染 + 确定性音轨 → MP4 + 可交互 HTML | **已验证 · 配乐 v3 已落地 · 投稿物料齐备**：[README](002-brep-untrim-explainer/README.md) / [复盘 §9](002-brep-untrim-explainer/RETRO_audio_and_compute.md) / [B站投稿包](002-brep-untrim-explainer/PUBLISH_bilibili.md) / [全过程教程](002-brep-untrim-explainer/TUTORIAL_全过程讲解.md) | [002-brep-untrim-explainer/](002-brep-untrim-explainer/) |
+| 003 | 工业设计史每日闯关：从本机 DOC 抽可追溯题卡，做成单文件 HTML | Python 标准库提 DOC + 原文校验 + 单文件注入 | 题库 11 题（受限资料可读性），机制可玩；E-031 起按「理解工具」重构 | [003-industrial-design-history-quiz/](003-industrial-design-history-quiz/) |
 
 ## 与其它目录的关系
 
@@ -51,4 +52,7 @@
 ## 写新条目的方式
 
 复制 `001-gradient-boxes.md` 的骨架，编号顺延。**不要省略第 5 步证据**——没有数字和截图的条目，一个月后自己都不敢信。
-| 003 | 工业设计史每日闯关：从本机 DOC 抽可追溯题卡，做成单文件 HTML | Python 标准库提 DOC + 原文校验 + 单文件注入 | 题库 11 题（受限资料可读性），机制可玩 | [003-industrial-design-history-quiz/](003-industrial-design-history-quiz/) |
+
+> 002 另外展示了六步之外的两种产物：**投稿包**（`PUBLISH_bilibili.md` + 封面）与
+> **全过程教程**（`TUTORIAL_全过程讲解.md`）。前者是把「已验证」推到「已发布」的交接物，
+> 后者是把一次性的实现变成别人能照着复现的方法。两者都不改几何/画面，只补链路。
