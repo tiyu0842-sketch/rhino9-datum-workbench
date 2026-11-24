@@ -161,3 +161,17 @@
 | 视口橙色高亮与执行器删的面不是同一批 | `FWSelect` / 面板 `DoPick` 丢了 `FwApi.Recognize` 的 `clean`，用原始 brep 配 clean 的特征索引（`Build` 里 `MergeCoplanarFaces + Compact` 可重排） | 一律 `Brep focusBrep = clean ?? brep;` 再传给 `FwFocusSession.Begin`，保证几何与索引同源 |
 | **单条 Chamfer 倒角识别为 0 特征** | `IsCandidateFilletFace` 只认圆柱/NURBS 过渡面，认不出平面斜切面 | 如实告知用户这是识别边界；扩展判据（二面角 + 平面斜切）待做，别假装已支持 |
 | 「全消失」时先别急着重跑 | 可能只是显示层，几何还在文档里 | `list_objects(includeHidden=true)` + 反射 `FwFocusSession.HasActive` / `SourceBrep` / `FwMouseWatcher.IsActive` 先分层；`doc.Objects` 默认不枚举隐藏对象（E-010） |
+
+## 网络采集 / 图片抓取（E-034 / E-035）
+
+> 通用坑，不限于 Rhino：凡是「从外部站点批量抓资源 + 内嵌进单文件」都会踩。
+
+| 症状 | 原因 | 怎么办 |
+|---|---|---|
+| **REST API / 网页抓取全超时，就下结论「网断了」** | 只用一个预检 URL 判断全局；旧 `commons/w/api.php` 已死、系统代理对 wikimedia TLS 握手超时，但别的域名/协议可能通 | 按「**域名 × 协议 × 直连/代理**」四维探。E-034：`api.wikimedia.org` REST 直连可通、图片走 `images.weserv.nl`/`i0.wp.com` 代理可通；E-035 更进一步：**元数据全关，图片二进制仍开** |
+| 元数据接口死了，以为图也抓不了 | 把「搜索文件名」和「取二进制」耦合成一条链路 | **解耦**：Commons 原图路径可本地算 —— `md5(文件名空格转下划线)[0] / md5[:2] / 文件名` → `upload.wikimedia.org/wikipedia/commons/<a>/<ab>/<name>`；精确文件名可来自 WebSearch 读分类页或 Wikidata `image` 主图字段。零元数据请求也能取图（E-035） |
+| **自动抓的图大量张冠李戴**（钟当电话、人像当豆袋椅、图纸当实物椅） | 模糊搜索「取第一个通过宽松相关性检查的候选」；只要求命中 1 个非通用词，还把检索词降级到前 2 词 | 换「确认过的精确文件名 + 多候选按序试」，**文件名本身就是最强相关性校验**；再加 `plan/drawing/portrait/map/engraving` 排除词。实测 v6 模糊搜索 57 张错 28 张，v7 精确直取 40 张只错 1 张 |
+| 抓图脚本一直重试却全失败，日志只写 `download-fail` | 把 `http404`（文件不存在）和 `timeout/SSL`（网络抖动）混成一类 | **分开记**：400/403/404 立即判定「文件名不对」并跳过后续代理组合；只有超时/SSL 才换路重试。E-035 里 37 件全是 404 → 停止重试，改去查真实文件名 |
+| WebFetch 对 `commons.wikimedia.org` / 移动版报 `fetch failed` 或 429「Too many requests」 | 网页抓取通道被限流，与搜索通道相互独立 | 改用 **WebSearch 搜 `Wikimedia Commons Category:<X> files`**，结果摘要里直接带该分类的完整文件名列表；或查 Wikidata 条目的 `image` 属性 |
+| **重跑审查脚本，把后来补上的正确图删掉了** | 旧脚本把「历史剔除清单」写成 `os.remove(assets/<key>.jpg)`，同一 key 后续补图后仍会被误删 | 审查脚本要**幂等且只认当前状态**：历史剔除只作追溯记录；统一按当前 `images.json` 打标签（已核对/近似），不按历史 key 删文件（E-035） |
+| 单文件体积突然翻倍 | 同一份 base64 跟着站点数据、卡片数据各注入一次 | 图片集中放一份 `D.photos`，业务数据里 `photo` 只存 key。E-034：58 处 / 2.07 MB → 29 处 / 1.34 MB；E-035 69 张仍只 69 处 / 2.25 MB |

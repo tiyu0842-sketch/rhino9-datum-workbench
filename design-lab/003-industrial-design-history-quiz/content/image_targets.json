@@ -1,0 +1,334 @@
+{
+ "note": "57 件缺图作品的 Commons 精确文件名候选。来源：WebSearch 读 Commons 分类页/文件页/Wikidata 主图得到的真实文件名 + 少量高置信度命名猜测。脚本按顺序试，第一个能下载到合格实物图的即采纳。宁缺毋滥：全失败就留空，回退到线描 + 在线搜图入口。",
+ "method": "md5(文件名空格转下划线) 前1位/前2位 → upload.wikimedia.org 原图路径 → i0.wp.com / images.weserv.nl 代理取二进制",
+ "rounds": [
+  "r1: 首轮精确直取，20/57 命中（确认过的真实文件名）",
+  "r2: 404 快速失败 + 多代理域名；确认失败均为文件名不存在，非网络问题",
+  "r3: WebSearch 补 Commons 分类页真实文件名，回写下列 confirmed 项",
+  "r4: 补 Commons 分类页/Wikidata 主图精确文件名（云冈/大维德瓶/鸡首壶/素纱襌衣/纹章瓷/iPhone/灰狗/穆夏/帝国式/孟菲斯 Ashoka 灯）"
+ ],
+ "targets": {
+  "c01-w1": [
+   "Longshan black pottery stem cup.jpg",
+   "Black pottery goblet Longshan.jpg",
+   "Longshan Culture Black Pottery Cup.jpg",
+   "Eggshell black pottery goblet.jpg"
+  ],
+  "c01-w2": [
+   "Neolithic Jade Bi Disc.jpg",
+   "Liangzhu Culture Jade Bi Disc 06.jpg",
+   "Jade Bi Disc, Shang.jpg",
+   "Neolithic Chinese jade, ritual object (Bi).jpg"
+  ],
+  "c02-w1": [
+   "Bronze Jue, Shang dynasty, Hunan Museum (1).jpg",
+   "20251026 Bronze Jue from Erlitou.jpg",
+   "Jue vessel IMGP7951.jpg",
+   "Late Xia Bronze Jue (10179860546).jpg"
+  ],
+  "c02-w2": [
+   "Jade Ornaments, Shang-Western Zhou.jpg",
+   "Late Shang Jade Pendants (Probably Dragons).jpg",
+   "Chinese jade pendant set.jpg"
+  ],
+  "c03-w0": [
+   "Chinese lacquer ear cup Han.jpg",
+   "Han lacquer ear cup.jpg",
+   "Lacquer ear cup.jpg"
+  ],
+  "c03-w1": [
+   "Mawangdui Han Gown (10113065094).jpg",
+   "Mawangdui Han Gown (10113118165).jpg",
+   "Mawangdui Han Fine Silk (10112585333).jpg",
+   "Mawangdui gauze robe.jpg",
+   "Plain gauze robe Mawangdui.jpg",
+   "Mawangdui silk robe.jpg"
+  ],
+  "c03-w2": [
+   "Changle Weiyang roof tile.jpg",
+   "Han dynasty roof tile end.jpg",
+   "Wadang roof tile.jpg",
+   "Chinese roof tile end Han.jpg"
+  ],
+  "c04-w0": [
+   "20251026 Celadon Ewer with Chicken-head Spout.jpg",
+   "Chicken-head Celadon Pot in Yuyao Museum 01 2014-09.JPG",
+   "Clevelandart 1973.84.jpg",
+   "Eastern Jin Celadon Chicken Head Jar, Yue Kiln (16921074899).jpg",
+   "Chicken head ewer.jpg",
+   "Yue ware chicken head ewer.jpg",
+   "Celadon chicken head jug.jpg",
+   "Chicken-headed ewer.jpg"
+  ],
+  "c04-w1": [
+   "Celadon lotus bowl.jpg",
+   "Lotus petal celadon bowl.jpg",
+   "Bowl with lotus sprays SF Asian Art Museum B60P2314.JPG"
+  ],
+  "c04-w2": [
+   "Yungang Grottoes 03.jpg",
+   "Yungang11 2010.JPG",
+   "Yungang Grottoes Buddha.jpg",
+   "Yungang caves Buddha.jpg",
+   "Yungang Buddha statue.jpg"
+  ],
+  "c05-w1": [
+   "Yue ware mise celadon.jpg",
+   "Mise celadon Famen Temple.jpg",
+   "Famen Temple celadon bowl.jpg"
+  ],
+  "c05-w2": [
+   "Tang dynasty chair.jpg",
+   "Tang dynasty furniture.jpg",
+   "Chinese Tang chair.jpg"
+  ],
+  "c06-w0": [
+   "20251026 Porcelain Brush Washer, Ru Ware.jpg",
+   "Dinastia song del nord, ciotola per lavare i pennelli in porcellana ru, da baofeng (henan), 1090-1127 ca.jpg",
+   "Ru ware brush washer.jpg"
+  ],
+  "c06-w1": [
+   "20251026 Rose-violet-glazed Porcelain Flowerpot, Jun Ware.jpg",
+   "Flower pot with five circular drainage holes, Jun ware, China, Yuxian, Henan, Northern Song dynasty, c. 1100-1127, stoneware with glaze - Asian Art Museum - San Francisco, CA - DSC07197.jpg",
+   "Six-petal flower pot with five drainage holes, Jun ware, China, Yuxian, Henan, Northern Song dynasty, c. 1100-1127, stoneware with glaze - Asian Art Museum - San Francisco, CA - DSC07184.jpg"
+  ],
+  "c06-w2": [
+   "Shallow bowl with design of fish in lotus pond, Ding ware, China, Hebei, Jin dynasty, porcelain with molded decoration under glaze and copper - Asian Art Museum - San Francisco, CA - DSC07219.jpg",
+   "20251026 White-glazed Porcelain Bowl with Incised Lotus Design, Ding Ware.jpg",
+   "Dish with lotus design, Ding ware, China, Hebei, Jin dynasty, porcelain with carved decoration under glaze - Asian Art Museum - San Francisco, CA - DSC07207.jpg"
+  ],
+  "c06-w3": [
+   "Song dynasty furniture table.jpg",
+   "Chinese Song table.jpg",
+   "Song dynasty table.jpg"
+  ],
+  "c07-w1": [
+   "The David Vases.jpg",
+   "The David Vases, 1351.jpg",
+   "Room 95 David Vases 6747.JPG",
+   "David Vases.jpg",
+   "David vase Yuan dynasty.jpg",
+   "Percival David vase.jpg"
+  ],
+  "c08-w1": [
+   "Low-back armchair, China, late Ming to Qing dynasty, late 16th-18th century AD, huanghuali rosewood - Arthur M. Sackler Gallery - DSC05907.JPG",
+   "Ming official hat armchair.jpg",
+   "Guanmaoyi chair.jpg"
+  ],
+  "c08-w2": [
+   "Table, China, Qing dynasty, mid 17th - mid 18th century, huali wood (a type of rosewood) - Arthur M. Sackler Gallery - DSC05914.JPG",
+   "Ming protruding head table.jpg",
+   "Chinese altar table.jpg"
+  ],
+  "c08-w4": [
+   "Yixing teapot.jpg",
+   "Zisha teapot.jpg",
+   "Yixing clay teapot.jpg",
+   "Yixing square teapot with flowers of the four seasons in painted enamels.tif"
+  ],
+  "c09-w0": [
+   "Taishi chair.jpg",
+   "Chinese taishi armchair.jpg",
+   "Qing dynasty armchair.jpg"
+  ],
+  "c09-w2": [
+   "Dish MET ES7970.jpg",
+   "Qing Export Porcelain, c. 1765.jpg",
+   "Chinese Export.JPG",
+   "Chinese export armorial porcelain.jpg",
+   "Armorial porcelain plate.jpg",
+   "Chinese armorial dish.jpg"
+  ],
+  "c10-w1": [
+   "Chen Zhifo pattern.jpg",
+   "Chinese pattern design book.jpg"
+  ],
+  "c10-w2": [
+   "Shanghai Art Deco furniture.jpg",
+   "Chinese Art Deco chair.jpg"
+  ],
+  "c11-w0": [
+   "Chinese state banquet porcelain.jpg"
+  ],
+  "c11-w1": [
+   "New Chinese style furniture.jpg"
+  ],
+  "c11-w2": [
+   "Chinese bamboo weaving.jpg",
+   "Bamboo weaving craft.jpg"
+  ],
+  "w02-w0": [
+   "Flying buttress.jpg",
+   "Gothic cathedral flying buttress.jpg",
+   "Notre Dame flying buttress.jpg"
+  ],
+  "w03-w0": [
+   "Florence Cathedral dome.jpg",
+   "Santa Maria del Fiore dome.jpg",
+   "Duomo Florence dome exterior.jpg"
+  ],
+  "w04-w0": [
+   "Rococo armchair.jpg",
+   "Fauteuil Louis XV.jpg",
+   "Rococo chair.jpg"
+  ],
+  "w04-w1": [
+   "Chippendale chair.jpg",
+   "Thomas Chippendale chair.jpg",
+   "Chippendale armchair.jpg"
+  ],
+  "w04-w2": [
+   "Chinese Export.JPG",
+   "Qing Export Porcelain, c. 1765.jpg",
+   "Chinese Export Cup & Saucer.JPG",
+   "Chinese export porcelain bowl.jpg",
+   "Kraak porcelain.jpg",
+   "Chinese export porcelain.jpg"
+  ],
+  "w05-w1": [
+   "Robert Adam interior.jpg",
+   "Adam style chair.jpg",
+   "Robert Adam room.jpg"
+  ],
+  "w05-w2": [
+   "American empire style sofa, c. 1820-30, wood, mahogany veneer and brocade upholstery, Dayton Art Institute.JPG",
+   "American Empire style pier table, c. 1810-20, Dayton Art Institute.JPG",
+   "Empire style chair.jpg",
+   "Empire armchair.jpg",
+   "Empire style armchair.jpg"
+  ],
+  "w06-w0": [
+   "Crystal Palace1.jpg",
+   "John Jabez Edwin Mayall (British - The Crystal Palace at Hyde Park, London - Google Art Project.jpg",
+   "Crystal Palace - Queen Victoria opens the Great Exhibition.jpg",
+   "Crystal Palace 1851.jpg",
+   "The Crystal Palace.jpg"
+  ],
+  "w06-w1": [
+   "Thonet Chair No. 14.JPG",
+   "Michael Thonet 14.jpg",
+   "Sedia thonet nr 14.jpg",
+   "Thonet MAK Vienna 2020 22.jpg"
+  ],
+  "w06-w2": [
+   "Carved Ivory Throne.jpg",
+   "Chimney-piece and Bookcase by Holland and Sons.jpg",
+   "English Medieval Court, Great Exhibition (2978841923).jpg",
+   "Great Exhibition 1851.jpg"
+  ],
+  "w07-w1": [
+   "Brooklyn Museum - Wallpaper Sample Book 1 - William Morris and Company - page052.jpg",
+   "Original William Morris's patterns, digitally enhanced by rawpixel 00025.jpg",
+   "William Morris wallpaper.jpg",
+   "Morris wallpaper pattern.jpg"
+  ],
+  "w08-w1": [
+   "Tiffany lamp.jpg",
+   "Tiffany glass lamp.jpg",
+   "Tiffany Wisteria lamp.jpg"
+  ],
+  "w08-w2": [
+   "Mucha-job.jpg",
+   "Alphonse Mucha - Job - Google Art Project.jpg",
+   "Art nouveau - JOB.jpg",
+   "Alphonse Mucha - Advertisment for Job cigarettes, 1896.jpg",
+   "Art Nouveau poster Mucha.jpg",
+   "Mucha poster JOB.jpg",
+   "Alphonse Mucha poster.jpg"
+  ],
+  "w09-w0": [
+   "National Museum of Ethnology, Osaka - Chair \"Ladder-back chair\" - Glasgow in United Kingdom - Made by Charles Rennie Mackintosh in 2006 (originally 1903).jpg",
+   "Tall chair, Lotherton Hall.jpg",
+   "Maxistuhl Hill House von Charles Rennie Mackintosh in Weil am Rhein-Friedlingen, Hauptstr 374, 2.jpg",
+   "Mackintosh high back chair.jpg"
+  ],
+  "w09-w1": [
+   "Behrens-aeg-wasserkocher.jpg",
+   "Aeg peter-behrens02.jpg",
+   "Electric kettle, designed by Peter Behrens, AEG, Berlin, 1909, copper, rattan, wood - Museum für Angewandte Kunst Köln - Cologne, Germany - DSC09630.jpg",
+   "Octagonal electric kettle, designed by Peter Behrens, 1908, Germany - Royal Ontario Museum - DSC09520.JPG"
+  ],
+  "w09-w2": [
+   "Secession Building Vienna.jpg",
+   "Vienna Secession building.jpg",
+   "Secession Wien.jpg"
+  ],
+  "w10-w2": [
+   "Bauhaus Dessau.jpg",
+   "Bauhaus building Dessau.jpg",
+   "Bauhaus Dessau building.jpg"
+  ],
+  "w10-w3": [
+   "Tischlampe di Carl Jakob Jucker (left, 1923-24) e di Wilhelm Wagenfeld (right, 1924) (cropped).JPG",
+   "Wilhelm-Wagenfeld-Leuchte.jpg",
+   "Wagenfeldleuchte-reedition-in-lampenladen.jpg",
+   "Buch mit Wagenfeld Tischlampe.jpg",
+   "Bauhaus lamp MT8.jpg"
+  ],
+  "w11-w0": [
+   "Chrysler Building.jpg",
+   "Chrysler Building spire.jpg"
+  ],
+  "w11-w1": [
+   "Art Deco poster.jpg",
+   "Art Deco travel poster.jpg"
+  ],
+  "w12-w1": [
+   "Model500Telephone1951.jpg",
+   "WE500dialphone.jpg",
+   "1951westernelectricmodel500leftsideDSCN0257.JPG",
+   "Bell 500 telephone.jpg"
+  ],
+  "w12-w2": [
+   "Greyhoundsilverside1.JPG",
+   "Greyhoundsilverside2.JPG",
+   "GreyhoundBus1939ToCincinnati.jpg",
+   "Greyhound bus.jpg",
+   "Greyhound Silversides bus.jpg",
+   "Greyhound Super Coach.jpg"
+  ],
+  "w13-w0": [
+   "1956 Braun Phonosuper SK4 Schneewittchensarg.JPG",
+   "Braun SK 4.1.jpg",
+   "Braun Radio mit Plattenspieler Pinakothek der Moderne (Foto Hilarmont).jpg",
+   "Braun SK4.jpg"
+  ],
+  "w13-w3": [
+   "Panton chairs vor dem Vitra Haus in Weil am Rhein mit Airstream Kiosk.jpg",
+   "Verner panton per herman miller inc., sedia, zeeland (MI) 1960 (1974).jpg",
+   "Panton chair.jpg"
+  ],
+  "w14-w0": [
+   "Pop art poster.jpg",
+   "Pop art poster 1960s.jpg"
+  ],
+  "w14-w1": [
+   "Zanotta Sacco chair with houndstooth upholstery.jpg",
+   "' Sacco.jpg",
+   "Sacco chair.jpg",
+   "Sacco bean bag chair.jpg"
+  ],
+  "w15-w1": [
+   "Ettore sottsass per memphis srl., lampada da tavolo ashoka, 1981.jpg",
+   "Memphis design lamp.jpg",
+   "Memphis Group lamp.jpg",
+   "Sottsass lamp.jpg"
+  ],
+  "w16-w0": [
+   "IPhone 1st generation.jpg",
+   "IPhone 1.jpg",
+   "First iPhone Macworld 2007 DSCF1286.agr.jpg",
+   "iPhone first generation.jpg",
+   "Original iPhone 2007.jpg",
+   "IPhone 2G.jpg"
+  ],
+  "w16-w1": [
+   "Muji store.jpg",
+   "Muji products.jpg"
+  ],
+  "w16-w2": [
+   "Sustainable design product.jpg",
+   "Recycled design product.jpg"
+  ]
+ }
+}

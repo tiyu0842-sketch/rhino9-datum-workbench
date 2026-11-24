@@ -47,6 +47,11 @@ def clip(s, n):
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--new", action="store_true", help="只列本轮「精确文件名直取」新增的图，供增量审查")
+    args = ap.parse_args()
+
     meta = json.load(open(META, encoding="utf-8")) if os.path.exists(META) else {}
     works = []
     for fn in ("content/china.json", "content/world.json"):
@@ -57,7 +62,7 @@ def main():
     items = []
     for key, name in works:
         p = os.path.join(ASSETS, key + ".jpg")
-        if os.path.exists(p):
+        if os.path.exists(p) and (not args.new or meta.get(key, {}).get("method") == "exact"):
             items.append((key, name, meta.get(key, {}).get("title", "?"), p))
     # 未被 QUERIES 覆盖但也放了图的 key 也列出来
     known = {k for k, _ in works}
@@ -89,7 +94,7 @@ def main():
             d.text((x + 10, ty), key, fill="#a4562f", font=f_key)
             d.text((x + 10, ty + 17), clip(name, 11), fill="#2f2b26", font=f_name)
             d.text((x + 10, ty + 36), clip(title, 26), fill="#7d7468", font=f_src)
-        out = os.path.join(HERE, "review_sheet_%d.png" % (pg + 1))
+        out = os.path.join(HERE, ("review_new_%d.png" if args.new else "review_sheet_%d.png") % (pg + 1))
         sheet.save(out)
         print("-> %s  %d 张" % (os.path.basename(out), len(chunk)))
     print("共 %d 张已抓图，%d 页" % (len(items), pages))

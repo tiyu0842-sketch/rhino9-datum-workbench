@@ -48,9 +48,9 @@
 | 查某个 GH 组件名 / 参数签名 | `grasshopper-component-index.md`；或运行时 `g1_search_components` / `g1_describe_component` |
 | 装了新插件后刷新 GH 组件清单 | `../scripts/Export_GH_Components.py` |
 | 做学习类网站 / 页面（时间线、卡片、题库、每日一练） | 仓库 `design-lab/003-industrial-design-history-quiz/` README §10：**先对标再动手**（Design Is History / 刷刷题类 / 工艺美术史 MOOC / Anki 四类参照）；**E-032** 三个坑：SVG 着色类漏进模板→全黑块（图库验收要用正式模板截图）、Edge headless 视口最小约 490px（测 `scrollWidth` 不要信截图）、全文搜索要「精确优先 + 正文回退」 |
-| 抓图 / 网络受限 / 单文件内嵌图片 | `design-lab/003-.../README.md §12` + **E-034**：按「域名 × 协议 × 直连/代理」四维探测（旧 API 死 ≠ 全网断）；REST 直连 + weserv/wpcom 代理取二进制；缩略图 URL 反推原图省一次请求；自动采集必须联系表人工审、错图宁删勿留；base64 集中放一份别跟多个数据结构重复注入 |
+| 抓图 / 网络受限 / 单文件内嵌图片 | `design-lab/003-.../README.md §12` + **§13**；**E-034**：按「域名 × 协议 × 直连/代理」四维探测（旧 API 死 ≠ 全网断）；**E-035**：**元数据接口死 ≠ 不能取图** —— Commons 原图路径可本地算 `md5(文件名)[0]/md5[:2]/文件名`，精确文件名从 WebSearch 分类页 / Wikidata 主图拿，零 REST 请求直取；新坑「404 ≠ 超时」「审查脚本按历史 key 删文件会误删补图」在 `error-catalog.md`「网络采集」节；自动采集必须联系表人工审、错图宁删勿留；base64 集中放一份别跟多个数据结构重复注入 |
 | 要打包 yak、多版本并存、安装假失败 | `verification-playbook.md` →「五」；`rhinocommon-pitfalls.md` →「打包与安装」「打包补充」 |
-| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**32 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 / E-027 为跨域能力扩展、E-028 为 v1.6 实现层的失败安全修正、E-029 为验收维度缺失、E-030 为跨域能力扩展 + 需求验证正向样本、E-031 为产品重心纠偏（刷题→理解） + Edge headless 验收手段，均不新增推翻计数） |
+| 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**36 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 / E-027 为跨域能力扩展、E-028 为 v1.6 实现层的失败安全修正、E-029 为验收维度缺失、E-030 为跨域能力扩展 + 需求验证正向样本、E-031 为产品重心纠偏（刷题→理解） + Edge headless 验收手段、**E-035 为抓图方法扩展（精确文件名直取）**，均不新增推翻计数） |
 | 「学习类工具怎么设计才不是死刷题 / 怎么讲得有意思 / 单文件怎么做实机验证」 | `design-lab/003-industrial-design-history-quiz/worldline.html`（v3）；**E-031**：先立一条贯穿的因果主线（每代回答同一问题、被下一代推翻）、每站四层递进（画面→思想→为什么变→轶事），题目降级为巩固；轶事分「真实（带来源）/ 记忆画面（标非史实）」不混；**验收用 Edge headless `--dump-dom`，零装库就能验证真实渲染** |
 | 「把资料做成每日答题闯关 / 艾宾浩斯 / 错题科普 / 能不能做小程序 / 要不要备案 / 微信分享」 | `design-lab/003-industrial-design-history-quiz/README.md`（六步字段 + **§8 小程序/H5/备案对照表**）；**E-030**：真排行榜必须后端；小程序**必须备案、无例外**（12381 短信核验 24 h 内做完），答题类按「**工具**」类目提审避开教育资质坑；扫描版 PDF（无 ToUnicode）连百度网盘服务端解析也读不出，别反复试；题目 evidence 必须命中原文，**宁可少不可编** |
 | 结论被推翻了怎么处理 | `experiment-log.md` →「统计与复用提示」：**不删旧条，加「修正 E-XXX」** |
@@ -64,6 +64,7 @@
 | **改 FeatureWorks 功能** | `feature-recognition.md` §6/§7 → **§11/§12（v1.6 两模块与常驻联动）→ §13（v1.6.1 失败安全）** → `error-catalog.md`「几何特征识别」+「v1.6 / E-025」+「v1.6.1 / E-028 新增症状」→ `experiment-log.md` 相关 E 号 |
 | **调显示模式** | `display-modes.md` 全文（短）→ `rhinocommon-pitfalls.md`「视口与布局」→ 用户立场见 `SKILL.md` |
 | **搭 GH 定义** | `grasshopper-spatial-logic.md` §4 → `grasshopper-component-index.md` 对应族 → 搭完必走 §5 第 5 步验证 |
+| **从外部站点批量抓图 / 网络受限** | `error-catalog.md`「网络采集」节（先按症状）→ `design-lab/003-.../README.md §12/§13` → `content/image_targets.json` + `fetch_exact.py`（精确文件名直取）→ `build_contact_sheet.py --new` 人工审 → `review_images.py` → `build_app.py`；**先分通道探测，别用单一预检下全局结论** |
 | **诊断一个报错** | `error-catalog.md`（按症状）→ `experiment-log.md`（看结论演化）→ 对应专题 → 反射确认 API |
 | **打包发布** | `verification-playbook.md`「一/五/六」→ `rhinocommon-pitfalls.md`「打包补充」→ 脱敏复查 |
 | ** learns 新东西后回填** | 本文 §3 的固定清单 |
