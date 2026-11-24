@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工业设计史 · 闯关复习</title>
+<style>
+:root{
+  --bg:#14161a; --panel:#1c1f25; --ink:#e8e9ec; --muted:#9aa0aa; --line:#2c313a;
+  --accent:#ff8a28; --good:#8bd17c; --bad:#ff6b5e; --q:#5cc8e8; --card:#232730;
+  --radius:16px; --font:"Microsoft YaHei","微软雅黑",sans-serif; --deco:"";
+}
+html[data-theme="kitty"]{
+  --bg:#fff5f8; --panel:#ffffff; --ink:#4a3540; --muted:#9b8390; --line:#f3d9e2;
+  --accent:#ff7fa8; --good:#6fc98a; --bad:#ef7a86; --q:#8ab6e8; --card:#fffafc;
+  --radius:26px; --font:"Microsoft YaHei","微软雅黑",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.65;
+     transition:background .25s,color .25s}
+body[data-kitty="1"]::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(circle at 12% 18%,rgba(255,127,168,.10) 0 8px,transparent 9px),
+                   radial-gradient(circle at 88% 72%,rgba(255,127,168,.08) 0 6px,transparent 7px);}
+.wrap{max-width:720px;margin:0 auto;padding:22px 16px 70px;position:relative;z-index:1}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h1{font-size:21px;font-weight:600;margin:0;display:flex;align-items:center;gap:8px}
+body[data-kitty="1"] h1::before{content:"✿";color:var(--accent);font-size:24px}
+.sub{font-size:12px;color:var(--muted);margin-top:3px}
+.tbtn{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;
+      padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+.tbtn:hover{border-color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+      padding:20px;margin-top:16px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.tab{flex:1;min-width:92px;text-align:center;background:transparent;color:var(--muted);
+     border:1px solid var(--line);border-radius:12px;padding:9px 6px;cursor:pointer;font-size:13px;font-family:inherit}
+.tab.on{color:var(--accent);border-color:var(--accent);background:rgba(255,138,40,.07)}
+body[data-kitty="1"] .tab.on{background:rgba(255,127,168,.12)}
+.badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:999px;
+       background:var(--line);color:var(--muted);margin-right:6px}
+.due{color:var(--accent)}
+.qcard{text-align:center;padding:30px 18px}
+.qtype{font-size:12px;color:var(--muted);letter-spacing:.06em}
+.question{font-size:21px;font-weight:600;margin:14px 0 24px;line-height:1.5}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.opts{grid-template-columns:1fr}}
+.opt{background:var(--card);color:var(--ink);border:1.5px solid var(--line);
+     border-radius:14px;padding:14px 12px;font-size:14px;cursor:pointer;
+     font-family:inherit;transition:.15s;min-height:58px;display:flex;align-items:center;gap:9px}
+.opt:hover:not(:disabled){border-color:var(--q);transform:translateY(-1px)}
+.opt .k{width:26px;height:26px;flex:0 0 26px;border-radius:50%;background:var(--line);
+        display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--good);background:rgba(139,209,124,.12)}
+.opt.wrong{border-color:var(--bad);background:rgba(255,107,94,.12)}
+.opt.right .k{background:var(--good);color:#12210e}
+.opt.wrong .k{background:var(--bad);color:#2a0b0b}
+.prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:20px}
+.prog>i{display:block;height:100%;background:var(--accent);width:0;transition:.3s}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.act{background:var(--accent);color:#1a1206;border:0;border-radius:11px;padding:10px 18px;
+     font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+body[data-kitty="1"] .act{color:#fff}
+.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);
+       padding:10px 16px;border-radius:11px;cursor:pointer;font-family:inherit;font-size:14px}
+.act:disabled{opacity:.45;cursor:default}
+.stat{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.stat b{color:var(--ink);font-size:17px;display:block}
+.sec{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--ink)}
+.wrong-item{padding:10px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.wrong-item:last-child{border-bottom:0}
+.wrong-item .m{font-size:11px;color:var(--muted)}
+.dueitem{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;color:var(--muted)}
+.dueitem b{color:var(--ink)}
+.mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;
+      align-items:center;justify-content:center;padding:18px}
+.mask.on{display:flex}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+       max-width:560px;width:100%;max-height:86vh;overflow:auto;padding:24px}
+.sheet h3{margin:0 0 6px;font-size:19px}
+.scene{background:var(--card);border-radius:12px;padding:14px;font-size:14px;margin:14px 0}
+.point{font-size:17px;font-weight:600;color:var(--accent);margin:10px 0}
+.why{font-size:14px}
+.more{font-size:13px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.src{font-size:11px;color:var(--muted);margin-top:10px;word-break:break-all}
+.src a{color:var(--q)}
+.evid{font-size:12px;color:var(--muted);background:var(--card);border-left:3px solid var(--q);
+      padding:10px;margin-top:10px;border-radius:0 8px 8px 0}
+.hidden{display:none}
+.center{text-align:center}
+.big{font-size:30px;font-weight:600;color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>工业设计史 · 闯关复习</h1>
+      <div class="sub">每日闯关 · 艾宾浩斯复习 · 错题科普 · 每题可追溯原文</div>
+    </div>
+    <button class="tbtn" id="themeBtn">切换：可爱风 ✿</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" data-mode="daily">每日闯关</button>
+    <button class="tab" data-mode="review">今日复习</button>
+    <button class="tab" data-mode="wrong">错题重做</button>
+  </div>
+
+  <div class="card qcard" id="stage">
+    <div class="qtype" id="qtype">准备中…</div>
+    <div class="question" id="question"></div>
+    <div class="opts" id="opts"></div>
+    <div class="prog"><i id="prog"></i></div>
+    <div class="row" style="justify-content:center">
+      <button class="act" id="next" disabled>下一题 →</button>
+      <button class="ghost" id="showSci">看科普卡</button>
+    </div>
+  </div>
+
+  <div class="card center hidden" id="finish">
+    <div class="big" id="finishBig">闯关完成</div>
+    <div class="sub" id="finishSub"></div>
+    <div class="row" style="justify-content:center">
+      <button class="act" id="again">再来一轮</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stat">
+      <span>累计答对<b id="cRight">0</b></span>
+      <span>错题<b id="cWrong">0</b></span>
+      <span>连续打卡<b id="cStreak">0</b>天</span>
+      <span>题库<b id="cTotal">0</b>题</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec">艾宾浩斯复习安排（1 / 2 / 4 / 7 / 15 / 30 天）</div>
+    <div id="dueList"><div class="sub">暂无到期题目</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec">错题本 · 点题看科普</div>
+    <div id="wrongList"><div class="sub">暂无错题</div></div>
+    <div class="row"><button class="ghost" id="clearWrong">清空错题本</button></div>
+  </div>
+
+  <div class="card" style="font-size:12px;color:var(--muted)">
+    题目来自本机 DOC（每题原文可核），科普卡附可点开的外部来源。
+    间隔重复与进度仅存在本浏览器，清缓存会丢失。
+  </div>
+</div>
+
+<div class="mask" id="mask">
+  <div class="sheet">
+    <h3 id="sciTitle">科普卡</h3>
+    <div class="sub" id="sciTopic"></div>
+    <div class="scene" id="sciScene"></div>
+    <div class="point" id="sciPoint"></div>
+    <div class="why" id="sciWhy"></div>
+    <div class="more" id="sciMore"></div>
+    <div class="evid" id="sciEvid"></div>
+    <div class="src" id="sciSrc"></div>
+    <div class="row"><button class="act" id="closeSci">知道了</button></div>
+  </div>
+</div>
+
+<script id="quiz" type="application/json">{"title":"工业设计史 · 每日闯关题库","count":11,"source_file":"D:/学习进步资料/工业设计史/【工业设计史】 重点总结要点.doc","verified":"每题 evidence 前 12 字均在本机 DOC 原文中命中","questions":[{"id":1,"topic":"早期","q":"欧洲中世纪设计风格的主要特点是什么？","options":["追求古典的简洁与节制","纤细精致的不对称装饰","豪华浮夸与矫揉造作","结构的规律性、经济性和创建性"],"answer":3,"evidence":"中世纪。设计风格为简朴、好用甚至简陋，带有北方蛮族的粗野形态。主要特点在于结构的规律性、经济性和创建性。","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":2,"topic":"早期","q":"文艺复兴设计思潮的中心思想是什么？","options":["反对一切装饰，主张机器生产","以法国为中心，强调不对称","人文主义，以意大利为中心","以德国为中心，强调标准化"],"answer":2,"evidence":"十五世纪以后形成，中心思想是“人文主 义，以意大利为中心主见文学艺术表现人的思想感情","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":3,"topic":"早期","q":"巴洛克风格追求的外表效果是什么？","options":["简朴、好用甚至简陋","豪华、浮夸和矫揉做作","简洁、高雅、节制","纤细、精致、不对称"],"answer":1,"evidence":"反对文艺复兴时代 艺术的庄重、含蓄、均衡而追求豪华、浮夸和矫揉做作的外 表效果","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":4,"topic":"早期","q":"洛可可风格在构图上刻意强调什么？","options":["不对称","几何重复","中心线均衡","严格对称"],"answer":0,"evidence":"在构图上有意强调不对称。颜色娇艳，恶俗。严峻受中国清 式设计风格侵染","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":5,"topic":"早期","q":"十八世纪六十年代出现的思潮追求什么？","options":["粗野的蛮族形态","纤细繁琐的曲线","豪华浮夸的动感","古典风格和简洁、高雅、节制的品质"],"answer":3,"evidence":"盛行于十八世纪六十年头，指资本主义初期最 先出如今文化上的一种思潮，追求古典风格和简洁、高雅、节制的品质","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":6,"topic":"工业革命","q":"美国制造体系的突出特点是什么？","options":["以装饰性为核心","手工定制，单件生产","标准化大批量生产，零件可互换","仅用于家具制造"],"answer":2,"evidence":"特点是标准化大批量生产，产 品零件具有可互换性，在一系列简化了的机械操作中好用大 功率机械装置","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":7,"topic":"工业革命","q":"汽车工业的真正革命始于什么？","options":["本茨 1885 年的三轮车","亨利·福特的 T 型车和流水装配线","哥特式复兴运动","内燃机的发明"],"answer":1,"evidence":"汽车工业的真正革命是从亨利 福特的T型车 和流水装配线作业起先的","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":8,"topic":"工业革命","q":"1851 年伦敦海德公园举办的是什么？","options":["第一次国际工业博览会（水晶宫）","工艺美术运动首展","包豪斯成立展","第一届世界工业设计大会"],"answer":0,"evidence":"1851 英国在伦敦海德公园 实行了第一次国际 工业博览会——“水晶宫","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":9,"topic":"工业革命","q":"水晶宫设计方案采用了哪些材料？","options":["纯木材","钢、塑料、玻璃","砖、石、混凝土","铁、木、玻璃"],"answer":3,"evidence":"设计方案——帕克斯特。 只用了铁、木、玻璃，不到九 个月装配完毕","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":10,"topic":"工艺美术","q":"工艺美术运动发生在哪个国家？","options":["德国","法国","英国","美国"],"answer":2,"evidence":"在莫里斯的影响下，英 国产生了一个轰轰烈烈的设计运动——工艺美术运动","source":"【工业设计史】重点总结要点.doc（考研必考）"},{"id":11,"topic":"工艺美术","q":"谁被称为拉斯金思想最直接的传人？","options":["格罗皮乌斯","莫里斯","密斯","帕克斯特"],"answer":1,"evidence":"主动的社会主义者，主见社会同等和反对压迫 的思想，拉斯金思想最干脆的传人，在莫里斯的影响下","source":"【工业设计史】重点总结要点.doc（考研必考）"}]}</script>
+<script id="cards" type="application/json">{"1":{"scene":"想象一把椅子：能坐、结实、不浪费木料，表面不加花纹。","point":"中世纪设计先把「能用、好用」放在前面。","why":"它不像后来的巴洛克那样追求华丽，而是靠结构的规律和省料取胜。","more":"这就是设计史里反复出现的两条线：一条重功能，一条重装饰。","src":"https://baike.baidu.com/item/DESIGN/3117302","srcn":"百度百科·设计","evidence":"中世纪。设计风格为简朴、好用甚至简陋，带有北方蛮族的粗野形态。主要特点在于结构的规律性、经济性和创建性。","topic":"早期"},"2":{"scene":"一幅画里的人有了自己的表情和情绪，而不是只有宗教符号。","point":"文艺复兴把目光从神转向人，这就是「人文主义」。","why":"中心在意大利；艺术开始表现人的思想感情，科学也开始为人生服务。","more":"人文主义不是「不要宗教」，而是把人放回世界的中心。","src":"https://baike.baidu.com/item/DESIGN/3117302","srcn":"百度百科·设计","evidence":"十五世纪以后形成，中心思想是“人文主 义，以意大利为中心主见文学艺术表现人的思想感情","topic":"早期"},"3":{"scene":"走进一个大厅：柱子是扭的，墙上满是起伏的涡形装饰，光照在金子上。","point":"巴洛克要的是动感和豪华，不是安静的对称。","why":"它故意打破文艺复兴的庄重与均衡，用夸张的曲线制造激情。","more":"看到「扭动 + 宏大 + 金色」，先想到巴洛克。","src":"https://baike.baidu.com/item/DESIGN/3117302","srcn":"百度百科·设计","evidence":"反对文艺复兴时代 艺术的庄重、含蓄、均衡而追求豪华、浮夸和矫揉做作的外 表效果","topic":"早期"},"4":{"scene":"路易十五的房间：细腿、卷草、粉彩，装饰轻得像蕾丝。","point":"洛可可是18世纪法国宫廷的纤细趣味。","why":"它比巴洛克更轻、更碎、更不对称，还受到中国清代装饰的影响。","more":"巴洛克是「厚重的豪华」，洛可可就是「轻巧的精致」。","src":"https://baike.baidu.com/item/DESIGN/3117302","srcn":"百度百科·设计","evidence":"在构图上有意强调不对称。颜色娇艳，恶俗。严峻受中国清 式设计风格侵染","topic":"早期"},"5":{"scene":"一个柜子的左右两边并不镜像，却看着很平衡。","point":"洛可可刻意追求不对称。","why":"对称显得庄重，不对称才显得轻快、流动、有生命力。","more":"这也是它和古典主义最直观的区别。","src":"https://baike.baidu.com/item/DESIGN/3117302","srcn":"百度百科·设计","evidence":"盛行于十八世纪六十年头，指资本主义初期最 先出如今文化上的一种思潮，追求古典风格和简洁、高雅、节制的品质","topic":"早期"},"6":{"scene":"庞贝古城挖出了古罗马的别墅，人们突然迷上了那种安静的直线。","point":"新古典主义向古典要回简洁和节制。","why":"它反对洛可可的繁琐，追求对称、有序、高贵的品质。","more":"注意它和「复古」不同：借的是精神，不是照抄。","src":"https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm","srcn":"百度百科·家居设计史","evidence":"特点是标准化大批量生产，产 品零件具有可互换性，在一系列简化了的机械操作中好用大 功率机械装置","topic":"工业革命"},"7":{"scene":"一支枪的零件坏了，随便拿另一个同型号的换上就能用。","point":"美国制造体系的核心是标准化、可互换。","why":"零件按同一尺寸批量做，装配就变成简单重复的机械操作。","more":"这套思路后来直接影响福特流水线。","src":null,"srcn":"本机 DOC 原文（外部来源未核实，不作扩展）","evidence":"汽车工业的真正革命是从亨利 福特的T型车 和流水装配线作业起先的","topic":"工业革命"},"8":{"scene":"汽车不是从有钱人的玩具变普及的，而是从「流水线」开始变便宜的。","point":"真正的革命是福特的 T 型车 + 流水装配线。","why":"流水线把装配拆成连续动作，产量上去、价格下来，汽车才进入普通人生活。","more":"本茨1885年的三轮车更早，但它是「发明汽车」，不是「改变生产」。","src":null,"srcn":"本机 DOC 原文（外部来源未核实，不作扩展）","evidence":"1851 英国在伦敦海德公园 实行了第一次国际 工业博览会——“水晶宫","topic":"工业革命"},"9":{"scene":"1851年伦敦，一座通体透明的大房子，几个月就搭好了。","point":"水晶宫是第一次国际工业博览会。","why":"它想炫耀工业成就，也想顺便提高公众审美、制止对旧风格的乱抄。","more":"它自己的价值在「新材料」，展品却被批评为过度装饰。","src":"https://baike.baidu.com/item/%E5%B7%A5%E8%89%BA%E7%BE%8E%E6%9C%AF%E8%BF%90%E5%8A%A8","srcn":"百度百科·工艺美术运动","evidence":"设计方案——帕克斯特。 只用了铁、木、玻璃，不到九 个月装配完毕","topic":"工业革命"},"10":{"scene":"一座房子几乎只用铁、木、玻璃，像搭积木一样装起来。","point":"水晶宫证明了新材料与预制装配的威力。","why":"不到九个月完工，靠的是标准化构件和现场装配。","more":"它也被看作20世纪现代建筑的先声。","src":"https://baike.baidu.com/item/%E5%B7%A5%E8%89%BA%E7%BE%8E%E6%9C%AF%E8%BF%90%E5%8A%A8","srcn":"百度百科·工艺美术运动","evidence":"在莫里斯的影响下，英 国产生了一个轰轰烈烈的设计运动——工艺美术运动","topic":"工艺美术"},"11":{"scene":"莫里斯看了水晶宫的展品很不舒服，决心自己做「诚实的」东西。","point":"莫里斯是拉斯金思想的直接传人，英国工艺美术运动由此而起。","why":"他主张手工、自然材料、反对粗制滥造的工业品。","more":"注意：他反对的是机械化生产，这一点和后来包豪斯正好相反。","src":"https://baike.baidu.com/item/%E5%B7%A5%E8%89%BA%E7%BE%8E%E6%9C%AF%E8%BF%90%E5%8A%A8","srcn":"百度百科·工艺美术运动","evidence":"主动的社会主义者，主见社会同等和反对压迫 的思想，拉斯金思想最干脆的传人，在莫里斯的影响下","topic":"工艺美术"}}</script>
+<script>
+(function(){
+"use strict";
+const Q=JSON.parse(document.getElementById('quiz').textContent).questions||[];
+const C=JSON.parse(document.getElementById('cards').textContent)||{};
+const KEY='idh_quiz_v2';
+const DAILY=5;
+const STEPS=[1,2,4,7,15,30];
+const $=id=>document.getElementById(id);
+const DAY=864e5;
+const today=()=>new Date().toISOString().slice(0,10);
+let S={right:0,wrong:0,wrongIds:[],lastDay:'',streak:0,srs:{},theme:'simple'};
+try{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(S,JSON.parse(raw));}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',S.theme);
+  document.body.setAttribute('data-kitty',S.theme==='kitty'?'1':'0');
+  $('themeBtn').textContent=S.theme==='kitty'?'切换：简约风':'切换：可爱风 ✿';
+}
+$('themeBtn').onclick=()=>{S.theme=S.theme==='kitty'?'simple':'kitty';save();applyTheme();};
+applyTheme();
+
+// 每日刷新与连续天数
+const td=today();
+if(S.lastDay!==td){
+  const y=new Date(Date.now()-DAY).toISOString().slice(0,10);
+  S.streak=S.lastDay===y?S.streak+1:1;
+  S.lastDay=td;save();
+}
+
+let mode='daily',queue=[],idx=0,answered=false,current=null;
+function qById(id){return Q.find(q=>q.id===id);}
+function dueIds(){
+  const n=Date.now();
+  return Object.keys(S.srs).filter(id=>S.srs[id]&&S.srs[id].due<=n).map(Number);
+}
+function pick(pool,n){
+  pool=pool.slice();
+  const off=(new Date(td).getDate()*7)%Math.max(1,pool.length);
+  const out=[];
+  for(let i=0;i<n&&pool.length;i++){
+    const k=(off+i*3)%pool.length;
+    out.push(pool[k]);
+  }
+  return out;
+}
+function buildQueue(){
+  if(mode==='daily') queue=pick(Q,DAILY);
+  else if(mode==='review'){
+    const d=dueIds();
+    queue=d.length?pick(d.map(qById).filter(Boolean),DAILY):[];
+  } else queue=pick(Q.filter(q=>S.wrongIds.includes(q.id)),DAILY);
+  idx=0;render();
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');mode=t.dataset.mode;buildQueue();
+});
+
+function render(){
+  const st=$('stage'),fin=$('finish');
+  if(!queue.length){
+    st.classList.add('hidden');fin.classList.remove('hidden');
+    $('finishBig').textContent=mode==='review'?'今天没有到期题':'暂无题目';
+    $('finishSub').textContent=mode==='review'?'按 1/2/4/7/15/30 天安排，之后会提醒复习':
+                              mode==='wrong'?'先去闯关积累错题':'题库加载中';
+    return;
+  }
+  if(idx>=queue.length){
+    st.classList.add('hidden');fin.classList.remove('hidden');
+    $('finishBig').textContent='闯关完成';
+    $('finishSub').textContent='本轮 '+queue.length+' 题 · 错题已加入科普复习清单';
+    return;
+  }
+  st.classList.remove('hidden');fin.classList.add('hidden');
+  current=queue[idx];answered=false;
+  $('qtype').innerHTML='<span class="badge">'+current.topic+'</span>'+(idx+1)+' / '+queue.length;
+  $('question').textContent=current.q;
+  const box=$('opts');box.innerHTML='';
+  current.options.forEach((o,i)=>{
+    const b=document.createElement('button');b.className='opt';
+    b.innerHTML='<span class="k">'+String.fromCharCode(65+i)+'</span><span>'+o+'</span>';
+    b.onclick=()=>answer(i,b);box.appendChild(b);
+  });
+  $('prog').style.width=(idx/queue.length*100)+'%';
+  $('next').disabled=true;
+}
+
+function answer(i,btn){
+  if(answered)return;answered=true;
+  const ok=i===current.answer;
+  [...$('opts').children].forEach((b,j)=>{
+    b.disabled=true;
+    if(j===current.answer)b.classList.add('right');
+    else if(j===i)b.classList.add('wrong');
+  });
+  const id=current.id;
+  if(!S.srs[id])S.srs[id]={step:0,due:0};
+  const r=S.srs[id];
+  if(ok){
+    S.right++;
+    r.step=Math.min(STEPS.length-1,r.step+1);
+    r.due=Date.now()+STEPS[r.step]*DAY;
+    const k=S.wrongIds.indexOf(id);if(k>=0)S.wrongIds.splice(k,1);
+  }else{
+    S.wrong++;
+    r.step=0;r.due=Date.now()+DAY;
+    if(!S.wrongIds.includes(id))S.wrongIds.push(id);
+    setTimeout(()=>openSci(id),650);
+  }
+  save();updateStats();$('next').disabled=false;
+}
+
+$('next').onclick=()=>{idx++;render();};
+$('again').onclick=()=>buildQueue();
+$('showSci').onclick=()=>{if(current)openSci(current.id);};
+$('closeSci').onclick=()=>$('mask').classList.remove('on');
+$('mask').onclick=e=>{if(e.target===$('mask'))$('mask').classList.remove('on');};
+$('clearWrong').onclick=()=>{S.wrongIds=[];save();updateStats();};
+
+function openSci(id){
+  const c=C[String(id)];const q=qById(id);
+  if(!c||!q)return;
+  $('sciTitle').textContent=q.q;
+  $('sciTopic').textContent=q.topic+' · 错题科普卡';
+  $('sciScene').textContent=c.scene;
+  $('sciPoint').textContent=c.point;
+  $('sciWhy').textContent=c.why;
+  $('sciMore').textContent=c.more;
+  $('sciEvid').textContent='原文锚点：'+c.evidence;
+  $('sciSrc').innerHTML=c.src
+    ?'外部科普来源：<a href="'+c.src+'" target="_blank" rel="noopener">'+c.srcn+'</a>'
+    :'外部科普来源：'+c.srcn;
+  $('mask').classList.add('on');
+}
+
+function updateStats(){
+  $('cRight').textContent=S.right;$('cWrong').textContent=S.wrong;
+  $('cStreak').textContent=S.streak;$('cTotal').textContent=Q.length;
+  const wl=$('wrongList');wl.innerHTML='';
+  if(!S.wrongIds.length)wl.innerHTML='<div class="sub">暂无错题</div>';
+  else S.wrongIds.forEach(id=>{
+    const q=qById(id);if(!q)return;
+    const d=document.createElement('div');d.className='wrong-item';
+    d.innerHTML='<div>'+q.q+'</div><div class="m"><a href="#" data-id="'+id+'">看科普卡 →</a> · '+q.topic+'</div>';
+    d.querySelector('a').onclick=e=>{e.preventDefault();openSci(id);};
+    wl.appendChild(d);
+  });
+  const dl=$('dueList');dl.innerHTML='';
+  const d=dueIds();
+  if(!d.length)dl.innerHTML='<div class="sub">暂无到期题目；按 1/2/4/7/15/30 天自动安排</div>';
+  else d.forEach(id=>{
+    const q=qById(id);if(!q)return;
+    const s=S.srs[id];
+    const div=document.createElement('div');div.className='dueitem';
+    div.innerHTML='<span>'+q.q.slice(0,26)+(q.q.length>26?'…':'')+'</span><b>第 '+(s.step+1)+' 阶</b>';
+    dl.appendChild(div);
+  });
+}
+
+buildQueue();updateStats();
+})();
+</script>
+</body>
+</html>
