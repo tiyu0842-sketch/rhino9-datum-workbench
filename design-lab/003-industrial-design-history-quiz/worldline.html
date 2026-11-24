@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设计史世界线 · 先理解，再巩固</title>
+<style>
+:root{
+  --bg:#14161a; --panel:#1c1f25; --ink:#e8e9ec; --muted:#9aa0aa; --line:#2c313a;
+  --accent:#ff8a28; --good:#8bd17c; --bad:#ff6b5e; --q:#5cc8e8; --card:#232730;
+  --gold:#f5c86b; --radius:16px; --font:"Microsoft YaHei","微软雅黑",sans-serif;
+}
+html[data-theme="kitty"]{
+  --bg:#fff5f8; --panel:#ffffff; --ink:#4a3540; --muted:#9b8390; --line:#f3d9e2;
+  --accent:#ff7fa8; --good:#6fc98a; --bad:#ef7a86; --q:#8ab6e8; --card:#fffafc;
+  --gold:#e8a93c; --radius:26px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.7;
+     transition:background .25s,color .25s}
+body[data-kitty="1"]::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(circle at 12% 18%,rgba(255,127,168,.10) 0 8px,transparent 9px),
+                   radial-gradient(circle at 88% 72%,rgba(255,127,168,.08) 0 6px,transparent 7px);}
+.wrap{max-width:760px;margin:0 auto;padding:22px 16px 80px;position:relative;z-index:1}
+header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:22px;font-weight:600;margin:0;display:flex;align-items:center;gap:8px;line-height:1.3}
+body[data-kitty="1"] h1::before{content:"✿";color:var(--accent);font-size:25px}
+.sub{font-size:12px;color:var(--muted);margin-top:5px}
+.tbtn{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;
+      padding:8px 15px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.tbtn:hover{border-color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+      padding:18px 20px;margin-top:16px}
+.thread{background:linear-gradient(135deg,rgba(255,138,40,.10),rgba(92,200,232,.06));
+        border-color:rgba(255,138,40,.35)}
+body[data-kitty="1"] .thread{background:linear-gradient(135deg,rgba(255,127,168,.12),rgba(138,182,232,.08))}
+.thread .q{font-size:18px;font-weight:600;color:var(--accent);line-height:1.5}
+.thread .a{font-size:13px;color:var(--muted);margin-top:8px}
+.tensions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.ten{flex:1;min-width:170px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.ten b{font-size:13px;color:var(--gold)}
+.ten span{font-size:11px;color:var(--muted);display:block;margin-top:3px}
+.sec{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;margin:22px 0 2px}
+
+/* ---- 世界线：一条竖河 ---- */
+.river{position:relative;margin-top:14px;padding-left:34px}
+.river::before{content:"";position:absolute;left:11px;top:8px;bottom:8px;width:2px;
+  background:linear-gradient(180deg,var(--gold),var(--accent),var(--q),var(--good));opacity:.55;border-radius:2px}
+.station{position:relative;margin-bottom:14px}
+.station::before{content:"";position:absolute;left:-28px;top:20px;width:12px;height:12px;border-radius:50%;
+  background:var(--panel);border:2.5px solid var(--accent);box-shadow:0 0 0 4px var(--bg);z-index:1}
+body[data-kitty="1"] .station::before{box-shadow:0 0 0 4px var(--bg)}
+.station.on::before{background:var(--accent)}
+.st-head{width:100%;text-align:left;background:var(--panel);color:var(--ink);border:1px solid var(--line);
+  border-radius:var(--radius);padding:14px 16px;cursor:pointer;font-family:inherit;transition:.15s}
+.st-head:hover{border-color:var(--accent)}
+.station.on .st-head{border-color:var(--accent);box-shadow:0 3px 18px rgba(255,138,40,.10)}
+.yr{font-size:11px;color:var(--gold);font-weight:600;letter-spacing:.05em}
+.era{font-size:17px;font-weight:600;margin-top:1px}
+.tag{font-size:12px;color:var(--muted);margin-top:2px}
+.shift{font-size:11px;color:var(--accent);margin-top:7px;padding-top:7px;border-top:1px dashed var(--line)}
+.st-body{display:none;padding:4px 4px 2px}
+.station.on .st-body{display:block}
+.layer{margin-top:14px;padding-left:12px;border-left:3px solid var(--line)}
+.layer.picture{border-color:var(--q)}
+.layer.core{border-color:var(--accent)}
+.layer.why{border-color:var(--gold)}
+.lb{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.06em}
+.layer.picture .lb{color:var(--q)} .layer.core .lb{color:var(--accent)} .layer.why .lb{color:var(--gold)}
+.lt{font-size:13.5px;margin-top:3px}
+.fun{margin-top:15px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 15px}
+.fun .kind{font-size:10px;padding:2px 8px;border-radius:999px;display:inline-block;margin-bottom:7px}
+.fun .kind.real{background:rgba(139,209,124,.15);color:var(--good)}
+.fun .kind.mind{background:rgba(245,200,107,.15);color:var(--gold)}
+.fun .ft{font-size:14px;font-weight:600}
+.fun .fx{font-size:13px;color:var(--ink);margin-top:5px}
+.fun .punch{font-size:13px;color:var(--accent);margin-top:9px;font-style:italic}
+.fun a{font-size:11px;color:var(--q);text-decoration:none;margin-top:8px;display:inline-block}
+.fun a:hover{text-decoration:underline}
+.consolid{margin-top:15px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.cbtn{background:var(--accent);color:#1a1206;border:0;border-radius:11px;padding:9px 15px;
+  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+body[data-kitty="1"] .cbtn{color:#fff}
+.cbtn:disabled{opacity:.5;cursor:default}
+.noq{font-size:11px;color:var(--muted);font-style:italic}
+
+/* ---- 巩固弹层 ---- */
+.mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:20;
+      align-items:center;justify-content:center;padding:16px}
+.mask.on{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  width:100%;max-width:560px;max-height:90vh;overflow:auto;padding:22px}
+.mhead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mhead h3{margin:0;font-size:16px}
+.x{background:transparent;border:0;color:var(--muted);font-size:24px;cursor:pointer;line-height:1}
+.question{font-size:19px;font-weight:600;margin:16px 0 20px;line-height:1.5}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.opts{grid-template-columns:1fr}}
+.opt{background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:13px;
+  padding:12px;font-size:13.5px;cursor:pointer;font-family:inherit;text-align:left;
+  min-height:52px;display:flex;align-items:center;gap:9px;transition:.15s}
+.opt:hover:not(:disabled){border-color:var(--q)}
+.opt .k{width:24px;height:24px;flex:0 0 24px;border-radius:50%;background:var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--good);background:rgba(139,209,124,.12)}
+.opt.wrong{border-color:var(--bad);background:rgba(255,107,94,.12)}
+.ev{margin-top:14px;background:var(--card);border-radius:11px;padding:11px 13px;font-size:12px;display:none}
+.ev.on{display:block}
+.ev .src{color:var(--muted);font-size:11px;margin-top:5px}
+.next{margin-top:16px}
+.sci{margin-top:14px;border:1px solid var(--accent);border-radius:12px;padding:12px 14px;display:none;background:rgba(255,138,40,.05)}
+.sci.on{display:block}
+.sci .sh{font-size:15px;font-weight:600}
+.sci .ss{font-size:13px;margin-top:6px}
+.sci .sw{font-size:13px;color:var(--accent);margin-top:7px}
+.sci .sm{font-size:11px;color:var(--muted);margin-top:8px}
+.sci a{color:var(--q);font-size:11px}
+.modal .hint{font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6}
+
+/* ---- 复习管理 ---- */
+.stat{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.stat b{color:var(--ink);font-size:17px;display:block}
+.board{margin-top:10px}
+.brow{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.brow .rank{color:var(--gold);font-weight:600;width:26px}
+.brow .sc{flex:1}
+.brow .dt{color:var(--muted)}
+.empty{font-size:12px;color:var(--muted)}
+.foot{font-size:11px;color:var(--muted);margin-top:26px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>设计史世界线</h1>
+      <div class="sub">先沿河看懂思想怎么变，再用题目巩固——题是配角，理解才是主角</div>
+    </div>
+    <button class="tbtn" id="theme">切换风格 ✿</button>
+  </header>
+
+  <div class="card thread">
+    <div class="q" id="threadQ"></div>
+    <div class="a" id="threadA"></div>
+    <div class="tensions" id="tensions"></div>
+  </div>
+
+  <div class="sec">一条河 · 十一个弯道 —— 点开每一站，先读懂思想怎么变</div>
+  <div class="river" id="river"></div>
+
+  <div class="card" id="manage">
+    <div class="sec" style="margin-top:0">复习管理（巩固层）</div>
+    <div class="stat">
+      <div><b id="mRight">0</b>累计答对</div>
+      <div><b id="mWrong">0</b>累计答错</div>
+      <div><b id="mDue">0</b>今日待复习</div>
+      <div><b id="mStreak">0</b>连续天数</div>
+    </div>
+    <div class="consolid">
+      <button class="cbtn" id="reviewDue">复习到期题</button>
+      <button class="tbtn" id="reviewWrong">只看错题</button>
+      <button class="tbtn" id="clearWrong">清空错题本</button>
+    </div>
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<div class="mask" id="mask">
+  <div class="modal">
+    <div class="mhead"><h3 id="mTitle">巩固</h3><button class="x" id="mClose">×</button></div>
+    <div id="mQuiz">
+      <div class="question" id="question"></div>
+      <div class="opts" id="opts"></div>
+      <div class="ev" id="evidence"></div>
+      <div class="sci" id="sci"></div>
+      <div class="next"><button class="cbtn" id="nextQ" style="display:none">下一题 →</button></div>
+    </div>
+    <div class="hint">答错会自动展开科普卡：先给你一个画面，再讲清一个点，最后回到原文——这不是为了记住答案，是为了搞懂为什么。</div>
+  </div>
+</div>
+
+<script id="worldData" type="application/json">{"title": "设计史世界线 · 一条河，十一个弯道", "subtitle": "先沿河看懂思想怎么变，再用题目巩固——题是配角，理解才是主角", "thread": {"question": "机器能批量造东西以后，东西到底该做成什么样？", "answer": "设计史就是一代代人回答这个问题、答案又被下一代推翻的历史。", "tensions": [{"name": "装饰 ↔ 功能", "desc": "东西要好看，还是要好用？天平来回摆。"}, {"name": "反机器 ↔ 用机器", "desc": "是躲开机器手工做，还是拥抱机器为它设计？"}, {"name": "精英 ↔ 大众", "desc": "做给少数人鉴赏，还是做给普通人用？"}]}, "world": [{"era": "手工艺时代", "years": "中世纪—1750", "tag": "造物就是过日子", "picture": "一张木凳：能坐、结实、不浪费木料。做它的人不用想「风格」，凳子好不好坐就是全部。", "core": "先满足「用」，装饰和功能是长在一起的，还没分家。", "why": "起点：那时候没有机器，做东西的速度由手决定，东西自然带着手的痕迹。", "shift": "起点 —— 一切的开始", "fun": {"kind": "记忆画面", "title": "没有「设计师」这个职业", "text": "这时候没有专门画图纸的「设计师」——做椅子的人就是木匠，画花纹的人就在器物上刻。一个人从头做到尾，好用和好看从来不是两件事。", "punch": "先记住这句话：最早的「设计」，就是「把东西做对」。"}, "qids": [1], "src": ["https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm", "https://baike.baidu.com/item/设计思想/15627717"]}, {"era": "文艺复兴", "years": "14—17世纪", "tag": "人站到了中心", "picture": "画里的人有了自己的表情和心事，不再只是神的符号。", "core": "目光从神转向人——这就是「人文主义」，科学也开始为活人服务。", "why": "手工艺解决了「用」，接下来人们开始问：那「人」自己呢？于是艺术开始表现人的思想感情。", "shift": "手工艺 → 文艺复兴：从「做得对」到「为谁做」——答案变成了「为人」。", "fun": {"kind": "记忆画面", "title": "从神像到自画像", "text": "想象同一幅画：中世纪画的是神的威严，文艺复兴画的是有表情、有情绪的真人。中心从天上挪到了地上。", "punch": "记住这个动作：把「神」换成「人」，就是文艺复兴。"}, "qids": [2], "src": ["https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm"]}, {"era": "巴洛克 → 洛可可", "years": "1600—1800", "tag": "装饰的狂欢", "picture": "巴洛克：扭动的柱子、满墙涡形、金光闪闪；洛可可：细腿、卷草、粉彩，轻得像蕾丝。", "core": "巴洛克要动感和豪华；洛可可更轻、更碎、更不对称——装饰走向极致。", "why": "人文主义把人请上中心后，宫廷开始用「排场」说话：风格变成了权力和身份的广告。", "shift": "文艺复兴 → 巴洛克/洛可可：从「表现人」滑向「炫耀人」——装饰这条线第一次走到头。", "fun": {"kind": "真实轶事", "title": "洛可可是「反弹」出来的", "text": "洛可可18世纪早期在巴黎兴起，本来就是作为对「宏大、对称、严格的巴洛克」的反动——还受中国清代装饰影响。它标志着欧洲中心从意大利转向法国、西班牙、奥地利。", "punch": "一句话记：巴洛克是厚重的豪华，洛可可就是轻巧的精致，它俩是「一个不服另一个」的关系。", "src": "https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm", "srcn": "百度百科·家居设计史时光轴"}, "qids": [3, 4, 5], "src": ["https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm"]}, {"era": "新古典主义", "years": "1760—1820", "tag": "从狂欢回到秩序", "picture": "庞贝古城被挖出来了，人们突然迷上那种安静的直线和有凹槽的桌腿。", "core": "向古典要回简洁、对称、有序、高贵——反对洛可可的繁琐。", "why": "装饰狂欢过头了，加上1738年后庞贝与赫基雷尼亚的考古点燃古典狂热，人们想找回理性与节制。", "shift": "洛可可 → 新古典：装饰太多，第一次「往回撤」——这是最后一次纯审美层面的摆动。", "fun": {"kind": "真实轶事", "title": "一场考古引发的「审美反转」", "text": "1738年后庞贝古城和赫基雷尼亚城的古罗马别墅与装饰被挖出，点燃欧洲对古典世界的狂热，新古典风格随之在1750年代兴起。", "punch": "记法：挖出一座古城，欧洲的家具就集体「变乖」了。", "src": "https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm", "srcn": "百度百科·家居设计史时光轴"}, "qids": [6], "src": ["https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm"]}, {"era": "工业革命 · 水晶宫", "years": "1851", "tag": "机器来了，但很丑", "picture": "1851年伦敦，一座通体透明的大房子，几个月就搭好——里面摆满了粗制滥造又过度装饰的展品。", "core": "机器能标准化、批量造了，效率爆炸；但「造得出来」≠「造得好」，审美没跟上。", "why": "蒸汽和机械改变了生产，物品做工粗粝、维多利亚式装饰又矫揉造作——新问题出现：机器时代的东西该长什么样？", "shift": "新古典 → 工业革命：问题换了！不再是「哪种风格」，而是「机器造的东西算不算设计」。", "fun": {"kind": "真实轶事", "title": "245个建筑师全落选，赢家是个花匠", "text": "博览会征集展馆方案，245个方案全被否——光砌砖就来不及。最后是园艺师帕克斯顿胜出：他受王莲叶背粗壮叶脉启发（他7岁女儿能站在王莲叶上），9天画出草图，用预制铁梁玻璃装配，9个月建成。长564米、9.3万平方米玻璃，被视为现代建筑先驱。当时有人嘲讽它「不过是个巨大的花房」，1936年毁于大火，丘吉尔称之为「一个时代的终结」。", "punch": "记住这个反差：专治建筑的设计不出来，种花的9天搞定——「新东西从来不按老规矩来」。", "src": "https://baike.baidu.com/item/水晶宫/2132", "srcn": "百度百科·水晶宫 / 玻璃式房屋"}, "qids": [7, 8, 9, 10], "src": ["https://baike.baidu.com/item/水晶宫/2132", "https://baike.baidu.com/view/554980.htm", "https://baike.baidu.com/view/2811865.htm"]}, {"era": "工艺美术运动", "years": "1850—1914", "tag": "对抗机器：回到手", "picture": "莫里斯看了水晶宫的展品很不舒服，决心自己做「诚实的」东西：手工、自然材料、不加虚假花纹。", "core": "拉斯金 + 莫里斯：设计中心是人不是机器，强调手工艺、自然材料、反对粗制滥造。", "why": "工业品又丑又粗，他们的解法是「躲开机器」——回到中世纪式的手工，把艺术家和匠人合为一体。", "shift": "工业革命 → 工艺美术：第一份答案——「机器是问题，回到手工」。1888年伦敦成立工艺美术展览协会，主张「把艺术家变成手工艺人，把手工艺人变成艺术家」。", "fun": {"kind": "真实轶事", "title": "一句口号暴露了它的理想", "text": "1888年成立的工艺美术展览协会，目标是「将艺术家变成手工艺人，将手工艺人变成艺术家」——既要动脑也要动手，反对只画不做的「纯设计师」。", "punch": "记法：水晶宫让人看见机器的丑，莫里斯就赌气说「那我们不用机器」。但他没算到——手工太贵，只有富人买得起，这就是它后来走不下去的死穴。", "src": "https://baike.baidu.com/item/工艺美术运动", "srcn": "百度百科·工艺美术运动 / 家居设计史"}, "qids": [11], "src": ["https://baike.baidu.com/item/工艺美术运动", "https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm"]}, {"era": "新艺术运动", "years": "1890—1910", "tag": "用手艺给机器「整容」", "picture": "海报和地铁入口全是流动的植物藤蔓曲线，像从自然里长出来的。", "core": "想用艺术拯救工业品：从自然汲取曲线造型，追求「整体艺术」。", "why": "工艺美术太贵走不远，新艺术想折中——保留手工艺的审美，但让工业品也漂亮起来。", "shift": "工艺美术 → 新艺术：还是没接受机器，只是想「把机器做的东西打扮漂亮」——贵的问题没解决。", "fun": {"kind": "记忆画面", "title": "一条藤蔓爬满整个时代", "text": "想象把莫里斯的诚实手工，加上一股植物的卷曲生命力：从海报、家具到地铁口，全是鞭打般的曲线。它和工艺美术是亲戚——都爱自然、都不服机器。", "punch": "一句话：新艺术是「穿着曲线外衣的工艺美术」，它仍在手工这条路上。"}, "qids": [], "src": ["https://baike.baidu.com/view/2811865.htm", "https://baike.baidu.com/view/4145161.htm"]}, {"era": "包豪斯", "years": "1919—1933", "tag": "大转折：拥抱机器", "picture": "一个反着拼的校名、一间方盒子办公室、一群捡破酒瓶做艺术的学生。", "core": "艺术与技术统一、为大众设计——既然躲不开机器，就主动为机器设计。现代设计教育由此诞生。", "why": "前面所有流派都输在同一个地方：太贵，普通人造不起。包豪斯换了个思路——为机器生产设计，才能又便宜又好。这是整个设计史最大的转向。", "shift": "新艺术 → 包豪斯：态度反转！从「反机器」变成「用机器服务大众」——两条线（审美+技术）第一次合流。", "fun": {"kind": "真实轶事", "title": "校名是倒着拼的，办公室是个方盒子", "text": "1919年格罗皮乌斯把德文 Hausbau（房屋建筑）倒过来拼成 Bauhaus 当校名，故意跟传统学院划清界限；他的魏玛办公室从格局到地毯到椅子全是立方体。学生约瑟夫·亚伯斯买不起材料，就上街捡被丢弃的酒瓶和碎玻璃做创作——「哥不是逃学，是找灵感」。陶瓷工作坊虽短命，却是包豪斯第一个带来营收、把设计真正投产的工作坊。", "punch": "记法：倒着取名 + 方盒子办公室 + 捡破烂做艺术——一群「不循规蹈矩的人」决定了现代设计的样子。", "src": "https://baike.baidu.com/item/包浩斯关键故事100/56481857", "srcn": "百度百科·包浩斯关键故事100"}, "qids": [], "src": ["https://baike.baidu.com/tashuo/browse/content?id=fbc778d5b1c80b1876e1a591", "https://baike.baidu.com/item/现代工业设计"]}, {"era": "现代主义", "years": "1918—1960", "tag": "少即是多，推到极致", "picture": "玻璃幕墙、钢管椅、没有花纹的盒子——形式追随功能，越少越好。", "core": "功能主义、机器美学、标准化；沙利文「形式追随功能」，密斯留下金句「少即是多」。", "why": "包豪斯的路被推到极致：去掉一切装饰，只留功能——「国际主义」风格席卷全球。", "shift": "包豪斯 → 现代主义：把「为机器设计」做到极端——结果走向千篇一律、冷漠、没人味。", "fun": {"kind": "真实轶事", "title": "从「少即是多」到「少却更好」", "text": "包豪斯第三任校长密斯·凡·德·罗留下设计史第一金句「Less is more（少即是多）」；德国设计师迪特·拉姆斯又补了一句「Less, but better（少，却更好）」，他的博朗产品设计被纽约现代艺术博物馆收藏，后来的苹果和MUJI都能看到这些前人的影子。", "punch": "记法：「少即是多」是-modern 的信仰；但记住它的副作用——全世界都变一样的盒子，就轮到下一代来反驳了。", "src": "https://baike.baidu.com/tashuo/browse/content?id=fbc778d5b1c80b1876e1a591", "srcn": "百度百科·包豪斯100岁"}, "qids": [], "src": ["https://baike.baidu.com/item/现代工业设计", "https://baike.baidu.com/view/2811865.htm"]}, {"era": "后现代主义", "years": "1970—1990", "tag": "少即乏味，把人请回来", "picture": "文丘里给妈妈盖了栋像儿童画、又像迪斯尼动画的房子——现代主义大师们气坏了。", "core": "反抗现代的纯粹与冷漠：要文脉、要隐喻、要装饰、要戏谑，风格不必统一。", "why": "现代主义把「少」推到极端，变得压抑个性、千城一面。大众喜欢的是活泼、带装饰、有历史典故的东西——后现代干脆向拉斯维加斯的霓虹灯和快餐店学习。", "shift": "现代主义 → 后现代：最大胆的一句反叛——文丘里把密斯的「少即是多」改成「Less is a bore（少即乏味）」。功能主义不再是唯一正确。", "fun": {"kind": "真实轶事", "title": "一句改名，掀了现代主义的桌子", "text": "文丘里把密斯的「Less is more」调侃成「Less is a bore（少即乏味/少即闷）」。他给母亲建的栗子山住宅像儿童画、像童话或迪斯尼电影，被称为「20世纪后半叶最大的小建筑」——既现代又古典，把传统元素放大成巨大的戏谑符号。他还写了《向拉斯维加斯学习》，主张建筑师向霓虹灯、广告牌、快餐店的市井审美取经。", "punch": "记法：现代说「少即是多」，后现代翻白眼「少得很无聊」——这一句就把一百年的严肃砸出了裂缝。", "src": "https://baike.baidu.com/tashuo/browse/content?id=afa769b982f5d741c9cfd7e9", "srcn": "百度百科·文丘里《少即乏味》 / 波普风格"}, "qids": [], "src": ["https://baike.baidu.com/tashuo/browse/content?id=afa769b982f5d741c9cfd7e9", "https://baike.baidu.com/tashuo/browse/content?id=f490c020e5212210c9bcc55c", "https://baike.baidu.com/item/波普风格/3899744"]}, {"era": "当代", "years": "1990—今", "tag": "为人，也为地球", "picture": "一个产品被设计出来，要考虑的已不只是好不好用、好不好看，还有：谁都能用吗？对环境好吗？", "core": "多元化与人本：绿色设计、无障碍设计、情感化设计、系统设计、可持续——设计伦理被提出。", "why": "后现代把风格彻底解放，问题变成：在「什么都能做」之后，设计该承担什么责任？", "shift": "后现代 → 当代：从「风格游戏」回到「责任」——1960年代末帕帕奈克《为真实的世界设计》提出设计伦理，今天设计要为人的情感、弱势群体和环境负责。", "fun": {"kind": "记忆画面", "title": "一条河绕回了最初", "text": "回头看：最早手工艺「为人做、能用就好」；中间兜了一大圈——炫耀、复古、崇拜机器、反抗机器、拥抱机器、极端简化、戏谑一切；最后当代又回到「为人」，只不过这次还多了「为地球」。", "punch": "一句话收束全史：设计史不是风格的排队，而是「人怎么和机器相处」的一场长期辩论——而人，始终是那把尺子。"}, "qids": [], "src": ["https://baike.baidu.com/item/设计思想/15627717", "https://baike.baidu.com/item/现代工业设计"]}], "src_map": {"arts": "https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm", "thought": "https://baike.baidu.com/item/设计思想/15627717", "industry": "https://baike.baidu.com/view/2811865.htm", "modern": "https://baike.baidu.com/item/现代工业设计", "west": "https://baike.baidu.com/view/4145161.htm", "crystal": "https://baike.baidu.com/item/水晶宫/2132", "glass": "https://baike.baidu.com/view/554980.htm", "expo": "https://baike.baidu.com/item/伦敦世博会", "venturi": "https://baike.baidu.com/tashuo/browse/content?id=afa769b982f5d741c9cfd7e9", "venturi2": "https://baike.baidu.com/tashuo/browse/content?id=f490c020e5212210c9bcc55c", "pop": "https://baike.baidu.com/item/波普风格/3899744", "bauhaus": "https://baike.baidu.com/tashuo/browse/content?id=fbc778d5b1c80b1876e1a591", "bauhaus100": "https://baike.baidu.com/item/包浩斯关键故事100/56481857", "craft": "https://baike.baidu.com/item/工艺美术运动"}}</script>
+<script id="quizData" type="application/json">{"title": "工业设计史 · 每日闯关题库", "count": 11, "source_file": "D:/学习进步资料/工业设计史/【工业设计史】 重点总结要点.doc", "verified": "每题 evidence 前 12 字均在本机 DOC 原文中命中", "questions": [{"id": 1, "topic": "早期", "q": "欧洲中世纪设计风格的主要特点是什么？", "options": ["追求古典的简洁与节制", "纤细精致的不对称装饰", "豪华浮夸与矫揉造作", "结构的规律性、经济性和创建性"], "answer": 3, "evidence": "中世纪。设计风格为简朴、好用甚至简陋，带有北方蛮族的粗野形态。主要特点在于结构的规律性、经济性和创建性。", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 2, "topic": "早期", "q": "文艺复兴设计思潮的中心思想是什么？", "options": ["反对一切装饰，主张机器生产", "以法国为中心，强调不对称", "人文主义，以意大利为中心", "以德国为中心，强调标准化"], "answer": 2, "evidence": "十五世纪以后形成，中心思想是“人文主 义，以意大利为中心主见文学艺术表现人的思想感情", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 3, "topic": "早期", "q": "巴洛克风格追求的外表效果是什么？", "options": ["简朴、好用甚至简陋", "豪华、浮夸和矫揉做作", "简洁、高雅、节制", "纤细、精致、不对称"], "answer": 1, "evidence": "反对文艺复兴时代 艺术的庄重、含蓄、均衡而追求豪华、浮夸和矫揉做作的外 表效果", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 4, "topic": "早期", "q": "洛可可风格在构图上刻意强调什么？", "options": ["不对称", "几何重复", "中心线均衡", "严格对称"], "answer": 0, "evidence": "在构图上有意强调不对称。颜色娇艳，恶俗。严峻受中国清 式设计风格侵染", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 5, "topic": "早期", "q": "十八世纪六十年代出现的思潮追求什么？", "options": ["粗野的蛮族形态", "纤细繁琐的曲线", "豪华浮夸的动感", "古典风格和简洁、高雅、节制的品质"], "answer": 3, "evidence": "盛行于十八世纪六十年头，指资本主义初期最 先出如今文化上的一种思潮，追求古典风格和简洁、高雅、节制的品质", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 6, "topic": "工业革命", "q": "美国制造体系的突出特点是什么？", "options": ["以装饰性为核心", "手工定制，单件生产", "标准化大批量生产，零件可互换", "仅用于家具制造"], "answer": 2, "evidence": "特点是标准化大批量生产，产 品零件具有可互换性，在一系列简化了的机械操作中好用大 功率机械装置", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 7, "topic": "工业革命", "q": "汽车工业的真正革命始于什么？", "options": ["本茨 1885 年的三轮车", "亨利·福特的 T 型车和流水装配线", "哥特式复兴运动", "内燃机的发明"], "answer": 1, "evidence": "汽车工业的真正革命是从亨利 福特的T型车 和流水装配线作业起先的", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 8, "topic": "工业革命", "q": "1851 年伦敦海德公园举办的是什么？", "options": ["第一次国际工业博览会（水晶宫）", "工艺美术运动首展", "包豪斯成立展", "第一届世界工业设计大会"], "answer": 0, "evidence": "1851 英国在伦敦海德公园 实行了第一次国际 工业博览会——“水晶宫", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 9, "topic": "工业革命", "q": "水晶宫设计方案采用了哪些材料？", "options": ["纯木材", "钢、塑料、玻璃", "砖、石、混凝土", "铁、木、玻璃"], "answer": 3, "evidence": "设计方案——帕克斯特。 只用了铁、木、玻璃，不到九 个月装配完毕", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 10, "topic": "工艺美术", "q": "工艺美术运动发生在哪个国家？", "options": ["德国", "法国", "英国", "美国"], "answer": 2, "evidence": "在莫里斯的影响下，英 国产生了一个轰轰烈烈的设计运动——工艺美术运动", "source": "【工业设计史】重点总结要点.doc（考研必考）"}, {"id": 11, "topic": "工艺美术", "q": "谁被称为拉斯金思想最直接的传人？", "options": ["格罗皮乌斯", "莫里斯", "密斯", "帕克斯特"], "answer": 1, "evidence": "主动的社会主义者，主见社会同等和反对压迫 的思想，拉斯金思想最干脆的传人，在莫里斯的影响下", "source": "【工业设计史】重点总结要点.doc（考研必考）"}]}</script>
+<script id="cardData" type="application/json">{"1": {"scene": "想象一把椅子：能坐、结实、不浪费木料，表面不加花纹。", "point": "中世纪设计先把「能用、好用」放在前面。", "why": "它不像后来的巴洛克那样追求华丽，而是靠结构的规律和省料取胜。", "more": "这就是设计史里反复出现的两条线：一条重功能，一条重装饰。", "src": "https://baike.baidu.com/item/DESIGN/3117302", "srcn": "百度百科·设计", "evidence": "中世纪。设计风格为简朴、好用甚至简陋，带有北方蛮族的粗野形态。主要特点在于结构的规律性、经济性和创建性。", "topic": "早期"}, "2": {"scene": "一幅画里的人有了自己的表情和情绪，而不是只有宗教符号。", "point": "文艺复兴把目光从神转向人，这就是「人文主义」。", "why": "中心在意大利；艺术开始表现人的思想感情，科学也开始为人生服务。", "more": "人文主义不是「不要宗教」，而是把人放回世界的中心。", "src": "https://baike.baidu.com/item/DESIGN/3117302", "srcn": "百度百科·设计", "evidence": "十五世纪以后形成，中心思想是“人文主 义，以意大利为中心主见文学艺术表现人的思想感情", "topic": "早期"}, "3": {"scene": "走进一个大厅：柱子是扭的，墙上满是起伏的涡形装饰，光照在金子上。", "point": "巴洛克要的是动感和豪华，不是安静的对称。", "why": "它故意打破文艺复兴的庄重与均衡，用夸张的曲线制造激情。", "more": "看到「扭动 + 宏大 + 金色」，先想到巴洛克。", "src": "https://baike.baidu.com/item/DESIGN/3117302", "srcn": "百度百科·设计", "evidence": "反对文艺复兴时代 艺术的庄重、含蓄、均衡而追求豪华、浮夸和矫揉做作的外 表效果", "topic": "早期"}, "4": {"scene": "路易十五的房间：细腿、卷草、粉彩，装饰轻得像蕾丝。", "point": "洛可可是18世纪法国宫廷的纤细趣味。", "why": "它比巴洛克更轻、更碎、更不对称，还受到中国清代装饰的影响。", "more": "巴洛克是「厚重的豪华」，洛可可就是「轻巧的精致」。", "src": "https://baike.baidu.com/item/DESIGN/3117302", "srcn": "百度百科·设计", "evidence": "在构图上有意强调不对称。颜色娇艳，恶俗。严峻受中国清 式设计风格侵染", "topic": "早期"}, "5": {"scene": "一个柜子的左右两边并不镜像，却看着很平衡。", "point": "洛可可刻意追求不对称。", "why": "对称显得庄重，不对称才显得轻快、流动、有生命力。", "more": "这也是它和古典主义最直观的区别。", "src": "https://baike.baidu.com/item/DESIGN/3117302", "srcn": "百度百科·设计", "evidence": "盛行于十八世纪六十年头，指资本主义初期最 先出如今文化上的一种思潮，追求古典风格和简洁、高雅、节制的品质", "topic": "早期"}, "6": {"scene": "庞贝古城挖出了古罗马的别墅，人们突然迷上了那种安静的直线。", "point": "新古典主义向古典要回简洁和节制。", "why": "它反对洛可可的繁琐，追求对称、有序、高贵的品质。", "more": "注意它和「复古」不同：借的是精神，不是照抄。", "src": "https://baike.baidu.com/article/dfe1324094c45d68bfb97f90.htm", "srcn": "百度百科·家居设计史", "evidence": "特点是标准化大批量生产，产 品零件具有可互换性，在一系列简化了的机械操作中好用大 功率机械装置", "topic": "工业革命"}, "7": {"scene": "一支枪的零件坏了，随便拿另一个同型号的换上就能用。", "point": "美国制造体系的核心是标准化、可互换。", "why": "零件按同一尺寸批量做，装配就变成简单重复的机械操作。", "more": "这套思路后来直接影响福特流水线。", "src": null, "srcn": "本机 DOC 原文（外部来源未核实，不作扩展）", "evidence": "汽车工业的真正革命是从亨利 福特的T型车 和流水装配线作业起先的", "topic": "工业革命"}, "8": {"scene": "汽车不是从有钱人的玩具变普及的，而是从「流水线」开始变便宜的。", "point": "真正的革命是福特的 T 型车 + 流水装配线。", "why": "流水线把装配拆成连续动作，产量上去、价格下来，汽车才进入普通人生活。", "more": "本茨1885年的三轮车更早，但它是「发明汽车」，不是「改变生产」。", "src": null, "srcn": "本机 DOC 原文（外部来源未核实，不作扩展）", "evidence": "1851 英国在伦敦海德公园 实行了第一次国际 工业博览会——“水晶宫", "topic": "工业革命"}, "9": {"scene": "1851年伦敦，一座通体透明的大房子，几个月就搭好了。", "point": "水晶宫是第一次国际工业博览会。", "why": "它想炫耀工业成就，也想顺便提高公众审美、制止对旧风格的乱抄。", "more": "它自己的价值在「新材料」，展品却被批评为过度装饰。", "src": "https://baike.baidu.com/item/%E5%B7%A5%E8%89%BA%E7%BE%8E%E6%9C%AF%E8%BF%90%E5%8A%A8", "srcn": "百度百科·工艺美术运动", "evidence": "设计方案——帕克斯特。 只用了铁、木、玻璃，不到九 个月装配完毕", "topic": "工业革命"}, "10": {"scene": "一座房子几乎只用铁、木、玻璃，像搭积木一样装起来。", "point": "水晶宫证明了新材料与预制装配的威力。", "why": "不到九个月完工，靠的是标准化构件和现场装配。", "more": "它也被看作20世纪现代建筑的先声。", "src": "https://baike.baidu.com/item/%E5%B7%A5%E8%89%BA%E7%BE%8E%E6%9C%AF%E8%BF%90%E5%8A%A8", "srcn": "百度百科·工艺美术运动", "evidence": "在莫里斯的影响下，英 国产生了一个轰轰烈烈的设计运动——工艺美术运动", "topic": "工艺美术"}, "11": {"scene": "莫里斯看了水晶宫的展品很不舒服，决心自己做「诚实的」东西。", "point": "莫里斯是拉斯金思想的直接传人，英国工艺美术运动由此而起。", "why": "他主张手工、自然材料、反对粗制滥造的工业品。", "more": "注意：他反对的是机械化生产，这一点和后来包豪斯正好相反。", "src": "https://baike.baidu.com/item/%E5%B7%A5%E8%89%BA%E7%BE%8E%E6%9C%AF%E8%BF%90%E5%8A%A8", "srcn": "百度百科·工艺美术运动", "evidence": "主动的社会主义者，主见社会同等和反对压迫 的思想，拉斯金思想最干脆的传人，在莫里斯的影响下", "topic": "工艺美术"}}</script>
+<script>
+(function(){
+  const W=JSON.parse(document.getElementById('worldData').textContent);
+  const Q=JSON.parse(document.getElementById('quizData').textContent).questions;
+  const C=JSON.parse(document.getElementById('cardData').textContent);
+  const $=id=>document.getElementById(id);
+  const today=()=>new Date().toISOString().slice(0,10);
+  const qById=id=>Q.find(q=>q.id===id);
+  const STEPS=[1,2,4,7,15,30];
+
+  // ---- 持久化状态 ----
+  let S={right:0,wrong:0,wrongIds:[],lastDay:'',streak:0,srs:{},history:[],theme:'simple'};
+  try{const raw=localStorage.getItem('ids_world_v1');if(raw)S=Object.assign(S,JSON.parse(raw));}catch(e){}
+  function save(){try{localStorage.setItem('ids_world_v1',JSON.stringify(S));}catch(e){}}
+  function touchDay(){
+    const d=today();
+    if(S.lastDay===d)return;
+    const y=new Date(Date.now()-86400000).toISOString().slice(0,10);
+    S.streak=(S.lastDay===y)?S.streak+1:1;S.lastDay=d;save();
+  }
+
+  // ---- 顶部主线 ----
+  $('threadQ').textContent=W.thread.question;
+  $('threadA').textContent=W.thread.answer;
+  $('tensions').innerHTML=W.thread.tensions.map(t=>
+    '<div class="ten"><b>'+t.name+'</b><span>'+t.desc+'</span></div>').join('');
+
+  // ---- 世界线 ----
+  let openIdx=-1;
+  function renderRiver(){
+    $('river').innerHTML=W.world.map((w,i)=>{
+      const fun=w.fun, real=fun.kind==='真实轶事';
+      const src=fun.src?('<a href="'+fun.src+'" target="_blank" rel="noopener">来源：'+(fun.srcn||'公开资料')+' ↗</a>'):'';
+      const qids=(w.qids||[]);
+      const qs=qids.map(id=>qById(id)).filter(Boolean);
+      const cons=qs.length
+        ? '<button class="cbtn" data-quiz="'+i+'">学完了，做 '+qs.length+' 题巩固 →</button>'
+        : '<span class="noq">这一站暂无巩固题（题库只覆盖到工艺美术运动）——故事照常，题目待补</span>';
+      return '<div class="station'+(openIdx===i?' on':'')+'" data-i="'+i+'">'+
+        '<button class="st-head" data-open="'+i+'">'+
+          '<div class="yr">'+w.years+'</div>'+
+          '<div class="era">'+w.era+' <span class="tag">· '+w.tag+'</span></div>'+
+          '<div class="shift">'+w.shift+'</div>'+
+        '</button>'+
+        '<div class="st-body">'+
+          '<div class="layer picture"><div class="lb">画面 · 先看见</div><div class="lt">'+w.picture+'</div></div>'+
+          '<div class="layer core"><div class="lb">核心思想 · 这一站在说什么</div><div class="lt">'+w.core+'</div></div>'+
+          '<div class="layer why"><div class="lb">为什么变 · 上一站留下了什么</div><div class="lt">'+w.why+'</div></div>'+
+          '<div class="fun"><span class="kind '+(real?'real':'mind')+'">'+(real?'真实轶事 · 可点来源':'记忆画面 · 帮你记，非史实')+'</span>'+
+            '<div class="ft">'+fun.title+'</div><div class="fx">'+fun.text+'</div>'+
+            '<div class="punch">'+fun.punch+'</div>'+src+'</div>'+
+          '<div class="consolid">'+cons+'</div>'+
+        '</div></div>';
+    }).join('');
+  }
+  renderRiver();
+
+  // ---- 答题（巩固层）----
+  let queue=[],qi=0,answered=false,cur=null,modeLabel='巩固',fromStation=-1,roundScore=0;
+  function openQuiz(list,label,station){
+    queue=list.slice();qi=0;roundScore=0;modeLabel=label;fromStation=(station===undefined?-1:station);
+    if(!queue.length){alert('没有可供巩固的题目');return;}
+    $('mTitle').textContent=label;$('mask').classList.add('on');showQ();
+  }
+  function showQ(){
+    if(qi>=queue.length){
+      if(modeLabel.indexOf('巩固')===0)recordRound(roundScore,queue.length);
+      $('mQuiz').innerHTML='<div class="question">这一站巩固完成 ✓</div>'+
+        '<div class="sub">本轮 '+roundScore+' / '+queue.length+' 题正确 · 累计答对 '+S.right+' / 答错 '+S.wrong+'。'+
+        '理解的河已经走完，题只是回头确认你真的 get 到了。</div>'+
+        '<div class="next"><button class="cbtn" id="doneBtn">回到世界线</button></div>';
+      $('doneBtn').onclick=closeMask;return;
+    }
+    cur=queue[qi];answered=false;
+    $('mQuiz').innerHTML='<div class="question" id="question"></div><div class="opts" id="opts"></div>'+
+      '<div class="ev" id="evidence"></div><div class="sci" id="sci"></div>'+
+      '<div class="next"><button class="cbtn" id="nextQ" style="display:none">下一题 →</button></div>';
+    $('question').textContent=cur.q;
+    const keys=['A','B','C','D'];
+    $('opts').innerHTML=cur.options.map((o,k)=>
+      '<button class="opt" data-k="'+k+'"><span class="k">'+keys[k]+'</span><span>'+o+'</span></button>').join('');
+    $('opts').querySelectorAll('.opt').forEach(b=>b.onclick=()=>answer(Number(b.dataset.k)));
+  }
+  function answer(k){
+    if(answered)return;answered=true;
+    const ok=k===cur.answer;
+    $('opts').querySelectorAll('.opt').forEach((b,i)=>{
+      b.disabled=true;
+      if(i===cur.answer)b.classList.add('right');
+      if(i===k&&!ok)b.classList.add('wrong');
+    });
+    if(!S.srs[cur.id])S.srs[cur.id]={step:0,due:0};
+    if(ok){
+      S.right++;roundScore++;S.srs[cur.id].step=Math.min(STEPS.length,S.srs[cur.id].step+1);
+      const n=S.srs[cur.id].step;
+      const d=new Date(Date.now()+STEPS[n-1]*86400000).toISOString().slice(0,10);
+      S.srs[cur.id].due=d;
+      S.wrongIds=S.wrongIds.filter(x=>x!==cur.id);
+    }else{
+      S.wrong++;S.srs[cur.id].step=0;S.srs[cur.id].due=today();
+      if(!S.wrongIds.includes(cur.id))S.wrongIds.push(cur.id);
+    }
+    touchDay();save();renderManage();
+    // 原文证据（题目答案的本源）
+    const ev=$('evidence');
+    ev.innerHTML='<b>原文依据</b><br>'+(cur.evidence||'（无原文片段）')+
+      '<div class="src">来源：'+(cur.source||'本机 DOC')+'</div>';
+    ev.classList.add('on');
+    // 科普卡（错题教学）
+    if(!ok&&C[String(cur.id)]){
+      const c=C[String(cur.id)];
+      const sci=$('sci');
+      sci.innerHTML='<div class="sh">💡 '+c.point+'</div>'+
+        '<div class="ss">'+c.scene+'</div>'+
+        '<div class="sw">'+c.why+'</div>'+
+        (c.more?'<div class="sm">延伸：'+c.more+'</div>':'')+
+        (c.src?'<div class="sm"><a href="'+c.src+'" target="_blank" rel="noopener">扩展阅读 ↗</a></div>':'');
+      sci.classList.add('on');
+    }
+    $('nextQ').style.display='inline-block';
+    $('nextQ').onclick=()=>{qi++;showQ();};
+  }
+  function closeMask(){$('mask').classList.remove('on');}
+
+  // ---- 复习管理 ----
+  function renderManage(){
+    $('mRight').textContent=S.right;$('mWrong').textContent=S.wrong;
+    const due=S.wrongIds.filter(id=>!S.srs[id]||S.srs[id].due<=today()).length;
+    $('mDue').textContent=due;$('mStreak').textContent=S.streak;
+    const top=S.history.slice().sort((a,b)=>(b.score-a.score)||(b.rate-a.rate)).slice(0,5);
+    $('board').innerHTML='<div class="sec" style="margin-top:14px">本地个人最佳 · Top 5</div>'+
+      (top.length?top.map((h,i)=>'<div class="brow"><span class="rank">'+(i+1)+'</span>'+
+        '<span class="sc">'+h.score+' / '+h.total+' 题 · '+Math.round(h.rate*100)+'%</span>'+
+        '<span class="dt">'+h.date+'</span></div>').join(''):'<div class="empty">还没有成绩，去任意一站点「巩固」吧</div>');
+  }
+  function recordRound(score,total){
+    S.history.push({date:today(),score:score,total:total,rate:score/total});
+    if(S.history.length>30)S.history=S.history.slice(-30);save();renderManage();
+  }
+  renderManage();
+
+  // ---- 事件绑定 ----
+  $('river').addEventListener('click',e=>{
+    const q=e.target.closest('[data-quiz]');
+    if(q){const i=Number(q.dataset.quiz);openQuiz((W.world[i].qids||[]).map(qById).filter(Boolean),'巩固 · '+W.world[i].era,i);return;}
+    const h=e.target.closest('[data-open]');
+    if(h){openIdx=(openIdx===Number(h.dataset.open)?-1:Number(h.dataset.open));renderRiver();}
+  });
+  $('reviewDue').onclick=()=>openQuiz(S.wrongIds.filter(id=>!S.srs[id]||S.srs[id].due<=today()).map(qById).filter(Boolean),'复习 · 今日到期');
+  $('reviewWrong').onclick=()=>openQuiz(S.wrongIds.map(qById).filter(Boolean),'复习 · 错题本');
+  $('clearWrong').onclick=()=>{if(confirm('清空错题本？不会删除已掌握记录和成绩。')){S.wrongIds=[];save();renderManage();}};
+  $('mClose').onclick=closeMask;
+  $('mask').addEventListener('click',e=>{if(e.target===$('mask'))closeMask();});
+  function applyTheme(){
+    document.documentElement.dataset.theme=S.theme;
+    document.body.dataset.kitty=(S.theme==='kitty'?'1':'0');
+    $('theme').textContent=(S.theme==='kitty'?'切换风格 ☾':'切换风格 ✿');
+  }
+  $('theme').onclick=()=>{S.theme=(S.theme==='kitty'?'simple':'kitty');save();applyTheme();};
+  applyTheme();
+
+  // 题库覆盖缺口如实标注
+  const covered=W.world.filter(w=>(w.qids||[]).length).length;
+  $('foot').textContent='世界线 '+W.world.length+' 站 · 有巩固题 '+covered+' 站 · 题库仅覆盖前 '+covered+' 站。'+
+    '轶事分「真实轶事（带来源）」与「记忆画面（非史实）」两类，已逐条标注。'+
+    '本地进度存浏览器，清缓存会丢。';
+})();
+</script>
+</body>
+</html>
