@@ -47,6 +47,7 @@
 | 不知道该用 GH 还是 C# 插件 | `grasshopper-spatial-logic.md` → §7（三层对照 + 判据） |
 | 查某个 GH 组件名 / 参数签名 | `grasshopper-component-index.md`；或运行时 `g1_search_components` / `g1_describe_component` |
 | 装了新插件后刷新 GH 组件清单 | `../scripts/Export_GH_Components.py` |
+| 做学习类网站 / 页面（时间线、卡片、题库、每日一练） | 仓库 `design-lab/003-industrial-design-history-quiz/` README §10：**先对标再动手**（Design Is History / 刷刷题类 / 工艺美术史 MOOC / Anki 四类参照）；**E-032** 三个坑：SVG 着色类漏进模板→全黑块（图库验收要用正式模板截图）、Edge headless 视口最小约 490px（测 `scrollWidth` 不要信截图）、全文搜索要「精确优先 + 正文回退」 |
 | 要打包 yak、多版本并存、安装假失败 | `verification-playbook.md` →「五」；`rhinocommon-pitfalls.md` →「打包与安装」「打包补充」 |
 | 「这个坑以前踩过没 / 当时怎么判断的」 | `experiment-log.md`（**32 条**，含 14 条被推翻的假设；E-025 为 E-024 方案落地、E-026 / E-027 为跨域能力扩展、E-028 为 v1.6 实现层的失败安全修正、E-029 为验收维度缺失、E-030 为跨域能力扩展 + 需求验证正向样本、E-031 为产品重心纠偏（刷题→理解） + Edge headless 验收手段，均不新增推翻计数） |
 | 「学习类工具怎么设计才不是死刷题 / 怎么讲得有意思 / 单文件怎么做实机验证」 | `design-lab/003-industrial-design-history-quiz/worldline.html`（v3）；**E-031**：先立一条贯穿的因果主线（每代回答同一问题、被下一代推翻）、每站四层递进（画面→思想→为什么变→轶事），题目降级为巩固；轶事分「真实（带来源）/ 记忆画面（标非史实）」不混；**验收用 Edge headless `--dump-dom`，零装库就能验证真实渲染** |
