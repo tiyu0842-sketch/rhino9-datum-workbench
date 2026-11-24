@@ -12,6 +12,28 @@
   --serif:"Noto Serif SC","Songti SC","SimSun",serif;
   --sans:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
 }
+html[data-theme="kitty"]{
+  --bg:#fff5f8; --panel:#fffdfd; --ink:#5b3d49; --muted:#a9808f; --line:#f2d6e1;
+  --accent:#ef7fa3; --accent2:#86bfa4; --gold:#e0a33d; --card:#fffafc;
+  --good:#59ad80; --bad:#e4768d; --shadow:0 3px 16px rgba(220,120,155,.10);
+  --serif:"Noto Serif SC","Songti SC","SimSun",serif;
+  --sans:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+}
+html[data-theme="kitty"] body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(circle at 12% 18%,rgba(239,127,163,.10) 0 7px,transparent 8px),
+                   radial-gradient(circle at 86% 74%,rgba(134,191,164,.11) 0 6px,transparent 7px);}
+html[data-theme="kitty"] .wrap{position:relative;z-index:1}
+html[data-theme="kitty"] .brand h1::before{content:"✿";color:var(--accent);margin-right:6px}
+html[data-theme="kitty"] .thread{background:linear-gradient(135deg,rgba(239,127,163,.12),rgba(134,191,164,.10));
+  border-color:rgba(239,127,163,.35)}
+html[data-theme="kitty"] .st::before{box-shadow:0 0 0 4px var(--bg)}
+html[data-theme="kitty"] .panel,html[data-theme="kitty"] .qcard,html[data-theme="kitty"] .sthead,
+html[data-theme="kitty"] .stbody,html[data-theme="kitty"] .modal,html[data-theme="kitty"] .btn,
+html[data-theme="kitty"] .pill,html[data-theme="kitty"] .chip,html[data-theme="kitty"] .opt,
+html[data-theme="kitty"] .wk,html[data-theme="kitty"] .pp,html[data-theme="kitty"] .statbox,
+html[data-theme="kitty"] .schoolcard,html[data-theme="kitty"] .face{border-radius:20px}
+html[data-theme="kitty"] .face,html[data-theme="kitty"] .flip{height:auto;min-height:420px}
+html[data-theme="kitty"] .cardtop .sec::after{background:var(--line)}
 html[data-theme="dark"]{
   --bg:#14161a; --panel:#1c1f24; --ink:#eae6df; --muted:#9b948a; --line:#2e3138;
   --accent:#e08a6a; --accent2:#7fb39c; --gold:#d8b45e; --card:#22252b;
@@ -409,6 +431,7 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
     内容以王受之《世界现代设计史》、何人可《工业设计史》、田自秉《中国工艺美术史》、王世襄《明式家具研究》等通行教材为骨架整理；
     图示为手绘线描「形体记号」，不是文物复原图。轶事分「有据」与「记忆画面」两类并已标注。
     题库中的院校标签表示「高频考区」，不是逐字真题。错读一处，请以原书为准。<br>
+    主题：简约 / 夜间 / 可爱三态循环，点右上角切换。<br>
     结构参考：Design Is History 的时间线、刷刷题类产品的刷题闭环、中国工艺美术史课程的门类划分；机制照搬，内容与叙事重写。
   </footer>
 </div>
@@ -459,15 +482,17 @@ $('tensions').innerHTML = D.thread.tensions.map(t=>
   `<div class="ten"><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></div>`).join('');
 
 /* ---------------- 主题 ---------------- */
+const THEME_NEXT={light:'dark',dark:'kitty',kitty:'light'};
+const THEME_LABEL={light:'夜间',dark:'可爱',kitty:'简约'};
 function applyTheme(){
   const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const th = S.theme || (sysDark ? 'dark' : 'light');
+  const th = ['light','dark','kitty'].includes(S.theme) ? S.theme : (sysDark ? 'dark' : 'light');
   document.documentElement.dataset.theme = th;
-  $('themeBtn').textContent = th==='dark' ? '日间' : '夜间';
+  $('themeBtn').textContent = THEME_LABEL[th];
 }
 $('themeBtn').onclick = ()=>{
   const cur = document.documentElement.dataset.theme;
-  S.theme = cur==='dark' ? 'light' : 'dark'; save(); applyTheme();
+  S.theme = THEME_NEXT[cur] || 'light'; save(); applyTheme();
 };
 applyTheme();
 
