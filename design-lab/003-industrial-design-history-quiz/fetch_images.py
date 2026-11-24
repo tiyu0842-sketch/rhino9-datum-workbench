@@ -184,6 +184,12 @@ def search_image(query):
 
 
 def main():
+    # 预检：出口网络不可用时快速失败，避免 86 件作品各等 3 次超时
+    probe = get_json("https://commons.wikimedia.org/w/api.php?action=query&format=json&meta=siteinfo", tries=1)
+    if not probe:
+        print("NETWORK BLOCKED: Commons API 不可达，未下载任何图片。", flush=True)
+        print("已保留线描图与在线搜图入口；网络恢复后重跑本脚本即可。", flush=True)
+        return
     out = {}
     if os.path.exists(os.path.join(CONTENT, "images.json")):
         out = json.load(open(os.path.join(CONTENT, "images.json"), encoding="utf-8"))
