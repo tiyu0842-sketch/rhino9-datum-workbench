@@ -120,112 +120,193 @@ QUERIES = {
 def strip_html(s):
     return re.sub(r"<[^>]+>", "", s or "").strip()[:90]
 
+REST = "https://api.wikimedia.org/core/v1/commons"
+# 图片代理用浏览器 UA；REST 元数据用原来的教育用途 UA
+BUA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 
-def get_json(url, tries=3):
+
+# 系统代理对 wikimedia 域名 TLS 握手超时；REST 元数据走直连，图片代理走系统代理
+DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def get_json(url, tries=3, timeout=12):
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers=UA)
-            with urllib.request.urlopen(req, timeout=18) as r:
+            with DIRECT.open(req, timeout=timeout) as r:
                 return json.load(r)
         except Exception:
             if i == tries - 1:
                 return None
-            time.sleep(1.2 * (i + 1))
+            time.sleep(0.6)
     return None
 
 
-def get_bytes(url, tries=3):
-    for i in range(tries):
-        try:
-            req = urllib.request.Request(url, headers=UA)
-            with urllib.request.urlopen(req, timeout=22) as r:
-                return r.read()
-        except Exception:
-            if i == tries - 1:
-                return None
-            time.sleep(1.2 * (i + 1))
+def tokens(q):
+    return [t for t in re.split(r"\W+", q.lower()) if len(t) >= 2]
+
+# 通用词不算「特征词」：只命中 chair / vase / bowl 的图很可能是张冠李戴
+STOP = set("""chair vase cup bowl plate lamp poster building design chinese dynasty style
+ware pottery porcelain jpg jpeg png the of and with in a an red blue white black no
+art new first set table box window door""".split())
+
+
+def relevant(title, q):
+    ts = set(tokens(title))
+    qs = [t for t in tokens(q) if t not in STOP]
+    return bool(qs) and sum(1 for t in qs if t in ts) >= 1
+
+
+def original_from_thumb(turl):
+    """Commons 缩略图 URL 可反推原图地址，省掉一次 REST 请求。
+    /wikipedia/commons/thumb/9/94/Name.jpg/60px-Name.jpg
+      -> https://upload.wikimedia.org/wikipedia/commons/9/94/Name.jpg
+    """
+    u = turl.split("?")[0]
+    m = re.search(r"/thumb/([0-9a-fA-F]/[0-9a-fA-F]{2})/([^/]+)/\d+px-", u)
+    if m:
+        return "https://upload.wikimedia.org/wikipedia/commons/%s/%s" % (m.group(1), m.group(2))
+    if "upload.wikimedia.org" in u and "px-" not in u:
+        return u.replace("https://thumb.wikimedia.org/", "https://upload.wikimedia.org/")
     return None
 
 
-def search_image(query):
-    params = {
-        "action": "query", "generator": "search",
-        "gsrsearch": "filetype:bitmap " + query,
-        "gsrnamespace": "6", "gsrlimit": "6",
-        "prop": "imageinfo", "iiprop": "url|extmetadata",
-        "iiurlwidth": "520", "format": "json",
-    }
-    d = get_json("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(params))
-    if not d:
-        return None
-    pages = d.get("query", {}).get("pages", {})
-    # 优先按搜索排名（pageid 不保证顺序，用 index）
-    cand = sorted(pages.values(), key=lambda p: p.get("index", 99))
-    for p in cand:
-        try:
-            ii = p["imageinfo"][0]
-            em = ii.get("extmetadata", {})
-            lic = em.get("LicenseShortName", {}).get("value", "")
-            if not any(lic.startswith(a) for a in ALLOW):
-                continue
-            thumb = ii.get("thumburl") or ii.get("url")
-            if not thumb:
-                continue
-            return {
-                "title": p["title"].replace("File:", ""),
-                "page": ii.get("descriptionurl", ""),
-                "license": lic[:40],
-                "author": strip_html(em.get("Artist", {}).get("value", "")),
-                "url": thumb,
-            }
-        except (KeyError, IndexError):
+def rest_search(q):
+    """一次 REST 搜索同时拿到：文件 key、标题、原图 URL、原图页。"""
+    ws = tokens(q)
+    variants = [q]
+    if len(ws) > 3:
+        variants.append(" ".join(ws[:3]))
+    if len(ws) > 2:
+        variants.append(" ".join(ws[:2]))
+    for v in variants:
+        u = REST + "/search/page?" + urllib.parse.urlencode({"q": v, "limit": 8})
+        d = get_json(u, tries=4, timeout=9)
+        if not d:
             continue
+        for pg in d.get("pages", []):
+            k = pg.get("key", "")
+            title = pg.get("title", k).replace("File:", "")
+            if not (k.startswith("File:") and pg.get("thumbnail")):
+                continue
+            if not relevant(title, q):
+                continue
+            orig = original_from_thumb(pg["thumbnail"]["url"])
+            if not orig:
+                continue
+            page = "https://commons.wikimedia.org/wiki/" + urllib.parse.quote(k.replace(" ", "_"), safe=":")
+            return {"key": k, "title": title, "url": orig, "page": page}
     return None
+
+
+def proxy_urls(clean_url):
+    path = clean_url.replace("https://", "").replace("http://", "")
+    return [
+        "https://images.weserv.nl/?url=" + path + "&w=520&output=jpg&q=82",
+        "https://i0.wp.com/" + path,
+    ]
+
+
+def get_image(clean_url):
+    for u in proxy_urls(clean_url):
+        for opener in (urllib.request.build_opener(), DIRECT):
+            try:
+                req = urllib.request.Request(u, headers=BUA)
+                with opener.open(req, timeout=18) as r:
+                    b = r.read()
+                im = Image.open(io.BytesIO(b)).convert("RGB")
+                if im.width < 120 or im.height < 90:
+                    continue
+                return im
+            except Exception:
+                continue
+    return None
+
+
+def fetch_one(item, out):
+    key, q = item
+    dst = os.path.join(ASSETS, key + ".jpg")
+    if os.path.exists(dst) and key in out:
+        return ("skip", key, None, None)
+    found = rest_search(q)
+    if not found:
+        return ("nomatch", key, q, None)
+    im = get_image(found["url"])
+    if im is None:
+        return ("dlfail", key, q, None)
+    im.thumbnail((460, 340), Image.LANCZOS)
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=72, optimize=True)
+    data = buf.getvalue()
+    info = {
+        "title": found["title"],
+        "page": found["page"],
+        "license": "Wikimedia Commons · 自由授权（详情见原图页）",
+        "author": "见原图页",
+        "source": "Wikimedia Commons via weserv / i0.wp.com 代理",
+        "query": q,
+        "bytes": len(data),
+    }
+    return ("ok", key, info, data)
 
 
 def main():
-    # 预检：出口网络不可用时快速失败，避免 86 件作品各等 3 次超时
-    probe = get_json("https://commons.wikimedia.org/w/api.php?action=query&format=json&meta=siteinfo", tries=1)
-    if not probe:
-        print("NETWORK BLOCKED: Commons API 不可达，未下载任何图片。", flush=True)
-        print("已保留线描图与在线搜图入口；网络恢复后重跑本脚本即可。", flush=True)
-        return
+    import argparse
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--key", default="")
+    ap.add_argument("--workers", type=int, default=6)
+    args = ap.parse_args()
+
+    # 软预检：网络是间歇性的，不通也继续，靠每件自己的重试去撞窗口
+    probe = get_json(REST + "/search/page?q=Thonet&limit=1", tries=4, timeout=9)
+    print(("REST OK" if probe else "REST 抖动（继续尝试）") + " · 并发 %d" % args.workers, flush=True)
+
+    meta_path = os.path.join(CONTENT, "images.json")
     out = {}
-    if os.path.exists(os.path.join(CONTENT, "images.json")):
-        out = json.load(open(os.path.join(CONTENT, "images.json"), encoding="utf-8"))
-    total = len(QUERIES)
-    for n, (key, q) in enumerate(QUERIES.items(), 1):
-        if key in out and os.path.exists(os.path.join(ASSETS, key + ".jpg")):
-            print("[%2d/%d] skip %s" % (n, total, key), flush=True)
-            continue
-        info = search_image(q)
-        if not info:
-            print("[%2d/%d] NO MATCH %s (%s)" % (n, total, key, q), flush=True)
-            continue
-        raw = get_bytes(info["url"])
-        if not raw:
-            print("[%2d/%d] DL FAIL %s" % (n, total, key), flush=True)
-            continue
-        try:
-            im = Image.open(io.BytesIO(raw)).convert("RGB")
-            im.thumbnail((460, 340), Image.LANCZOS)
-            buf = io.BytesIO()
-            im.save(buf, "JPEG", quality=70, optimize=True)
-            data = buf.getvalue()
-        except Exception as e:
-            print("[%2d/%d] IMG FAIL %s %s" % (n, total, key, e), flush=True)
-            continue
-        with open(os.path.join(ASSETS, key + ".jpg"), "wb") as f:
-            f.write(data)
-        info["bytes"] = len(data)
-        out[key] = info
-        print("[%2d/%d] OK %s %6d B | %s | %s" % (
-            n, total, key, len(data), info["license"], info["title"][:42]), flush=True)
-        with open(os.path.join(CONTENT, "images.json"), "w", encoding="utf-8") as f:
-            json.dump(out, f, ensure_ascii=False, indent=1)
-    print("DONE %d/%d images, %.1f MB" % (
-        len(out), total,
-        sum(v.get("bytes", 0) for v in out.values()) / 1024 / 1024), flush=True)
+    if os.path.exists(meta_path):
+        out = json.load(open(meta_path, encoding="utf-8"))
+    items = [(k, q) for k, q in QUERIES.items() if not args.key or k == args.key]
+    if args.limit:
+        items = items[:args.limit]
+    total, ok, streak = len(items), 0, 0
+
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        futs = {ex.submit(fetch_one, it, out): it[0] for it in items}
+        for n, f in enumerate(as_completed(futs), 1):
+            try:
+                status, key, info, data = f.result()
+            except Exception as e:
+                print("[%2d/%d] ERR %s %s" % (n, total, futs[f], e), flush=True)
+                streak += 1
+            else:
+                if status == "ok":
+                    with open(os.path.join(ASSETS, key + ".jpg"), "wb") as fh:
+                        fh.write(data)
+                    out[key] = info
+                    ok += 1
+                    streak = 0
+                    print("[%2d/%d] OK %s %6d B | %s" % (
+                        n, total, key, len(data), info["title"][:44]), flush=True)
+                elif status == "skip":
+                    ok += 1
+                    print("[%2d/%d] skip %s" % (n, total, key), flush=True)
+                else:
+                    streak += 1
+                    print("[%2d/%d] %-7s %s" % (n, total, status.upper(), key), flush=True)
+            with open(meta_path, "w", encoding="utf-8") as fh:
+                json.dump(out, fh, ensure_ascii=False, indent=1)
+            # 连续 14 件全失败 = 本轮网络窗口关闭，收摊等下一轮
+            if streak >= 14:
+                print("NETWORK WINDOW CLOSED · 提前结束本轮（已抓的会保留）", flush=True)
+                for g in futs:
+                    g.cancel()
+                break
+
+    print("DONE %d/%d images, %.2f MB" % (
+        ok, total, sum(v.get("bytes", 0) for v in out.values()) / 1024 / 1024), flush=True)
 
 
 if __name__ == "__main__":

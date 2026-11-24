@@ -87,6 +87,8 @@ html[data-theme="dark"] .vbtn.on,html[data-theme="kitty"] .vbtn.on{color:#20140d
 .photoempty a{color:var(--accent2)}
 .photonote{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.7}
 .photonote a{color:var(--accent2)}
+.approx{display:inline-block;margin-top:6px;padding:2px 9px;border-radius:999px;font-size:10.5px;
+  background:rgba(224,163,61,.16);color:var(--gold);border:1px solid rgba(224,163,61,.35)}
 .pbadge{position:absolute;right:6px;top:6px;background:var(--accent2);color:#fff;border-radius:7px;
   font-size:9px;padding:1px 5px;letter-spacing:.04em}
 .wk{position:relative}
@@ -469,6 +471,7 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
 (function(){
 "use strict";
 const D = JSON.parse(document.getElementById('DATA').textContent);
+const PHOTO_DATA = D.photos || {};
 const S_KEY = 'design_history_river_v1';
 const $ = id => document.getElementById(id);
 const today = () => new Date().toISOString().slice(0,10);
@@ -688,7 +691,7 @@ function renderPhoto(){
   const it=CUR_WORK; if(!it) return;
   const el=$('photoStage'); if(!el) return;
   if(photoMode==='photo' && it.photo){
-    el.innerHTML=`<img class="realimg" src="${it.photo}" alt="${esc(it.name)}">`;
+    el.innerHTML=`<img class="realimg" src="${PHOTO_DATA[it.photo]||''}" alt="${esc(it.name)}">`;
   }else if(photoMode==='photo'){
     el.innerHTML=`<div class="photoempty">本机还没有抓到这张作品的授权实物图。<br>
       <a href="${esc(it.photoSearch||'https://commons.wikimedia.org/')}" target="_blank" rel="noopener">维基共享资源（授权清晰）↗</a> ·
@@ -706,8 +709,9 @@ function openWork(key){
   CUR_WORK=it; photoMode=it.photo?'photo':'line';
   const pm=it.photoMeta||{};
   const credit=it.photo
-    ? `<div class="photonote">实物图：Wikimedia Commons · ${esc(pm.license||'授权见图源')} · ${esc(pm.author||'作者未标注')}
-         ${pm.page?`<a href="${esc(pm.page)}" target="_blank" rel="noopener">原图页 ↗</a>`:''}</div>`
+    ? `<div class="photonote">实物图：${esc(pm.title||'Wikimedia Commons')} · ${esc(pm.license||'授权见原图页')}
+         ${pm.page?`<a href="${esc(pm.page)}" target="_blank" rel="noopener">原图页 ↗</a>`:''}
+         ${pm.review==='近似'?'<br><span class="approx">⚠ 近似器物 / 局部特写，请对照原图页核对</span>':''}</div>`
     : `<div class="photonote">图示为手绘线描「形体记号」，不是文物复原图。</div>`;
   openModal(`
     <div class="mhead"><h3>${esc(it.name)}</h3><button class="x" onclick="__close()">×</button></div>
@@ -796,7 +800,7 @@ function renderCard(){
   const kindLabel = c.type==='work'?'作品':(c.type==='person'?'人物':(c.noteKind||'卡片'));
   $('cardIdx').textContent = `${group.i+1} / ${group.ids.length} · ${kindLabel} · ${c.stationTitle}`;
   const art = c.type==='work'
-    ? `<div class="artbig" style="--glaze:${c.tint||'#b98d5e'}">${c.svg}${c.photo?`<img class="cardphoto" src="${c.photo}" alt="">`:''}</div>`
+    ? `<div class="artbig" style="--glaze:${c.tint||'#b98d5e'}">${c.svg}${c.photo?`<img class="cardphoto" src="${PHOTO_DATA[c.photo]||''}" alt="">`:''}</div>`
     : `<div class="artbig ${c.type==='note'?'note':''}"><div class="mono">${esc(c.initial)}</div></div>`;
   $('faceFront').innerHTML = `
     <div class="top"><span>${c.track==='china'?'中国线':'世界线'}</span><span>${esc(c.year||'')}</span></div>
@@ -812,7 +816,7 @@ function renderCard(){
     <div class="why">${esc(c.why)}</div>
     ${c.punch?`<div class="quote">${esc(c.punch)}</div>`:''}
     ${c.quote?`<div class="quote">“${esc(c.quote)}”</div>`:''}
-    ${c.type==='work'&&c.photo?`<img class="cardphoto" src="${c.photo}" alt="${esc(c.title)}">`:''}
+    ${c.type==='work'&&c.photo?`<img class="cardphoto" src="${PHOTO_DATA[c.photo]||''}" alt="${esc(c.title)}">`:''}
     <div class="hintf" style="margin-top:auto">记住关键点，就够了 —— 细节交给时间线。</div>`;
   $('flip').classList.toggle('back', !!group.flipped);
   updatePoolInfo();

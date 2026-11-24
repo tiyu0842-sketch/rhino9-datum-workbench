@@ -60,6 +60,7 @@ def main():
         by_station.setdefault(j["station"], []).append(j)
 
     photos = photo_map()
+    photo_data = {k: v["data"] for k, v in photos.items() if v.get("data")}
     try:
         from fetch_images import QUERIES as IMAGE_QUERIES
     except Exception:
@@ -89,7 +90,7 @@ def main():
                     raise SystemExit("缺线描图: %s (%s)" % (key, w["name"]))
                 w["svg"] = art.ART[key]
                 wk = "%s-w%d" % (st["id"], i)
-                w["photo"] = photos.get(wk, {}).get("data", "")
+                w["photo"] = wk if wk in photo_data else ""   # 只存 key，图片数据见 D.photos
                 w["photoMeta"] = {k: v for k, v in photos.get(wk, {}).items() if k != "data"}
                 q = IMAGE_QUERIES.get(wk, "")
                 w["photoSearch"] = ("https://commons.wikimedia.org/w/index.php?title=Special:MediaSearch&type=image&search="
@@ -158,6 +159,7 @@ def main():
         "stations": stations,
         "cards": cards,
         "bank": bank_clean,
+        "photos": photo_data,
     }
 
     with open(os.path.join(HERE, "app.tpl"), encoding="utf-8") as f:
