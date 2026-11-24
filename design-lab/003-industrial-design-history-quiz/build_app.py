@@ -34,13 +34,18 @@ def photo_map():
     """本地已抓到的授权图 → base64 data URI；没抓到的留空，由前端给在线搜图入口。"""
     meta = load("images.json", {})
     out = {}
-    for key, m in meta.items():
-        p = os.path.join(ASSETS, key + ".jpg")
-        if not os.path.exists(p):
+    # 以 assets/ 里实际存在的 jpg 为准：既能用脚本抓的图，也能用人工放进去的图
+    for fn in sorted(os.listdir(ASSETS)):
+        if not fn.lower().endswith(".jpg") or fn.startswith("."):
             continue
+        key = os.path.splitext(fn)[0]
+        p = os.path.join(ASSETS, fn)
         with open(p, "rb") as f:
             b64 = base64.b64encode(f.read()).decode("ascii")
-        info = dict(m)
+        info = dict(meta.get(key, {}))
+        info.setdefault("title", "本地图片（人工提供）")
+        info.setdefault("license", "作者/授权未标注，请自行核对")
+        info.setdefault("author", "")
         info["data"] = "data:image/jpeg;base64," + b64
         out[key] = info
     return out
