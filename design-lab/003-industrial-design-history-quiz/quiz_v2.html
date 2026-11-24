@@ -141,6 +141,12 @@ body[data-kitty="1"] .act{color:#fff}
   </div>
 
   <div class="card">
+    <div class="sec">本地个人最佳榜 · 仅统计「每日闯关」</div>
+    <div id="board"><div class="sub">还没有成绩，完成一轮闯关后出现</div></div>
+    <div class="sub" style="margin-top:10px">成绩只存在这台设备的浏览器里。字段已预留云端迁移（日期/时间/题数/答对/正确率），将来做好友榜可直接上传。</div>
+  </div>
+
+  <div class="card">
     <div class="sec">错题本 · 点题看科普</div>
     <div id="wrongList"><div class="sub">暂无错题</div></div>
     <div class="row"><button class="ghost" id="clearWrong">清空错题本</button></div>
@@ -179,7 +185,7 @@ const STEPS=[1,2,4,7,15,30];
 const $=id=>document.getElementById(id);
 const DAY=864e5;
 const today=()=>new Date().toISOString().slice(0,10);
-let S={right:0,wrong:0,wrongIds:[],lastDay:'',streak:0,srs:{},theme:'simple'};
+let S={right:0,wrong:0,wrongIds:[],lastDay:'',streak:0,srs:{},theme:'simple',history:[]};
 try{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(S,JSON.parse(raw));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
 function applyTheme(){
@@ -198,7 +204,7 @@ if(S.lastDay!==td){
   S.lastDay=td;save();
 }
 
-let mode='daily',queue=[],idx=0,answered=false,current=null;
+let mode='daily',queue=[],idx=0,answered=false,current=null,roundResults={},recorded=false;
 function qById(id){return Q.find(q=>q.id===id);}
 function dueIds(){
   const n=Date.now();
@@ -220,7 +226,7 @@ function buildQueue(){
     const d=dueIds();
     queue=d.length?pick(d.map(qById).filter(Boolean),DAILY):[];
   } else queue=pick(Q.filter(q=>S.wrongIds.includes(q.id)),DAILY);
-  idx=0;render();
+  idx=0;roundResults={};recorded=false;render();
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
@@ -238,8 +244,11 @@ function render(){
   }
   if(idx>=queue.length){
     st.classList.add('hidden');fin.classList.remove('hidden');
-    $('finishBig').textContent='闯关完成';
-    $('finishSub').textContent='本轮 '+queue.length+' 题 · 错题已加入科普复习清单';
+    const got=queue.filter(q=>roundResults[q.id]===true).length;
+    const pct=Math.round(got/queue.length*100);
+    $('finishBig').textContent=pct===100?'满分！':(pct>=80?'很棒！':'继续加油');
+    $('finishSub').textContent='本轮 '+queue.length+' 题 · 答对 '+got+'（'+pct+'%）· 错题已加入科普复习清单';
+    if(mode==='daily'&&!recorded){recorded=true;recordRound(got,pct);}
     return;
   }
   st.classList.remove('hidden');fin.classList.add('hidden');
@@ -265,6 +274,7 @@ function answer(i,btn){
     else if(j===i)b.classList.add('wrong');
   });
   const id=current.id;
+  roundResults[id]=ok;
   if(!S.srs[id])S.srs[id]={step:0,due:0};
   const r=S.srs[id];
   if(ok){
@@ -304,6 +314,35 @@ function openSci(id){
   $('mask').classList.add('on');
 }
 
+// 成绩记录：本地个人最佳榜。字段设计兼容后续云端迁移（加 uid/ts 即可上传）。
+function recordRound(got,pct){
+  S.history.push({d:today(),ts:Date.now(),n:queue.length,r:got,pct:pct,mode:mode});
+  if(S.history.length>100)S.history=S.history.slice(-100);
+  save();updateStats();
+}
+function renderBoard(){
+  const box=$('board');box.innerHTML='';
+  if(!S.history.length){box.innerHTML='<div class="sub">还没有成绩，完成一轮闯关后出现</div>';return;}
+  const daily=S.history.filter(x=>x.mode==='daily');
+  if(!daily.length){box.innerHTML='<div class="sub">排行榜只统计「每日闯关」，去闯一轮吧</div>';return;}
+  const best=daily.reduce((a,b)=>b.pct>a.pct?b:a,daily[0]);
+  const avg=Math.round(daily.reduce((s,x)=>s+x.pct,0)/daily.length);
+  const head=document.createElement('div');head.className='stat';
+  head.innerHTML='<span>历史最佳<b>'+best.pct+'%</b></span>'
+                 +'<span>平均正确率<b>'+avg+'%</b></span>'
+                 +'<span>闯关轮数<b>'+daily.length+'</b></span>';
+  box.appendChild(head);
+  const list=document.createElement('div');list.style.marginTop='10px';
+  daily.slice(-8).reverse().forEach(x=>{
+    const row=document.createElement('div');row.className='dueitem';
+    const d=x.d.slice(5);
+    const medal=x.pct===100?'🏆':(x.pct>=80?'★':'·');
+    row.innerHTML='<span>'+medal+' '+d+' · 答对 '+x.r+'/'+x.n+'</span><b>'+x.pct+'%</b>';
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+}
+
 function updateStats(){
   $('cRight').textContent=S.right;$('cWrong').textContent=S.wrong;
   $('cStreak').textContent=S.streak;$('cTotal').textContent=Q.length;
@@ -326,6 +365,7 @@ function updateStats(){
     div.innerHTML='<span>'+q.q.slice(0,26)+(q.q.length>26?'…':'')+'</span><b>第 '+(s.step+1)+' 阶</b>';
     dl.appendChild(div);
   });
+  renderBoard();
 }
 
 buildQueue();updateStats();
