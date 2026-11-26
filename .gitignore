@@ -12,3 +12,18 @@ design-lab/**/soundtrack.wav
 
 # 用户自备的人声旁白是本地素材，不入库（narration.md 说明怎么放）
 design-lab/**/narration.wav
+
+# 004 基准面：保留成片 mp4 / 源码 / 交付文档；不入库可重生的中间产物
+# （三个 12MB wav 音轨可由 audio.py + edge-tts 重生，frames 可由 render.py 重生）
+design-lab/004-datum-plane-explainer/soundtrack.wav
+design-lab/004-datum-plane-explainer/narration_mix.wav
+design-lab/004-datum-plane-explainer/narration_edge.wav
+design-lab/004-datum-plane-explainer/vo_samples/
+design-lab/004-datum-plane-explainer/verify_v1/
+design-lab/004-datum-plane-explainer/verify_v2/
+design-lab/004-datum-plane-explainer/verify_v3/
+design-lab/004-datum-plane-explainer/probe_*.png
+design-lab-release.bundle
+
+# m2s 的体积结果 JSON 由脚本重生（合计 6MB）；只入库源码与 README
+m2s/python/*_result.json

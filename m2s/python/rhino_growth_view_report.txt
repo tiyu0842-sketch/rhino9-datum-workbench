@@ -1,0 +1,13 @@
+Rhino 9.1.26314.9001 doc objects = 28
+清理旧 M2S_Grow_ 对象: 0
+解析 STL ...
+  faces 1499944 verts 749972
+  汇总: {'sphere_regions': 5, 'reliable_radii': 2, 'degenerate_seeds': 2, 'truncated_regions': 1}
+  #1 SPHERE RELIABLE   faces=42246  verts=21410  color=(80, 200, 220) R=0.099134 span=89.35
+  #2 SPHERE RELIABLE   faces=24106  verts=12364  color=(90, 140, 235) R=0.111989 span=95.26
+  #4 SPHERE UNRELIABLE faces=13954  verts=7355   color=(150, 150, 150) R=0.091971 span=108.61
+  #3 SPHERE DEGENERATE faces=714    verts=609    color=(140, 60, 60) R=0.437076 span=170.64
+  #5 SPHERE DEGENERATE faces=190    verts=126    color=(140, 60, 60) R=0.076397 span=179.7
+  #0 PLANE  PLANE      faces=23198  verts=12470  color=(176, 132, 70) R=None span=None
+隐藏旧 catpaw 对象 11 / 原始大网格 1 （仅隐藏，未删除）
+DONE doc objects = 39

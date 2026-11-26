@@ -1,0 +1,28 @@
+Rhino 9.1.26314.9001
+cylinder axis cx=0.0117 cy=0.0421 r=0.2556  (Kasa 2D fit, 3106674 pts)
+
+id     faces      area    planeRMS      sphRMS    ratio    radius type   
+-------------------------------------------------------------------------
+0      23198   0.02952    0.001801    0.011147     0.16    0.2774 PLANE  
+1       5845   0.00760    0.003859    0.000336    11.50    0.0963 SPHERE 
+2       1205   0.00105    0.002019    0.000822     2.46    0.1387 SPHERE 
+4        491   0.00044    0.001274    0.000186     6.84    0.0398 SPHERE 
+3        714   0.00027    0.003413    0.000276    12.38    0.4371 SPHERE 
+5        190   0.00020    0.000704    0.000061    11.51    0.0764 SPHERE 
+
+--- SPHERE candidates: centre layout relative to cylinder axis ---
+  id=1  R=0.0963 centre=( -0.025, -0.183,  0.948) radial= 0.228 angle=  -99.2 deg  z=[1.030,1.044]
+  id=2  R=0.1387 centre=(  0.143, -0.169,  0.798) radial= 0.248 angle=  -58.2 deg  z=[0.919,0.935]
+  id=4  R=0.0398 centre=( -0.000, -0.193,  0.782) radial= 0.235 angle=  -92.9 deg  z=[0.814,0.822]
+  id=3  R=0.4371 centre=( -0.333, -0.123,  0.485) radial= 0.382 angle= -154.4 deg  z=[0.060,0.075]
+  id=5  R=0.0764 centre=( -0.050, -0.245,  0.677) radial= 0.294 angle= -102.0 deg  z=[0.606,0.611]
+
+--- Rhino kernel sphere cross-check (radius) ---
+  id=0  type=PLANE  algR=0.2774 rhinoR=0.2705 result=None
+  id=1  type=SPHERE algR=0.0963 rhinoR=0.0962 result=None
+  id=2  type=SPHERE algR=0.1387 rhinoR=0.1208 result=None
+  id=4  type=SPHERE algR=0.0398 rhinoR=0.0396 result=None
+  id=3  type=SPHERE algR=0.4371 rhinoR=0.1753 result=None
+  id=5  type=SPHERE algR=0.0764 rhinoR=0.0531 result=None
+
+-> C:\Users\21251\WorkBuddy\2026-11-21-15-41-26\_tmp\github-release\m2s\python\catpaw_result.json
